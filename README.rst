@@ -8,12 +8,8 @@ Welcome to Deep Logic
 |Docs|
 |Dependendencies|
 
-|PyPI download total|
 |PyPI license|
-
-
 |PyPI-version|
-|Language|
 
 
 
@@ -39,15 +35,15 @@ Welcome to Deep Logic
     :alt: GitHub repo size
     :target: https://github.com/pietrobarbiero/deep-logic
 
-.. |PyPI download total| image:: https://img.shields.io/pypi/dm/deeplogic?label=downloads&style=for-the-badge
+.. |PyPI download total| image:: https://img.shields.io/pypi/dm/deep-logic?label=downloads&style=for-the-badge
     :alt: PyPI - Downloads
-    :target: https://pypi.python.org/pypi/deeplogic/
+    :target: https://pypi.python.org/pypi/deep-logic/
 
 .. |Open issues| image:: https://img.shields.io/github/issues/pietrobarbiero/deep-logic?style=for-the-badge
     :alt: GitHub issues
     :target: https://github.com/pietrobarbiero/deep-logic
 
-.. |PyPI license| image:: https://img.shields.io/pypi/l/deeplogic.svg?style=for-the-badge
+.. |PyPI license| image:: https://img.shields.io/pypi/l/deep-logic.svg?style=for-the-badge
    :target: https://pypi.python.org/pypi/deeplogic/
 
 .. |Followers| image:: https://img.shields.io/github/followers/pietrobarbiero?style=social
@@ -58,7 +54,7 @@ Welcome to Deep Logic
     :alt: GitHub stars
     :target: https://github.com/pietrobarbiero/deep-logic
 
-.. |PyPI-version| image:: https://img.shields.io/pypi/v/deeplogic?style=for-the-badge
+.. |PyPI-version| image:: https://img.shields.io/pypi/v/deep-logic?style=for-the-badge
     :alt: PyPI
     :target: https://pypi.python.org/pypi/deeplogic/
 
