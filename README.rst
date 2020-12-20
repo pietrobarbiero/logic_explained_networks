@@ -44,7 +44,7 @@ Welcome to Deep Logic
     :target: https://github.com/pietrobarbiero/deep-logic
 
 .. |PyPI license| image:: https://img.shields.io/pypi/l/deep-logic.svg?style=for-the-badge
-   :target: https://pypi.python.org/pypi/deeplogic/
+   :target: https://pypi.python.org/pypi/deep-logic/
 
 .. |Followers| image:: https://img.shields.io/github/followers/pietrobarbiero?style=social
     :alt: GitHub followers
@@ -84,11 +84,11 @@ Quick start
 -----------
 
 You can install Deep Logic along with all its dependencies from
-`PyPI <https://pypi.org/project/deeplogic/>`__:
+`PyPI <https://pypi.org/project/deep-logic/>`__:
 
 .. code:: bash
 
-    $ pip install -r requirements.txt deeplogic
+    $ pip install -r requirements.txt deep-logic
 
 
 Example

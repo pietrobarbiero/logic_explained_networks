@@ -15,17 +15,17 @@ Quick start
 -----------
 
 You can install Deep Logic along with all its dependencies from
-`PyPI <https://pypi.org/project/deeplogic/>`__:
+`PyPI <https://pypi.org/project/deep-logic/>`__:
 
 .. code:: bash
 
-    $ pip install -r requirements.txt deeplogic
+    $ pip install -r requirements.txt deep-logic
 
 Source
 ------
 
 The source code and minimal working examples can be found on
-`GitHub <https://github.com/pietrobarbiero/deeplogic>`__.
+`GitHub <https://github.com/pietrobarbiero/deep-logic>`__.
 
 
 .. toctree::
