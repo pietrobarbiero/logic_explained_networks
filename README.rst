@@ -15,11 +15,6 @@ Welcome to Deep Logic
 |PyPI-version|
 |Language|
 
-|Repo size|
-|Open issues|
-
-|Maintenance|
-|Contributors|
 
 
 
