@@ -56,7 +56,7 @@ Welcome to Deep Logic
 
 .. |PyPI-version| image:: https://img.shields.io/pypi/v/deep-logic?style=for-the-badge
     :alt: PyPI
-    :target: https://pypi.python.org/pypi/deeplogic/
+    :target: https://pypi.python.org/pypi/deep-logic/
 
 .. |Contributors| image:: https://img.shields.io/github/contributors/pietrobarbiero/deep-logic?style=for-the-badge
     :alt: GitHub contributors
