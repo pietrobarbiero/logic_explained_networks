@@ -2,8 +2,8 @@
 
 [run]
 branch = True
-source = template
-include = */template/*
+source = deep_logic
+include = */deep_logic/*
 omit =
     */setup.py
 

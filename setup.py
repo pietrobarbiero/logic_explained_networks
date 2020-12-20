@@ -7,21 +7,21 @@ import os
 from setuptools import find_packages, setup
 
 # get __version__ from _version.py
-ver_file = os.path.join('template', '_version.py')
+ver_file = os.path.join('deep_logic', '_version.py')
 with open(ver_file) as f:
     exec(f.read())
 
-DISTNAME = 'project-template'
-DESCRIPTION = 'A template.'
+DISTNAME = 'deep-logic'
+DESCRIPTION = 'Deep logic: Interpretable neural networks in Python.'
 with codecs.open('README.rst', encoding='utf-8-sig') as f:
     LONG_DESCRIPTION = f.read()
 MAINTAINER = 'P. Barbiero'
 MAINTAINER_EMAIL = 'barbiero@tutanota.com'
-URL = 'https://github.com/pietrobarbiero/project-template'
+URL = 'https://github.com/pietrobarbiero/deep-logic'
 LICENSE = 'Apache 2.0'
-DOWNLOAD_URL = 'https://github.com/pietrobarbiero/project-template'
+DOWNLOAD_URL = 'https://github.com/pietrobarbiero/deep-logic'
 VERSION = __version__
-INSTALL_REQUIRES = ['numpy', 'scipy', 'scikit-learn', 'pandas']
+INSTALL_REQUIRES = ['numpy', 'torch', 'sympy']
 CLASSIFIERS = ['Intended Audience :: Science/Research',
                'Intended Audience :: Developers',
                'License :: OSI Approved',

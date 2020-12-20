@@ -1,52 +1,62 @@
-.. project-template documentation master file, created by
-   sphinx-quickstart on Mon Jan 18 14:44:12 2016.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+Welcome to Deep Logic
+======================
 
-Welcome to sklearn-template's documentation!
-============================================
 
-This project is a reference implementation to anyone who wishes to develop
-scikit-learn compatible classes.
+Deep Logic is a python package providing a set of utilities to
+build deep learning models that are explainable by design.
+
+This library provides APIs to:
+
+* prune a standard model to get deep logic model
+* extract logical formulas explaining network predictions
+* validate the input data, the model architecture, and the pruning strategy
+
+Quick start
+-----------
+
+You can install Deep Logic along with all its dependencies from
+`PyPI <https://pypi.org/project/deeplogic/>`__:
+
+.. code:: bash
+
+    $ pip install -r requirements.txt deeplogic
+
+Source
+------
+
+The source code and minimal working examples can be found on
+`GitHub <https://github.com/pietrobarbiero/deeplogic>`__.
+
 
 .. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: Getting Started
+    :caption: User Guide
+    :maxdepth: 2
 
-   quick_start
-
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: Documentation
-
-   user_guide
-   api
+    user_guide/installation
+    user_guide/tutorial
+    user_guide/contributing
+    user_guide/running_tests
 
 .. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: Tutorial - Examples
+    :caption: API Reference
+    :maxdepth: 2
 
-   auto_examples/index
+    modules/fol
+    modules/prune
+    modules/utils
 
-`Getting started <quick_start.html>`_
--------------------------------------
 
-Information regarding this template and how to modify it for your own project.
+.. toctree::
+    :caption: Copyright
+    :maxdepth: 1
 
-`User Guide <user_guide.html>`_
--------------------------------
+    user_guide/authors
+    user_guide/licence
 
-An example of narrative documentation.
 
-`API Documentation <api.html>`_
--------------------------------
+Indices and tables
+~~~~~~~~~~~~~~~~~~
 
-An example of API documentation.
-
-`Examples <auto_examples/index.html>`_
---------------------------------------
-
-A set of examples. It complements the `User Guide <user_guide.html>`_.
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`

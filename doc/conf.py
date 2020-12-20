@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath('../'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Project Template'
+project = 'Deep logic'
 copyright = '2020, Pietro Barbiero'
 author = 'Pietro Barbiero'
 

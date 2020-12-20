@@ -1,4 +1,4 @@
-from ._fol_extractor import generate_fol_explanations
+from .fol_extractor import generate_fol_explanations
 from ._version import __version__
 
 __all__ = [

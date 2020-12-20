@@ -1,7 +1,7 @@
 import torch
 from torch.nn.utils import prune
 
-from ._utils import validate_network
+from .utils import validate_network
 
 
 def prune_equal_fanin(model: torch.nn.Module, k: int = 2, validate: bool = True) -> torch.nn.Module:
