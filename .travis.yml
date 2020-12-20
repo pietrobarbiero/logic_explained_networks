@@ -22,8 +22,8 @@ install:
   # create the testing environment
   - conda create -n testenv --yes python=$PYTHON_VERSION pip
   - source activate testenv
-  - conda install numpy==$NUMPY_VERSION sympy=$SYMPY_VERSION cython nose pytest pytest-cov
-  - conda install pytorch torchvision torchaudio cpuonly -c pytorch
+  - conda install --yes numpy==$NUMPY_VERSION sympy=$SYMPY_VERSION cython nose pytest pytest-cov
+  - conda install --yes pytorch torchvision torchaudio cpuonly -c pytorch
   - pip install codecov
   - pip install .
 
