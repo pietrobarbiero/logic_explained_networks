@@ -233,7 +233,7 @@ Constraints theory in machine learning::
 Authors
 -------
 
-`Pietro Barbiero <http://www.pietrobarbiero.eu/>`__.
+`Pietro Barbiero <http://www.pietrobarbiero.eu/>`__, Gabriele Ciravegna, and Dobrik Georgiev.
 
 Licence
 -------

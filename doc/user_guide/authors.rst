@@ -1,4 +1,6 @@
 Authors
 =======
 
-* Pietro Barbiero - AI engineer - `GitHub <https://github.com/pietrobarbiero>`__
+* Pietro Barbiero
+* Gabriele Ciravegna
+* Dobrik Georgiev
