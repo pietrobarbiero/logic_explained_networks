@@ -4,18 +4,24 @@ import torch
 import numpy as np
 
 
-def collect_parameters(model: torch.nn.Module) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+def collect_parameters(model: torch.nn.Module, device: torch.device = torch.device('cpu')) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """
     Collect network parameters in two lists of numpy arrays.
 
     :param model: pytorch model
+    :param device: cpu or cuda device
     :return: list of weights and list of biases
     """
     weights, bias = [], []
     for module in model.children():
         if isinstance(module, torch.nn.Linear):
-            weights.append(module.weight.detach().numpy())
-            bias.append(module.bias.detach().numpy())
+            if device.type == 'cpu':
+                weights.append(module.weight.detach().numpy())
+                bias.append(module.bias.detach().numpy())
+
+            else:
+                weights.append(module.weight.cpu().detach().numpy())
+                bias.append(module.bias.cpu().detach().numpy())
 
     return weights, bias
 

@@ -4,13 +4,14 @@ from torch.nn.utils import prune
 from .utils import validate_network
 
 
-def prune_equal_fanin(model: torch.nn.Module, k: int = 2, validate: bool = True) -> torch.nn.Module:
+def prune_equal_fanin(model: torch.nn.Module, k: int = 2, validate: bool = True, device: torch.device = torch.device('cpu')) -> torch.nn.Module:
     """
     Prune the dense layers of the network such that each neuron has the same fan-in.
 
     :param model: pytorch model
     :param k: fan-in
     :param validate: if True then validate the network after pruning
+    :param device: cpu or cuda device
     :return: pruned model
     """
     model.eval()
@@ -25,7 +26,7 @@ def prune_equal_fanin(model: torch.nn.Module, k: int = 2, validate: bool = True)
             for j in range(len(idx)):
                 mask[j, idx[j]] = 0
             # prune
-            prune.custom_from_mask(module, name="weight", mask=mask)
+            prune.custom_from_mask(module, name="weight", mask=mask.to(device))
 
     if validate:
         validate_network(model)
