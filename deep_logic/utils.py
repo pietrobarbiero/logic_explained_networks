@@ -17,11 +17,17 @@ def collect_parameters(model: torch.nn.Module, device: torch.device = torch.devi
         if isinstance(module, torch.nn.Linear):
             if device.type == 'cpu':
                 weights.append(module.weight.detach().numpy())
-                bias.append(module.bias.detach().numpy())
+                try:
+                    bias.append(module.bias.detach().numpy())
+                except:
+                    pass
 
             else:
                 weights.append(module.weight.cpu().detach().numpy())
-                bias.append(module.bias.cpu().detach().numpy())
+                try:
+                    bias.append(module.bias.cpu().detach().numpy())
+                except:
+                    pass
 
     return weights, bias
 
