@@ -4,6 +4,36 @@ import torch
 
 
 class TestTemplateObject(unittest.TestCase):
+    def test_relunets(self):
+        import numpy as np
+        from deep_logic import get_reduced_model
+        from deep_logic.fol import generate_local_explanations
+
+        torch.manual_seed(10)
+        np.random.seed(0)
+
+        x_sample = torch.tensor([0, 1], dtype=torch.float)
+
+        layers = [
+            torch.nn.Linear(2, 2, bias=False),
+            torch.nn.ReLU(),
+            torch.nn.Linear(2, 1, bias=False),
+            torch.nn.Sigmoid(),
+        ]
+        model = torch.nn.Sequential(*layers)
+        model.eval()
+        y_pred = model(x_sample)
+
+        model_reduced = get_reduced_model(model, x_sample)
+        y_pred_reduced = model_reduced(x_sample)
+
+        explanation = generate_local_explanations(model_reduced, x_sample)
+        print(explanation)
+
+        assert y_pred.eq(y_pred_reduced)[0]
+
+        return
+
     def test_example(self):
         import torch
         import numpy as np
