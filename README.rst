@@ -240,7 +240,7 @@ explanations of the predictions for a specific class:
 The global explanation is given as a disjunction of local explanations
 for a specified class.
 For this problem the generated explanation for class ``y=1`` is
-``(f1 AND ~f2) OR (f2  AND ~f1)`
+``(f1 AND ~f2) OR (f2  AND ~f1)``
 which corresponds to ``f1 XOR f2``
 (i.e. the `exclusive OR` function).
 
