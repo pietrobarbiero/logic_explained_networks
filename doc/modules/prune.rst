@@ -1,5 +1,5 @@
-Network pruning
-========================
+:math:`\psi`-network pruning
+=============================
 
 :mod:`deep_logic.prune`
 

@@ -1,5 +1,5 @@
-Tutorial
-========
+FOL explanations of :math:`\psi`-networks
+==========================================
 
 First of all we need to import some useful libraries:
 
@@ -45,13 +45,13 @@ We can instantiate a simple feed-forward neural network with 2 layers:
 Before training the network, we should validate the input data and the
 network architecture. The requirements are the following:
 
-* all the input features should be in $[0,1]$;
+* all the input features should be in :math:`[0,1]`;
 * all the activation functions should be sigmoids.
 
 .. code:: python
 
     dl.validate_data(x)
-    dl.validate_network(model)
+    dl.validate_network(model, 'psi')
 
 We can now train the network pruning weights with the
 lowest absolute values after 500 epochs:
@@ -60,6 +60,7 @@ lowest absolute values after 500 epochs:
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     model.train()
+    need_pruning = True
     for epoch in range(1000):
         # forward pass
         optimizer.zero_grad()
@@ -77,8 +78,9 @@ lowest absolute values after 500 epochs:
             print(f'Epoch {epoch}: train accuracy: {accuracy:.4f}')
 
         # pruning
-        if epoch > 500:
+        if epoch > 500 and need_pruning:
             model = dl.prune_equal_fanin(model, 2)
+            need_pruning = False
 
 Once trained the ``fol`` package can be used to generate first-order
 logic explanations of the predictions:
@@ -90,5 +92,7 @@ logic explanations of the predictions:
     f = dl.fol.generate_fol_explanations(weights, biases)[0]
     print(f'Explanation: {f}')
 
-For this problem the generated explanation is ``(f1 & ~f2) | (f2 & ~f1)``
-which corresponds to ``f1 XOR f2``.
+For this problem the generated explanation for class :math:`y=1` is
+:math:`(f_1 \land \neg f_2) \lor (f_2  \land \neg f_1)`
+which corresponds to :math:`f_1 \oplus f_2`
+(i.e. the exclusive OR function).

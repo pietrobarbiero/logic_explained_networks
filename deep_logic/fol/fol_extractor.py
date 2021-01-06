@@ -1,21 +1,23 @@
 from typing import List
 
+import torch
 import numpy as np
-from sympy import to_cnf
 from sympy.logic import simplify_logic
 
 from ._utils import count_neurons, get_nonpruned_positions, \
-    build_truth_table, get_nonpruned_weights, forward
+    build_truth_table, get_nonpruned_weights, _forward
+from ..utils import collect_parameters
 
 
-def generate_fol_explanations(weights: List[np.array], bias: List[np.array]):
+def generate_fol_explanations(model: torch.nn.Module, device: torch.device = torch.device('cpu')) -> List[str]:
     """
     Generate the FOL formulas corresponding to the parameters of a reasoning network.
 
-    :param weights: list of the weight matrices of the reasoning network; shape: $h_{i+1} \times h_{i}$.
-    :param bias: list of the bias vectors of the reasoning network; shape: $h_{i} \times 1$.
-    :return:
+    :param model: pytorch model
+    :param device: cpu or cuda device
+    :return: first-order logic formulas
     """
+    weights, bias = collect_parameters(model, device)
     assert len(weights) == len(bias)
 
     # count number of layers of the reasoning network
@@ -40,13 +42,14 @@ def generate_fol_explanations(weights: List[np.array], bias: List[np.array]):
     predictions = list()
     for j in range(n_layers):
         weights_active = get_nonpruned_weights(weights[j], fan_in)
-        y_pred = forward(truth_table, weights_active, bias[j])
+        y_pred = _forward(truth_table, weights_active, bias[j])
         predictions.append(y_pred)
 
+    formulas = None
     for j in range(n_layers):
         formulas = list()
         for i in range(neuron_list[j]):
-            formula = _compute_fol_formula(truth_table, predictions[j][i], feature_names, nonpruned_positions[j][i][0])
+            formula = compute_fol_formula(truth_table, predictions[j][i], feature_names, nonpruned_positions[j][i][0])
             formulas.append(f'({formula})')
 
         # the new feature names are the formulas we just computed
@@ -54,7 +57,8 @@ def generate_fol_explanations(weights: List[np.array], bias: List[np.array]):
     return formulas
 
 
-def _compute_fol_formula(truth_table, predictions, feature_names, nonpruned_positions):
+def compute_fol_formula(truth_table: np.array, predictions: np.array, feature_names: List[str],
+                        nonpruned_positions: List[np.array]) -> str:
     """
     Compute First Order Logic formulas.
 
@@ -62,7 +66,7 @@ def _compute_fol_formula(truth_table, predictions, feature_names, nonpruned_posi
     :param predictions: output predictions for the current neuron.
     :param feature_names: name of the input features.
     :param nonpruned_positions: position of non-pruned weights
-    :return:
+    :return: first-order logic formula
     """
     # select the rows of the input truth table for which the output is true
     X = truth_table[np.nonzero(predictions)]
@@ -105,16 +109,3 @@ def _compute_fol_formula(truth_table, predictions, feature_names, nonpruned_posi
     # simplify formula
     simplified_formula = simplify_logic(formula)
     return str(simplified_formula)
-
-
-if __name__ == '__main__':
-    w1 = np.array([[1, 0, 2, 0, 0], [1, 0, 3, 0, 0], [0, 1, 0, -1, 0]])
-    w2 = np.array([[1, 0, -2]])
-    b1 = [1, 0, -1]
-    b2 = [1]
-
-    w = [w1, w2]
-    b = [b1, b2]
-
-    f = generate_fol_explanations(w, b)
-    print("Formula: ", f)

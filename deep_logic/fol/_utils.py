@@ -1,15 +1,17 @@
+from typing import List
+
 import numpy as np
 from itertools import product
 
 
-def forward(X, weights, bias):
+def _forward(X: np.array, weights: np.array, bias: np.array) -> np.array:
     """
     Simulate the forward pass on one layer.
 
     :param X: input matrix.
     :param weights: weight matrix.
     :param bias: bias vector.
-    :return:
+    :return: layer output
     """
     a = np.matmul(weights, np.transpose(X))
     b = np.reshape(np.repeat(bias, np.shape(X)[0], axis=0), np.shape(a))
@@ -19,13 +21,13 @@ def forward(X, weights, bias):
 
 
 
-def get_nonpruned_weights(weight_matrix, fan_in):
+def get_nonpruned_weights(weight_matrix: np.array, fan_in: int) -> np.array:
     """
     Get non-pruned weights.
 
     :param weight_matrix: weight matrix of the reasoning network; shape: $h_{i+1} \times h_{i}$.
     :param fan_in: number of incoming active weights for each neuron in the network.
-    :return:
+    :return: non-pruned weights
     """
     n_neurons = weight_matrix.shape[0]
     weights_active = np.zeros((n_neurons, fan_in))
@@ -35,12 +37,12 @@ def get_nonpruned_weights(weight_matrix, fan_in):
     return weights_active
 
 
-def build_truth_table(fan_in):
+def build_truth_table(fan_in: int) -> np.array:
     """
     Build the truth table taking into account non-pruned features only,
 
     :param fan_in: number of incoming active weights for each neuron in the network.
-    :return:
+    :return: truth table
     """
     items = []
     for i in range(fan_in):
@@ -49,13 +51,13 @@ def build_truth_table(fan_in):
     return np.array(truth_table)
 
 
-def get_nonpruned_positions(weights, neuron_list):
+def get_nonpruned_positions(weights: List[np.array], neuron_list: List[int]) -> List:
     """
     Get the list of the position of non-pruned weights.
 
     :param weights: list of the weight matrices of the reasoning network; shape: $h_{i+1} \times h_{i}$.
     :param neuron_list: list containing the number of neurons for each layer of the network.
-    :return:
+    :return: list of the position of non-pruned weights
     """
     nonpruned_positions = []
     for j in range(len(weights)):
@@ -67,12 +69,12 @@ def get_nonpruned_positions(weights, neuron_list):
     return nonpruned_positions
 
 
-def count_neurons(weights):
+def count_neurons(weights: List[np.array]) -> List[int]:
     """
     Count the number of neurons for each layer of the neural network.
 
     :param weights: list of the weight matrices of the reasoning network; shape: $h_{i+1} \times h_{i}$.
-    :return:
+    :return: number of neurons for each layer of the neural network
     """
     n_layers = len(weights)
     neuron_list = np.zeros(n_layers, dtype=int)
@@ -84,4 +86,4 @@ def count_neurons(weights):
 
 
 def sigmoid_activation(x):
-    return (1 / (1 + np.exp(-x)))
+    return 1 / (1 + np.exp(-x))

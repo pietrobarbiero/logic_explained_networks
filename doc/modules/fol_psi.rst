@@ -1,5 +1,5 @@
-Generation of FOL explanations
-===============================
+FOL explanations for :math:`\psi`-networks
+===========================================
 
 :mod:`deep_logic.fol.fol_extractor`
 

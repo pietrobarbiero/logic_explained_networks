@@ -6,21 +6,42 @@ import torch
 class TestTemplateObject(unittest.TestCase):
     def test_relunets(self):
         import numpy as np
-        from deep_logic import get_reduced_model
-        from deep_logic.fol import generate_local_explanations
+        from deep_logic import get_reduced_model, validate_network, validate_data
+        from deep_logic.fol import generate_local_explanations, combine_local_explanations
 
         torch.manual_seed(10)
         np.random.seed(0)
 
+        x = torch.tensor([[0, 1], [1, 1], [1, 0], [0, 0]], dtype=torch.float)
+        y = torch.tensor([1, 0, 1, 0], dtype=torch.float).unsqueeze(1)
         x_sample = torch.tensor([0, 1], dtype=torch.float)
 
         layers = [
-            torch.nn.Linear(2, 2, bias=False),
+            torch.nn.Linear(2, 10),
             torch.nn.ReLU(),
-            torch.nn.Linear(2, 1, bias=False),
+            torch.nn.Linear(10, 4),
+            torch.nn.ReLU(),
+            torch.nn.Linear(4, 1),
             torch.nn.Sigmoid(),
         ]
         model = torch.nn.Sequential(*layers)
+        validate_network(model, 'relu')
+        validate_data(x)
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+        model.train()
+        for epoch in range(1000):
+            optimizer.zero_grad()
+            y_pred = model(x)
+            loss = torch.nn.functional.binary_cross_entropy(y_pred, y)
+            for module in model.children():
+                if isinstance(module, torch.nn.Linear):
+                    loss += 0.0001 * torch.norm(module.weight, 1)
+            loss.backward()
+            optimizer.step()
+        explanation = combine_local_explanations(model, x, y)
+        print(explanation)
+
         model.eval()
         y_pred = model(x_sample)
 
@@ -34,7 +55,7 @@ class TestTemplateObject(unittest.TestCase):
 
         return
 
-    def test_example(self):
+    def test_psi_example(self):
         import torch
         import numpy as np
         from deep_logic import validate_network, prune_equal_fanin, collect_parameters
@@ -53,7 +74,7 @@ class TestTemplateObject(unittest.TestCase):
 
         layers = [torch.nn.Linear(2, 4), torch.nn.Sigmoid(), torch.nn.Linear(4, 1), torch.nn.Sigmoid()]
         model = torch.nn.Sequential(*layers)
-        validate_network(model)
+        validate_network(model, 'psi')
 
         optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
         model.train()
@@ -78,8 +99,7 @@ class TestTemplateObject(unittest.TestCase):
                 model = prune_equal_fanin(model, 2)
 
         # generate explanations
-        weights, biases = collect_parameters(model)
-        f = fol.generate_fol_explanations(weights, biases)[0]
+        f = fol.generate_fol_explanations(model)[0]
         print(f'Explanation: {f}')
 
         assert f == '((f1 & ~f2) | (f2 & ~f1))'
@@ -119,24 +139,7 @@ class TestTemplateObject(unittest.TestCase):
         layers = [torch.nn.Linear(3, 4), torch.nn.Sigmoid(), torch.nn.Linear(4, 1), torch.nn.Sigmoid()]
         net = torch.nn.Sequential(*layers)
 
-        validate_network(net)
-
-        return
-
-    def test_fol(self):
-        import numpy as np
-        from deep_logic.fol import generate_fol_explanations
-
-        w1 = np.array([[1, 0, 2, 0, 0], [1, 0, 3, 0, 0], [0, 1, 0, -1, 0]])
-        w2 = np.array([[-1, 0, -2]])
-        b1 = [1, 0, -1]
-        b2 = [1]
-
-        w = [w1, w2]
-        b = [b1, b2]
-
-        f = generate_fol_explanations(w, b)
-        assert f[0] == '(f4 | ~f2)'
+        validate_network(net, 'psi')
 
         return
 

@@ -13,8 +13,6 @@ Welcome to Deep Logic
 
 
 
-
-
 .. |Build| image:: https://img.shields.io/travis/pietrobarbiero/deep-logic?label=Master%20Build&style=for-the-badge
     :alt: Travis (.org)
     :target: https://travis-ci.org/pietrobarbiero/deep-logic
@@ -74,11 +72,10 @@ Welcome to Deep Logic
 Deep Logic is a python package providing a set of utilities to
 build deep learning models that are explainable by design.
 
-This library provides APIs to:
+This library provides APIs to get first-order logic explanations from:
 
-* prune a standard model to get deep logic model
-* extract logical formulas explaining network predictions
-* validate the input data, the model architecture, and the pruning strategy
+* ReLU networks;
+* :math:`\psi`-networks, i.e. neural networks with sigmoid activations.
 
 Quick start
 -----------
@@ -115,39 +112,42 @@ as the XOR problem:
 
 .. code:: python
 
-    x = torch.tensor([
+    x_train = torch.tensor([
         [0, 0],
         [0, 1],
         [1, 0],
-        [1, 1], ], dtype=torch.float)
-    y = torch.tensor([0, 1, 1, 0],
-        dtype=torch.float).unsqueeze(1)
+        [1, 1],
+    ], dtype=torch.float)
+    y_train = torch.tensor([0, 1, 1, 0], dtype=torch.float).unsqueeze(1)
+    xnp = x_train.detach().numpy()
+    ynp = y_train.detach().numpy().ravel()
 
-We can instantiate a simple feed-forward neural network with 2 layers:
+We can instantiate a simple feed-forward neural network with 3 layers:
 
 .. code:: python
 
     layers = [
-        torch.nn.Linear(2, 4),
-        torch.nn.Sigmoid(),
+        torch.nn.Linear(x_train.size(1), 10),
+        torch.nn.ReLU(),
+        torch.nn.Linear(10, 4),
+        torch.nn.ReLU(),
         torch.nn.Linear(4, 1),
-        torch.nn.Sigmoid()
+        torch.nn.Sigmoid(),
     ]
     model = torch.nn.Sequential(*layers)
 
 Before training the network, we should validate the input data and the
 network architecture. The requirements are the following:
 
-* all the input features should be in $[0,1]$;
-* all the activation functions should be sigmoids.
+* all the input features should be in :math:`[0,1]`;
+* all the activation functions should be ReLUs.
 
 .. code:: python
 
-    dl.validate_data(x)
-    dl.validate_network(model)
+    dl.validate_data(x_train)
+    dl.validate_network(model, 'relu')
 
-We can now train the network pruning weights with the
-lowest absolute values after 500 epochs:
+We can now train the network:
 
 .. code:: python
 
@@ -156,9 +156,15 @@ lowest absolute values after 500 epochs:
     for epoch in range(1000):
         # forward pass
         optimizer.zero_grad()
-        y_pred = model(x)
+        y_pred = model(x_train)
         # Compute Loss
-        loss = torch.nn.functional.binary_cross_entropy(y_pred, y)
+        loss = torch.nn.functional.mse_loss(y_pred, y_train)
+
+        # L1 regularization
+        for module in model.children():
+            if isinstance(module, torch.nn.Linear):
+                loss += 0.001 * torch.norm(module.weight, 1)
+
         # backward pass
         loss.backward()
         optimizer.step()
@@ -166,25 +172,77 @@ lowest absolute values after 500 epochs:
         # compute accuracy
         if epoch % 100 == 0:
             y_pred_d = (y_pred > 0.5)
-            accuracy = (y_pred_d.eq(y).sum(dim=1) == y.size(1)).sum().item() / y.size(0)
+            accuracy = (y_pred_d.eq(y_train).sum(dim=1) == y_train.size(1)).sum().item() / y_train.size(0)
             print(f'Epoch {epoch}: train accuracy: {accuracy:.4f}')
 
-        # pruning
-        if epoch > 500:
-            model = dl.prune_equal_fanin(model, 2)
 
-Once trained the ``fol`` package can be used to generate first-order
-logic explanations of the predictions:
+Once trained we can extract first-order logic formulas describing
+local explanations of the prediction for a specific input by looking
+at the reduced model:
 
 .. code:: python
 
-    # generate explanations
-    weights, biases = dl.collect_parameters(model)
-    f = dl.fol.generate_fol_explanations(weights, biases)[0]
-    print(f'Explanation: {f}')
+    xin = torch.tensor([0.49, 0.95])
+    model_reduced = dl.get_reduced_model(model, xin)
+    output = model_reduced(xin)
+    explanation = fol.generate_local_explanations(model_reduced, xin)
+    print(explanation)
 
-For this problem the generated explanation is ``(f1 & ~f2) | (f2 & ~f1)``
-which corresponds to ``f1 XOR f2``.
+The local explanation will be a given in terms of conjunctions
+of input features which are locally relevant.
+For this specific input, the explanation would be
+:math:`\neg f_0 \land f_1`.
+
+We can also compare the decision boundaries of the full model wrt
+the reduced model to check that they are `locally` similar:
+
+.. code:: python
+
+    plt.figure(figsize=[8, 4])
+    plt.subplot(121)
+    plt.title('True decision boundary')
+    plot_decision_bundaries(model, x_train, h=0.01)
+    plt.scatter(xin[0], xin[1], c='k', marker='x', s=100)
+    c = plt.Circle((xin[0], xin[1]), radius=0.2, edgecolor='k', fill=False, linestyle='--')
+    plt.gca().add_artist(c)
+    plt.scatter(xnp[:, 0], xnp[:, 1], c=ynp, cmap='BrBG')
+    plt.xlim([-0.5, 1.5])
+    plt.ylim([-0.5, 1.5])
+    plt.subplot(122)
+    plt.title(f'IN={xin.detach().numpy()} - OUT={output.detach().numpy()}\nExplanation: {explanation}')
+    plot_decision_bundaries(model_reduced, x_train)
+    plt.scatter(xin[0], xin[1], c='k', marker='x', s=100)
+    c = plt.Circle((xin[0], xin[1]), radius=0.2, edgecolor='k', fill=False, linestyle='--')
+    plt.gca().add_artist(c)
+    plt.scatter(xnp[:, 0], xnp[:, 1], c=ynp, cmap='BrBG')
+    plt.xlim([-0.5, 1.5])
+    plt.ylim([-0.5, 1.5])
+    plt.savefig('decision_boundaries.png')
+    plt.show()
+
+
+.. image:: examples/decision_boundaries.png
+   :width: 200px
+   :height: 100px
+   :scale: 300 %
+   :alt: decision boundaries
+   :align: center
+
+
+Finally the ``fol`` package can be used to generate global
+explanations of the predictions for a specific class:
+
+.. code:: python
+
+    global_explanation = fol.combine_local_explanations(model, x_train, y_train)
+    simplified_explanation = simplify_logic(global_explanation, 'dnf')
+
+The global explanation is given as a disjunction of local explanations
+for a specified class.
+For this problem the generated explanation for class :math:`y=1` is
+:math:`(f_1 \land \neg f_2) \lor (f_2  \land \neg f_1)`
+which corresponds to :math:`f_1 \oplus f_2`
+(i.e. the exclusive OR function).
 
 Theory
 --------
@@ -224,12 +282,16 @@ Constraints theory in machine learning::
 Authors
 -------
 
-`Pietro Barbiero <http://www.pietrobarbiero.eu/>`__, Gabriele Ciravegna, and Dobrik Georgiev.
+* `Pietro Barbiero <http://www.pietrobarbiero.eu/>`__, University ofCambridge, UK.
+* Francesco Giannini, University of Florence, IT.
+* Gabriele Ciravegna, University of Florence, IT.
+* Dobrik Georgiev, University of Cambridge, UK.
+
 
 Licence
 -------
 
-Copyright 2020 Pietro Barbiero.
+Copyright 2020 Pietro Barbiero, Francesco Giannini, Gabriele Ciravegna, and Dobrik Georgiev.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may
 not use this file except in compliance with the License. You may obtain

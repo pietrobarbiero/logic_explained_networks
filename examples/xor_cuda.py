@@ -26,6 +26,7 @@ def main():
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     model.train()
+    need_pruning = True
     for epoch in range(1000):
         # forward pass
         optimizer.zero_grad()
@@ -43,12 +44,12 @@ def main():
             print(f'Epoch {epoch}: train accuracy: {accuracy:.4f}')
 
         # pruning
-        if epoch > 500:
+        if epoch > 500 and need_pruning:
             model = prune_equal_fanin(model, 2, device=device)
+            need_pruning = False
 
     # generate explanations
-    weights, biases = collect_parameters(model, device=device)
-    f = fol.generate_fol_explanations(weights, biases)[0]
+    f = fol.generate_fol_explanations(model, device)[0]
     print(f'Explanation: {f}')
 
     return

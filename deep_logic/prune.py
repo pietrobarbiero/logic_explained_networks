@@ -4,7 +4,9 @@ from torch.nn.utils import prune
 from .utils import validate_network
 
 
-def prune_equal_fanin(model: torch.nn.Module, k: int = 2, validate: bool = True, device: torch.device = torch.device('cpu')) -> torch.nn.Module:
+def prune_equal_fanin(model: torch.nn.Module, k: int = 2,
+                      validate: bool = True,
+                      device: torch.device = torch.device('cpu')) -> torch.nn.Module:
     """
     Prune the dense layers of the network such that each neuron has the same fan-in.
 
@@ -29,13 +31,13 @@ def prune_equal_fanin(model: torch.nn.Module, k: int = 2, validate: bool = True,
             prune.custom_from_mask(module, name="weight", mask=mask.to(device))
 
     if validate:
-        validate_network(model)
+        validate_network(model, 'psi')
         validate_pruning(model)
 
     return model
 
 
-def validate_pruning(model: torch.nn.Module):
+def validate_pruning(model: torch.nn.Module) -> None:
     """
     Validate pruned network.
 
