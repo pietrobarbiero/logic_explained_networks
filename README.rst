@@ -139,7 +139,7 @@ We can instantiate a simple feed-forward neural network with 3 layers:
 Before training the network, we should validate the input data and the
 network architecture. The requirements are the following:
 
-* all the input features should be in :math:`[0,1]`;
+* all the input features should be in ``[0,1]``;
 * all the activation functions should be ReLUs.
 
 .. code:: python
@@ -191,7 +191,7 @@ at the reduced model:
 The local explanation will be a given in terms of conjunctions
 of input features which are locally relevant.
 For this specific input, the explanation would be
-:math:`\neg f_0 \land f_1`.
+``~f0 AND f1``.
 
 We can also compare the decision boundaries of the full model wrt
 the reduced model to check that they are `locally` similar:
@@ -239,10 +239,10 @@ explanations of the predictions for a specific class:
 
 The global explanation is given as a disjunction of local explanations
 for a specified class.
-For this problem the generated explanation for class :math:`y=1` is
-:math:`(f_1 \land \neg f_2) \lor (f_2  \land \neg f_1)`
-which corresponds to :math:`f_1 \oplus f_2`
-(i.e. the exclusive OR function).
+For this problem the generated explanation for class ``y=1`` is
+``(f1 AND ~f2) OR (f2  AND ~f1)`
+which corresponds to ``f1 XOR f2``
+(i.e. the `exclusive OR` function).
 
 Theory
 --------
