@@ -75,7 +75,7 @@ build deep learning models that are explainable by design.
 This library provides APIs to get first-order logic explanations from:
 
 * ReLU networks;
-* :math:`\psi`-networks, i.e. neural networks with sigmoid activations.
+* ``psi``-networks, i.e. neural networks with sigmoid activations.
 
 Quick start
 -----------
