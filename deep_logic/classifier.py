@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -7,11 +8,13 @@ from sklearn.metrics import f1_score
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
+from metrics import Metric, TopkAccuracy
+
 
 class Classifier(torch.nn.Module, ABC):
 	"""
-		Classifier is an abstract class representing a generic classifier
-		init() and forward() methods are required to be implemented by extending classes
+		Classifier is an abstract class representing a generic classifier.
+		init(), forward() and get_loss() methods are required to be implemented by extending classes
 
 		Parameters
 		----------
@@ -27,38 +30,57 @@ class Classifier(torch.nn.Module, ABC):
 		self.register_buffer("trained", torch.tensor(False))
 
 	@abstractmethod
-	def forward(self, x):
+	def forward(self, x: torch.Tensor):
+		"""
+		forward method that needs to be implemented by each extending class. In this class only some checks on the input
+		are performed.
+		:param x: input tensor
+		"""
 		assert not torch.isnan(x).any(), "Input data contain nan values"
 		assert not torch.isinf(x).any(), "Input data contain inf values"
 
 	@abstractmethod
-	def get_loss(self):
+	def get_loss(self, output: torch.Tensor, target: torch.Tensor):
+		"""
+		get_loss method is used by each class to calculate its own loss according to the different training strategy
+		"""
 		pass
-
-	def to(self, *args, **kwargs):
-		self.model.to(*args, **kwargs)
-		super().to(*args, **kwargs)
 
 	@staticmethod
 	def set_seed(seed):
+		"""
+		Static method used to set the seed for an experiment. Needs to be called before doing anything else.
+		:param seed:
+		"""
 		np.random.seed(seed)
 		torch.manual_seed(seed)
 		torch.backends.cudnn.deterministic = True
 		torch.backends.cudnn.benchmark = False
 
-	def get_device(self):
+	def get_device(self) -> torch.device:
+		"""
+		Return the device on which the classifier is actually loaded
+		:return: device in use
+		"""
 		return [*self.model.parameters()][0].device
 
 	def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 16, epochs: int = 170,
-	        l_r: float = 0.1, device: str = "cpu", verbose: bool = True):
+	        l_r: float = 0.1, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),
+	        verbose: bool = True) -> pd.DataFrame:
+		"""
+		fit function that execute many of the common operation generally performed by many method during training.
+		Adam optimizer is always employed
 
-		# Check if model is already trained
-		try:
-			self.load(device=device)
-			print("Model already trained. Skipping training...")
-			return None
-		except ClassifierNotTrainedError:
-			print("Training model...")
+		:param train_set: training set on which to train
+		:param val_set: validation set used for early stopping
+		:param batch_size: number of training data for each step of the training
+		:param epochs: number of epochs to train the model
+		:param l_r: learning rate parameter of the Adam optimizer
+		:param metric: metric to evaluate the predictions of the network
+		:param device: device on which to perform the training
+		:param verbose: whether to output or not epoch metrics
+		:return: pandas dataframe collecting the metrics from each epoch
+		"""
 
 		# Setting device
 		device = torch.device(device)
@@ -66,7 +88,6 @@ class Classifier(torch.nn.Module, ABC):
 
 		# Setting loss function and optimizer
 		optimizer = torch.optim.Adam(self.parameters(), lr=l_r)
-		loss = self.get_loss()
 
 		# Training epochs
 		best_acc, best_epoch = 0.0, 0
@@ -88,7 +109,7 @@ class Classifier(torch.nn.Module, ABC):
 				batch_outputs = self.forward(batch_data)
 
 				# Compute losses and update gradients
-				tot_loss = loss(self, batch_outputs, batch_labels, train_set, device)
+				tot_loss = self.get_loss(batch_outputs, batch_labels)
 				tot_loss.backward()
 				optimizer.step()
 
@@ -101,8 +122,8 @@ class Classifier(torch.nn.Module, ABC):
 			tot_losses = torch.cat(tot_losses)
 
 			# Compute accuracy, f1 and constraint_loss on the whole train, validation dataset
-			train_acc = self.evaluate(train_set, batch_size, device, train_outputs, train_labels)
-			val_acc = self.evaluate(val_set, batch_size, device)
+			train_acc = self.evaluate(train_set, batch_size, metric, device, train_outputs, train_labels)
+			val_acc = self.evaluate(val_set, batch_size, metric, device)
 
 			# Save epoch results
 			train_accs.append(train_acc)
@@ -133,16 +154,34 @@ class Classifier(torch.nn.Module, ABC):
 		performance_df = pd.DataFrame(performance_dict)
 		return performance_df
 
-	def evaluate(self, dataset, batch_size, device, outputs=None, labels=None, attrs=None, attrs_labels=None):
+	def evaluate(self, dataset: Dataset, batch_size: int, metric: Metric = TopkAccuracy(),
+	             device: torch.device = torch.device("cpu"), outputs=None, labels=None) -> float:
+		"""
+		Evaluate function to test without training the performance of the model on a certain dataset
+		:param dataset: dataset on which to test
+		:param batch_size: number of training data for each step of the training
+		:param metric: metric to evaluate the predictions of the network
+		:param device: device on which to perform the training
+		:param outputs: if the output is passed is not calculated again
+		:param labels: to be passed together with the output
+		:return: metric evaluated on the dataset
+		"""
 		self.eval(), self.to(device)
 		with torch.no_grad():
-			if outputs is None or labels is None or attrs is None or attrs_labels is None:
+			if outputs is None or labels is None:
 				outputs, labels = self.predict(dataset, batch_size, device)
-			acc5 = self.top_k_accuracy(outputs, labels)
+			metric_val = metric(outputs, labels)
 		self.train()
-		return acc5
+		return metric_val
 
-	def predict(self, dataset, batch_size, device):
+	def predict(self, dataset, batch_size, device) -> Tuple[torch.Tensor, torch.Tensor]:
+		"""
+		Predict function to compute the prediction of the model on a certain dataset
+		:param dataset: dataset on which to test
+		:param batch_size: number of training data for each step of the training
+		:param device: device on which to perform the training
+		:return: a tuple containing the outputs computed on the dataset and the labels
+		"""
 		outputs, labels, attrs, attrs_labels = [], [], [], []
 		loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=8, pin_memory=True)
 		for i, data in enumerate(loader):
@@ -151,21 +190,6 @@ class Classifier(torch.nn.Module, ABC):
 			outputs.append(batch_outputs)
 			labels.append(batch_labels)
 		return torch.cat(outputs), torch.cat(labels)
-
-	@staticmethod
-	def top_k_accuracy(outputs, labels, k=5):
-		labels = labels.argmax(dim=1)
-		n_samples = labels.shape[0]
-		_, topk_outputs = outputs.topk(k, 1)
-		topk_acc = topk_outputs.eq(labels.reshape(-1, 1)).sum() / n_samples * 100
-		return topk_acc.cpu().item()
-
-	@staticmethod
-	def f1(outputs: torch.Tensor, labels: torch.Tensor):
-		sigmoid_output = torch.sigmoid(outputs).cpu().numpy()
-		discrete_output = sigmoid_output > 0.5
-		f1_val = f1_score(discrete_output, labels.cpu().numpy(), average='macro', zero_division=0) * 100
-		return f1_val
 
 	def save(self, set_trained=False, name=None):
 		if name is None:
