@@ -18,7 +18,7 @@ from dSprites_loader import get_data
 from dSprites_style_logic import logic_style
 from dSprites_style_I2C import i2c_style
 
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 
 def main(args):
