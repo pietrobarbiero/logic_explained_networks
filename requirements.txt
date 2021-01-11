@@ -1,8 +1,6 @@
 numpy
 torch
 sympy
-matplotlib
-setuptools
 pandas
 scikit-learn
 tqdm
