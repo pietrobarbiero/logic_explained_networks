@@ -1,12 +1,11 @@
+from itertools import product
 from typing import List
 
 import torch
 import numpy as np
 from sympy.logic import simplify_logic
 
-from ._utils import count_neurons, get_nonpruned_positions, \
-    build_truth_table, get_nonpruned_weights, _forward
-from ..utils import collect_parameters
+from ..utils.base import collect_parameters
 
 
 def generate_fol_explanations(model: torch.nn.Module, device: torch.device = torch.device('cpu')) -> List[str]:
@@ -31,17 +30,17 @@ def generate_fol_explanations(model: torch.nn.Module, device: torch.device = tor
         feature_names.append("f" + str(k + 1))
 
     # count the number of hidden neurons for each layer
-    neuron_list = count_neurons(weights)
+    neuron_list = _count_neurons(weights)
     # get the position of non-pruned weights
-    nonpruned_positions = get_nonpruned_positions(weights, neuron_list)
+    nonpruned_positions = _get_nonpruned_positions(weights, neuron_list)
 
     # generate the query dataset, i.e. a truth table
-    truth_table = build_truth_table(fan_in)
+    truth_table = _build_truth_table(fan_in)
 
     # simulate a forward pass using non-pruned weights only
     predictions = list()
     for j in range(n_layers):
-        weights_active = get_nonpruned_weights(weights[j], fan_in)
+        weights_active = _get_nonpruned_weights(weights[j], fan_in)
         y_pred = _forward(truth_table, weights_active, bias[j])
         predictions.append(y_pred)
 
@@ -109,3 +108,88 @@ def compute_fol_formula(truth_table: np.array, predictions: np.array, feature_na
     # simplify formula
     simplified_formula = simplify_logic(formula)
     return str(simplified_formula)
+
+
+def _forward(X: np.array, weights: np.array, bias: np.array) -> np.array:
+    """
+    Simulate the forward pass on one layer.
+
+    :param X: input matrix.
+    :param weights: weight matrix.
+    :param bias: bias vector.
+    :return: layer output
+    """
+    a = np.matmul(weights, np.transpose(X))
+    b = np.reshape(np.repeat(bias, np.shape(X)[0], axis=0), np.shape(a))
+    output = _sigmoid_activation(a + b)
+    y_pred = np.where(output < 0.5, 0, 1)
+    return y_pred
+
+
+
+def _get_nonpruned_weights(weight_matrix: np.array, fan_in: int) -> np.array:
+    """
+    Get non-pruned weights.
+
+    :param weight_matrix: weight matrix of the reasoning network; shape: $h_{i+1} \times h_{i}$.
+    :param fan_in: number of incoming active weights for each neuron in the network.
+    :return: non-pruned weights
+    """
+    n_neurons = weight_matrix.shape[0]
+    weights_active = np.zeros((n_neurons, fan_in))
+    for i in range(n_neurons):
+        nonpruned_positions = np.nonzero(weight_matrix[i])
+        weights_active[i] = (weight_matrix)[i, nonpruned_positions]
+    return weights_active
+
+
+def _build_truth_table(fan_in: int) -> np.array:
+    """
+    Build the truth table taking into account non-pruned features only,
+
+    :param fan_in: number of incoming active weights for each neuron in the network.
+    :return: truth table
+    """
+    items = []
+    for i in range(fan_in):
+        items.append([0, 1])
+    truth_table = list(product(*items))
+    return np.array(truth_table)
+
+
+def _get_nonpruned_positions(weights: List[np.array], neuron_list: List[int]) -> List:
+    """
+    Get the list of the position of non-pruned weights.
+
+    :param weights: list of the weight matrices of the reasoning network; shape: $h_{i+1} \times h_{i}$.
+    :param neuron_list: list containing the number of neurons for each layer of the network.
+    :return: list of the position of non-pruned weights
+    """
+    nonpruned_positions = []
+    for j in range(len(weights)):
+        non_pruned_position_layer_j = []
+        for i in range(neuron_list[j]):
+            non_pruned_position_layer_j.append(np.nonzero(weights[j][i]))
+        nonpruned_positions.append(non_pruned_position_layer_j)
+
+    return nonpruned_positions
+
+
+def _count_neurons(weights: List[np.array]) -> List[int]:
+    """
+    Count the number of neurons for each layer of the neural network.
+
+    :param weights: list of the weight matrices of the reasoning network; shape: $h_{i+1} \times h_{i}$.
+    :return: number of neurons for each layer of the neural network
+    """
+    n_layers = len(weights)
+    neuron_list = np.zeros(n_layers, dtype=int)
+    for j in range(n_layers):
+        # for each layer of weights,
+        # get the shape of the weight matrix (number of output neurons)
+        neuron_list[j] = np.shape(weights[j])[0]
+    return neuron_list
+
+
+def _sigmoid_activation(x):
+    return 1 / (1 + np.exp(-x))

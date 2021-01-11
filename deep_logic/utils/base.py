@@ -4,6 +4,18 @@ import torch
 import numpy as np
 
 
+def set_seed(seed):
+    """
+    Static method used to set the seed for an experiment. Needs to be called before doing anything else.
+
+    :param seed:
+    """
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
 def collect_parameters(model: torch.nn.Module,
                        device: torch.device = torch.device('cpu')) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """
@@ -59,7 +71,7 @@ def validate_network(model: torch.nn.Module, model_type: str = 'relu') -> None:
             n_layers += 1
 
         for i, module in enumerate(model.children()):
-            if i < n_layers-1:
+            if i < n_layers - 1:
                 assert isinstance(module, torch.nn.Linear) or isinstance(module, torch.nn.ReLU)
 
     if model_type == 'psi':

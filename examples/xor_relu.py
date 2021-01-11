@@ -1,9 +1,10 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from sympy import simplify_logic
 
-import deep_logic as dl
+from deep_logic.fol import combine_local_explanations, generate_local_explanations
+from deep_logic.utils.base import validate_data, validate_network
+from deep_logic.utils.relunn import get_reduced_model
 
 
 def main():
@@ -31,8 +32,8 @@ def main():
     ]
     model = torch.nn.Sequential(*layers)
 
-    dl.validate_network(model, model_type='relu')
-    dl.validate_data(x_train)
+    validate_network(model, model_type='relu')
+    validate_data(x_train)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     model.train()
@@ -73,9 +74,9 @@ def main():
     ## Local decision boundaries
 
     xin = torch.tensor([0.3, 0.95])
-    model_reduced = dl.get_reduced_model(model, xin)
+    model_reduced = get_reduced_model(model, xin)
     output = model_reduced(xin)
-    explanation = dl.fol.generate_local_explanations(model_reduced, xin, 2)
+    explanation = generate_local_explanations(model_reduced, xin, 2)
 
     plt.figure(figsize=[8, 4])
     plt.subplot(121)
@@ -104,7 +105,7 @@ def main():
     plt.savefig('decision_boundaries.png')
     plt.show()
 
-    global_explanation, predictions = dl.fol.combine_local_explanations(model, x_train, y_train)
+    global_explanation, predictions = combine_local_explanations(model, x_train, y_train)
 
     accuracy = np.sum(predictions == ynp) / len(ynp)
     print(f'Accuracy of when using the formula {global_explanation}: {accuracy:.4f}')

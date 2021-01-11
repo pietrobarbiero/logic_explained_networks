@@ -1,15 +1,16 @@
 from typing import Tuple
 
+import numpy as np
 import pandas as pd
 import torch
 from sklearn.tree import DecisionTreeClassifier
 from torch.utils.data import Dataset
 
-from classifier import Classifier, ClassifierNotTrainedError
-from metrics import Metric, TopkAccuracy
+from .base import BaseXClassifier, ClassifierNotTrainedError
+from ..utils.metrics import Metric, TopkAccuracy
 
 
-class DecisionTree(Classifier):
+class XDecisionTreeClassifier(BaseXClassifier):
     """
         Decision Tree class module. It does provides for explanations.
 
@@ -21,17 +22,16 @@ class DecisionTree(Classifier):
             maximum depth for the classifier. The deeper is the tree, the more complex are the explanations provided.
      """
 
-    def __init__(self, n_classes: int, n_features: int, max_depth: int,
-                 device: torch.device = torch.device('cpu'), name: str = "net"):
+    def __init__(self, n_classes: int, n_features: int, max_depth: int = None, device: torch.device = torch.device('cpu'),
+                 name: str = "net"):
 
+        super().__init__(name, device)
         assert device == torch.device('cpu'), "Only cpu training is provided with decision tree models."
 
         self.n_classes = n_classes
         self.n_features = n_features
 
         self.model = DecisionTreeClassifier(max_depth=max_depth)
-
-        super(DecisionTree, self).__init__(name, device)
 
     def forward(self, x) -> torch.Tensor:
         """
@@ -41,7 +41,7 @@ class DecisionTree(Classifier):
         :param x: input tensor
         :return: output classification
         """
-        super(DecisionTree, self).forward(x)
+        super(XDecisionTreeClassifier, self).forward(x)
         x = x.detach().cpu().numpy()
         output = self.model.predict_proba(x)
         return output
@@ -78,13 +78,15 @@ class DecisionTree(Classifier):
         """
 
         # Laoding dataset
-        train_loader = torch.utils.data.DataLoader(train_set, 64, shuffle=True, pin_memory=True, num_workers=8)
+        train_loader = torch.utils.data.DataLoader(train_set, 64)#, shuffle=True, pin_memory=True, num_workers=8)
         train_data, train_labels = [], []
         for data in train_loader:
             train_data.append(data[0]), train_labels.append(data[1])
         train_data, train_labels = torch.cat(train_data).numpy(), torch.cat(train_labels).numpy()
 
         # Fitting decision tree
+        if train_labels.shape[1] > 1:
+            train_labels = np.argmax(train_labels, axis=1)
         self.model = self.model.fit(X=train_data, y=train_labels)
 
         # Compute accuracy, f1 and constraint_loss on the whole train, validation dataset
@@ -98,10 +100,10 @@ class DecisionTree(Classifier):
 
         # Performance dictionary
         performance_dict = {
-            "tot_loss": 0,
-            "train_accs": train_acc,
-            "val_accs": val_acc,
-            "best_epoch": 0,
+            "tot_loss": [0],
+            "train_accs": [train_acc],
+            "val_accs": [val_acc],
+            "best_epoch": [0],
         }
         performance_df = pd.DataFrame(performance_dict)
         return performance_df
@@ -115,6 +117,7 @@ class DecisionTree(Classifier):
         :return: metric evaluated on the dataset
         """
         outputs, labels = self.predict(dataset)
+        outputs, labels = torch.FloatTensor(outputs), torch.FloatTensor(labels)
         metric_val = metric(outputs, labels)
         return metric_val
 
@@ -126,14 +129,19 @@ class DecisionTree(Classifier):
         :return: a tuple containing the outputs computed on the dataset and the labels
         """
         outputs, labels = [], []
-        loader = torch.utils.data.DataLoader(dataset, 64, num_workers=8, pin_memory=True)
+        loader = torch.utils.data.DataLoader(dataset, 2)#, num_workers=8, pin_memory=True)
         for data in loader:
-            batch_data = data[0].numpy()
-            batch_output = self.model.predict(batch_data)
+            batch_data = data[0]
+            batch_output = self.forward(batch_data)
+            if data[1].shape[1] == 1:
+                batch_output = batch_output[:, 1].squeeze()
             outputs.append(batch_output)
-            labels.append(data[1])
+            labels.append(data[1].squeeze().cpu().detach().numpy())
 
-        return torch.cat(outputs), torch.cat(labels)
+        if data[1].shape[1] == 1:
+            return np.hstack(outputs), np.hstack(labels)
+        else:
+            return np.vstack(outputs), np.vstack(labels)
 
     def save(self, name=None, **kwargs) -> None:
         from joblib import dump

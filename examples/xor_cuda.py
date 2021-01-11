@@ -1,7 +1,8 @@
 import os
 import torch
 import numpy as np
-from deep_logic import validate_network, prune_equal_fanin, collect_parameters
+from deep_logic.utils.base import validate_network
+from deep_logic.utils.sigmoidnn import prune_equal_fanin
 from deep_logic import fol
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"

@@ -1,9 +1,9 @@
 import torch
 
-from classifier import Classifier
+from .base import BaseXClassifier
 
 
-class LogisticRegression(Classifier):
+class LogisticRegressionClassifier(BaseXClassifier):
     """
         Logistic Regression class module. It does not provides for explanations.
 
@@ -18,17 +18,16 @@ class LogisticRegression(Classifier):
     def __init__(self, n_classes: int, n_features: int, loss: torch.nn.modules.loss,
                  device: torch.device = torch.device('cpu'), name: str = "net"):
 
+        super().__init__(name, device)
         self.n_classes = n_classes
         self.n_features = n_features
 
         layers = [
             torch.nn.Linear(n_features, n_classes),
-            torch.nn.ReLU(),
+            torch.nn.Sigmoid(),
         ]
         self.model = torch.nn.Sequential(*layers)
         self.loss = loss
-
-        super(LogisticRegression, self).__init__(name, device)
 
     def forward(self, x) -> torch.Tensor:
         """
@@ -38,7 +37,7 @@ class LogisticRegression(Classifier):
         :param x: input tensor
         :return: output classification
         """
-        super(LogisticRegression, self).forward(x)
+        super(LogisticRegressionClassifier, self).forward(x)
         output = self.model(x)
         return output
 

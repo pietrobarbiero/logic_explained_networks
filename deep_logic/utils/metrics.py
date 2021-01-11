@@ -20,21 +20,32 @@ class Metric(ABC):
         pass
 
 
+class Accuracy(Metric):
+    """
+    Accuracy computed between the predictions of the model and the actual labels.
+    """
+
+    def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
+        n_samples = targets.shape[0]
+        accuracy = targets.eq(outputs>0.5).sum().item() / n_samples * 100
+        return accuracy
+
+
 class TopkAccuracy(Metric):
     """
     Top-k accuracy computed between the predictions of the model and the actual labels.
     :param k: number of elements of the outputs to consider in order to assert a datum as correctly classified
     """
 
-    def __init__(self, k: int = 5):
+    def __init__(self, k: int = 1):
         self.k = k
 
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
         targets = targets.argmax(dim=1)
         n_samples = targets.shape[0]
         _, topk_outputs = outputs.topk(self.k, 1)
-        topk_acc = topk_outputs.eq(targets.reshape(-1, 1)).sum() / n_samples * 100
-        return topk_acc.cpu().item()
+        topk_acc = topk_outputs.eq(targets.reshape(-1, 1)).sum().item() / n_samples * 100
+        return topk_acc
 
 
 class F1Score(Metric):
@@ -43,7 +54,6 @@ class F1Score(Metric):
     """
 
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
-        sigmoid_output = torch.sigmoid(outputs).cpu().numpy()
-        discrete_output = sigmoid_output > 0.5
+        discrete_output = outputs.cpu().numpy() > 0.5
         f1_val = f1_score(discrete_output, targets.cpu().numpy(), average='macro', zero_division=0) * 100
         return f1_val

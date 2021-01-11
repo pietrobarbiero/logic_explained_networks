@@ -4,8 +4,8 @@ import torch
 import numpy as np
 from sympy import simplify_logic
 
-from ..utils import collect_parameters
-from ..relunn import get_reduced_model
+from ..utils.base import collect_parameters
+from ..utils.relunn import get_reduced_model
 
 
 def generate_local_explanations(model: torch.nn.Module, x_sample: torch.Tensor, k: int = 5,
@@ -66,6 +66,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     :return: global explanation and predictions
     """
     local_explanations = []
+    # TODO: multi class
     for xi, yi in zip(x, y):
         # get reduced model for each sample
         model_reduced = get_reduced_model(model, xi)
@@ -78,6 +79,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
     # the global explanation is the disjunction of local explanations
     global_explanation = ' | '.join(local_explanations)
+    # TODO: force
     global_explanation_simplified = simplify_logic(global_explanation, 'dnf')
 
     # predictions based on FOL formula
