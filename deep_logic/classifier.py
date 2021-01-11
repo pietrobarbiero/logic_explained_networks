@@ -4,7 +4,6 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.metrics import f1_score
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
@@ -16,10 +15,10 @@ class Classifier(torch.nn.Module, ABC):
 		Classifier is an abstract class representing a generic classifier.
 		init(), forward() and get_loss() methods are required to be implemented by extending classes
 
-		Parameters
-		----------
-		name: str
+		:param name: str
 			name of the network: used for saving and loading purposes
+		:var trained: bool
+			flag set at the end of the training and saved with the model. Only trained model can be loaded from memory
 	 """
 
 	@abstractmethod
@@ -191,14 +190,27 @@ class Classifier(torch.nn.Module, ABC):
 			labels.append(batch_labels)
 		return torch.cat(outputs), torch.cat(labels)
 
-	def save(self, set_trained=False, name=None):
+	def save(self, set_trained=False, name=None) -> None:
+		"""
+		Save model on a file named with the name of the model if parameter name is not set.
+		:param set_trained: Used to set the buffer flag "trained" at the end of training.
+		:param name: Save the model with a name different from the one assigned in the __init__
+		"""
 		if name is None:
 			name = self.name
 		if set_trained:
 			self._set_trained()
 		torch.save(self.state_dict(), name)
 
-	def load(self, device, set_trained=False, name=None):
+	def load(self, device, set_trained=False, name=None) -> None:
+		"""
+		Load model on a specific device (can be different from the one used during training). If set_trained is true than
+		the model flag "trained" is set to true first and the model is saved again. If set_trained is not set and
+		the model flag "trained" is not true a ClassifierNotTrainedError is raised
+		:param device: device on which to load the model
+		:param set_trained: whether to set the buffer flag "trained" before loading or not.
+		:param name: Load a model with a name different from the one assigned in the __init__
+		"""
 		if name is None:
 			name = self.name
 		try:
@@ -207,18 +219,25 @@ class Classifier(torch.nn.Module, ABC):
 		except FileNotFoundError:
 			raise ClassifierNotTrainedError() from None
 		else:
-			if len(incompatible_keys.missing_keys) > 1 or len(incompatible_keys.unexpected_keys) > 0:
+			if len(incompatible_keys.missing_keys) > 0 or len(incompatible_keys.unexpected_keys) > 0:
 				raise IncompatibleClassifierError(incompatible_keys.missing_keys, incompatible_keys.unexpected_keys)
-		if set_trained or (len(incompatible_keys.missing_keys) > 0 and incompatible_keys.missing_keys[0] == 'trained'):
+		if set_trained:
 			self.save(set_trained=True)
 		if not self.trained:
 			raise ClassifierNotTrainedError()
 
-	def _set_trained(self):
+	def _set_trained(self) -> None:
+		"""
+		Internal function used to set the buffer "trained" to true
+		"""
 		self.trained = torch.tensor(True)
 
 
 class ClassifierNotTrainedError(Exception):
+	"""
+	Error raised when we try to load a classifier that it does not exists or when the classifier exists but
+	its training has not finished.
+	"""
 	def __init__(self):
 		self.message = "Classifier not trained"
 
@@ -227,6 +246,9 @@ class ClassifierNotTrainedError(Exception):
 
 
 class IncompatibleClassifierError(Exception):
+	"""
+	Error raised when we try to load a classifier with a different structure with respect to the current model.
+	"""
 	def __init__(self, missing_keys, unexpected_keys):
 		self.message = "Unable to load the selected classifier.\n"
 		for key in missing_keys:
