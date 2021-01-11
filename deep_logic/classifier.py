@@ -193,7 +193,7 @@ class Classifier(torch.nn.Module, ABC):
 		:param device: device on which to perform the training
 		:return: a tuple containing the outputs computed on the dataset and the labels
 		"""
-		outputs, labels, attrs, attrs_labels = [], [], [], []
+		outputs, labels = [], []
 		loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=8, pin_memory=True)
 		for i, data in enumerate(loader):
 			batch_data, batch_labels, = data[0].to(device), data[1].to(device)

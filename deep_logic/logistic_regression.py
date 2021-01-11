@@ -1,17 +1,11 @@
-from copy import deepcopy
-from typing import Tuple
-
-import numpy as np
 import torch
-from sympy import simplify_logic
 
-import utils
 from classifier import Classifier
 
 
 class LogisticRegression(Classifier):
     """
-        Logistic Regression module.It does not provides for explanations.
+        Logistic Regression class module. It does not provides for explanations.
 
         :param n_classes: int
             number of classes to classify - dimension of the output layer of the network

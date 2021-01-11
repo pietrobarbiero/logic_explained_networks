@@ -9,7 +9,7 @@ import utils
 from classifier import Classifier
 
 
-class Interpretable_ReLU(Classifier):
+class InterpretableReLU(Classifier):
     """
         Feed forward Neural Network employing ReLU activation function of variable depth but completely interpretable.
         After being trained it provides for local explanation for the prediction on a single example and global
@@ -45,7 +45,7 @@ class Interpretable_ReLU(Classifier):
         self.loss = loss
         self.l1_weight = l1_weight
 
-        super(Interpretable_ReLU, self).__init__(name, device)
+        super(InterpretableReLU, self).__init__(name, device)
 
     def forward(self, x) -> torch.Tensor:
         """
@@ -55,13 +55,13 @@ class Interpretable_ReLU(Classifier):
         :param x: input tensor
         :return: output classification
         """
-        super(Interpretable_ReLU, self).forward(x)
+        super(InterpretableReLU, self).forward(x)
         output = self.model(x)
         return output
 
     def get_loss(self, output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
-        get_loss method extended from Classifier. The loss passed in the __init__ function of the Interpretable_ReLU is
+        get_loss method extended from Classifier. The loss passed in the __init__ function of the InterpretableReLU is
         employed. An L1 weight regularization is also always applied
 
         :param output: output tensor from the forward function
@@ -79,7 +79,7 @@ class Interpretable_ReLU(Classifier):
         """
         Get 1-layer model corresponding to the firing path of the model for a specific sample.
 
-        :param self: Interpretable_ReLU
+        :param self: InterpretableReLU
         :param x_sample: input sample
         :return: reduced model
         """
