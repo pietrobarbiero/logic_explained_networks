@@ -77,7 +77,7 @@ class XReluClassifier(BaseXClassifier):
         :param x_sample: input sample
         :return: reduced model
         """
-        self.reduced_model = get_reduced_model(self, x_sample)
+        self.reduced_model = get_reduced_model(self.model, x_sample)
         return self.reduced_model
 
     def get_explanation(self, x: torch.Tensor, y: torch.Tensor = None, kind: str = 'local', k: int = 5,
@@ -94,9 +94,9 @@ class XReluClassifier(BaseXClassifier):
         :return: Explanation
         """
         if kind == 'local':
-            return generate_local_explanations(self, x, k, device)
+            return generate_local_explanations(self.model, x, k, device)
         elif kind == 'global':
-            return combine_local_explanations(self, x, y, k, device)
+            return combine_local_explanations(self.model, x, y, k, device)
 
 
 if __name__ == "__main__":

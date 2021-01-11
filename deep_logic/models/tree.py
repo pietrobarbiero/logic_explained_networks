@@ -1,5 +1,6 @@
 from typing import Tuple
 
+import numpy as np
 import pandas as pd
 import torch
 from sklearn.tree import DecisionTreeClassifier
@@ -21,7 +22,7 @@ class XDecisionTreeClassifier(BaseXClassifier):
             maximum depth for the classifier. The deeper is the tree, the more complex are the explanations provided.
      """
 
-    def __init__(self, n_classes: int, n_features: int, max_depth: int, device: torch.device = torch.device('cpu'),
+    def __init__(self, n_classes: int, n_features: int, max_depth: int = None, device: torch.device = torch.device('cpu'),
                  name: str = "net"):
 
         super().__init__(name, device)
@@ -77,7 +78,7 @@ class XDecisionTreeClassifier(BaseXClassifier):
         """
 
         # Laoding dataset
-        train_loader = torch.utils.data.DataLoader(train_set, 64, shuffle=True, pin_memory=True, num_workers=8)
+        train_loader = torch.utils.data.DataLoader(train_set, 64)#, shuffle=True, pin_memory=True, num_workers=8)
         train_data, train_labels = [], []
         for data in train_loader:
             train_data.append(data[0]), train_labels.append(data[1])
@@ -97,10 +98,10 @@ class XDecisionTreeClassifier(BaseXClassifier):
 
         # Performance dictionary
         performance_dict = {
-            "tot_loss": 0,
-            "train_accs": train_acc,
-            "val_accs": val_acc,
-            "best_epoch": 0,
+            "tot_loss": [0],
+            "train_accs": [train_acc],
+            "val_accs": [val_acc],
+            "best_epoch": [0],
         }
         performance_df = pd.DataFrame(performance_dict)
         return performance_df
@@ -114,6 +115,7 @@ class XDecisionTreeClassifier(BaseXClassifier):
         :return: metric evaluated on the dataset
         """
         outputs, labels = self.predict(dataset)
+        outputs, labels = torch.FloatTensor(outputs).unsqueeze(1), torch.FloatTensor(labels).unsqueeze(1)
         metric_val = metric(outputs, labels)
         return metric_val
 
@@ -125,14 +127,14 @@ class XDecisionTreeClassifier(BaseXClassifier):
         :return: a tuple containing the outputs computed on the dataset and the labels
         """
         outputs, labels = [], []
-        loader = torch.utils.data.DataLoader(dataset, 64, num_workers=8, pin_memory=True)
+        loader = torch.utils.data.DataLoader(dataset, 2)#, num_workers=8, pin_memory=True)
         for data in loader:
             batch_data = data[0].numpy()
             batch_output = self.model.predict(batch_data)
             outputs.append(batch_output)
-            labels.append(data[1])
+            labels.append(data[1].squeeze().cpu().detach().numpy())
 
-        return torch.cat(outputs), torch.cat(labels)
+        return np.hstack(outputs), np.hstack(labels)
 
     def save(self, name=None, **kwargs) -> None:
         from joblib import dump

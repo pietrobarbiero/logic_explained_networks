@@ -72,7 +72,7 @@ class BaseXClassifier(torch.nn.Module, BaseXModel):
         :param x: input tensor
         :return: output classification
         """
-        super(BaseXClassifier, self).forward(x)
+        # super(BaseXClassifier, self).forward(x)
         output = self.model(x)
         return output
 
@@ -104,13 +104,15 @@ class BaseXClassifier(torch.nn.Module, BaseXModel):
         # Training epochs
         best_acc, best_epoch = 0.0, 0
         train_accs, val_accs, tot_losses = [], [], []
-        train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True, num_workers=8)
+        # train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True, num_workers=8)
+        train_loader = torch.utils.data.DataLoader(train_set, batch_size)
         pbar = tqdm(range(epochs), ncols=100, position=0, leave=True) if verbose else None
         torch.autograd.set_detect_anomaly(True)
         for epoch in range(epochs):
             if verbose:
                 pbar.set_postfix({"Epoch": f"{epoch + 1}/{epochs}"})
 
+            tot_losses_i = []
             train_outputs, train_labels = [], []
             for data in train_loader:
                 # Load batch (dataset, labels) on the correct device
@@ -128,10 +130,10 @@ class BaseXClassifier(torch.nn.Module, BaseXModel):
                 # Data moved to cpu again
                 batch_outputs, batch_labels = batch_outputs.detach().cpu(), batch_labels.detach().cpu()
                 tot_loss = tot_loss.detach().cpu()
-                train_outputs.append(batch_outputs), train_labels.append(batch_labels), tot_losses.append(tot_loss)
+                train_outputs.append(batch_outputs), train_labels.append(batch_labels), tot_losses_i.append(tot_loss)
 
             train_outputs, train_labels = torch.cat(train_outputs), torch.cat(train_labels)
-            tot_losses = torch.cat(tot_losses)
+            tot_losses_i = torch.stack(tot_losses_i)
 
             # Compute accuracy, f1 and constraint_loss on the whole train, validation dataset
             train_acc = self.evaluate(train_set, batch_size, metric, device, train_outputs, train_labels)
@@ -140,7 +142,7 @@ class BaseXClassifier(torch.nn.Module, BaseXModel):
             # Save epoch results
             train_accs.append(train_acc)
             val_accs.append(val_acc)
-            tot_losses.append(tot_losses.mean().item())
+            tot_losses.append(tot_losses_i.mean().item())
 
             if verbose:
                 pbar.set_postfix({"Train_acc": f"{train_acc:.1f}", "Val_acc": f"{val_acc:.1f}",
@@ -197,7 +199,8 @@ class BaseXClassifier(torch.nn.Module, BaseXModel):
         :return: a tuple containing the outputs computed on the dataset and the labels
         """
         outputs, labels = [], []
-        loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=8, pin_memory=True)
+        # loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=8, pin_memory=True)
+        loader = torch.utils.data.DataLoader(dataset, batch_size)
         for i, data in enumerate(loader):
             batch_data, batch_labels, = data[0].to(device), data[1].to(device)
             batch_outputs = self.forward(batch_data)

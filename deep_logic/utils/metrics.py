@@ -26,7 +26,7 @@ class TopkAccuracy(Metric):
     :param k: number of elements of the outputs to consider in order to assert a datum as correctly classified
     """
 
-    def __init__(self, k: int = 5):
+    def __init__(self, k: int = 1):
         self.k = k
 
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
