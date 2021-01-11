@@ -85,6 +85,8 @@ class XDecisionTreeClassifier(BaseXClassifier):
         train_data, train_labels = torch.cat(train_data).numpy(), torch.cat(train_labels).numpy()
 
         # Fitting decision tree
+        if train_labels.shape[1] > 1:
+            train_labels = np.argmax(train_labels, axis=1)
         self.model = self.model.fit(X=train_data, y=train_labels)
 
         # Compute accuracy, f1 and constraint_loss on the whole train, validation dataset
@@ -115,7 +117,7 @@ class XDecisionTreeClassifier(BaseXClassifier):
         :return: metric evaluated on the dataset
         """
         outputs, labels = self.predict(dataset)
-        outputs, labels = torch.FloatTensor(outputs).unsqueeze(1), torch.FloatTensor(labels).unsqueeze(1)
+        outputs, labels = torch.FloatTensor(outputs), torch.FloatTensor(labels)
         metric_val = metric(outputs, labels)
         return metric_val
 
@@ -129,12 +131,17 @@ class XDecisionTreeClassifier(BaseXClassifier):
         outputs, labels = [], []
         loader = torch.utils.data.DataLoader(dataset, 2)#, num_workers=8, pin_memory=True)
         for data in loader:
-            batch_data = data[0].numpy()
-            batch_output = self.model.predict(batch_data)
+            batch_data = data[0]
+            batch_output = self.forward(batch_data)
+            if data[1].shape[1] == 1:
+                batch_output = batch_output[:, 1].squeeze()
             outputs.append(batch_output)
             labels.append(data[1].squeeze().cpu().detach().numpy())
 
-        return np.hstack(outputs), np.hstack(labels)
+        if data[1].shape[1] == 1:
+            return np.hstack(outputs), np.hstack(labels)
+        else:
+            return np.vstack(outputs), np.vstack(labels)
 
     def save(self, name=None, **kwargs) -> None:
         from joblib import dump

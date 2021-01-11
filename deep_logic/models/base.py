@@ -13,12 +13,11 @@ class BaseXModel:
     """Base class for all models in XDL."""
 
     @abstractmethod
-    def get_explanation(self, x: torch.Tensor, kind: str = 'local'):
+    def get_explanation(self, x: torch.Tensor):
         """
         Get explanation.
 
         :param x: input tensor
-        :param kind: require local or global explanations
         :return: Explanation.
         """
         pass
@@ -64,7 +63,7 @@ class BaseXClassifier(torch.nn.Module, BaseXModel):
         """
         return [*self.model.parameters()][0].device
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x):
         """
         forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
         A probability value is returned in output after sigmoid activation
@@ -72,9 +71,8 @@ class BaseXClassifier(torch.nn.Module, BaseXModel):
         :param x: input tensor
         :return: output classification
         """
-        # super(BaseXClassifier, self).forward(x)
-        output = self.model(x)
-        return output
+        assert not torch.isnan(x).any(), "Input data contain nan values"
+        assert not torch.isinf(x).any(), "Input data contain inf values"
 
     def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 16, epochs: int = 170,
             l_r: float = 0.1, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),

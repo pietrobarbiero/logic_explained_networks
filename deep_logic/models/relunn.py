@@ -50,7 +50,7 @@ class XReluClassifier(BaseXClassifier):
         :param x: input tensor
         :return: output classification
         """
-        # super(XReluClassifier, self).forward(x)
+        super(XReluClassifier, self).forward(x)
         output = self.model(x)
         return output
 
@@ -68,7 +68,7 @@ class XReluClassifier(BaseXClassifier):
             if hasattr(layer, "weight"):
                 l1_reg_loss += torch.sum(torch.abs(layer.weight))
         output_loss = self.loss(output, target)
-        return output_loss + l1_reg_loss
+        return output_loss + self.l1_weight * l1_reg_loss
 
     def get_reduced_model(self, x_sample: torch.Tensor) -> torch.nn.Module:
         """
@@ -80,7 +80,7 @@ class XReluClassifier(BaseXClassifier):
         self.reduced_model = get_reduced_model(self.model, x_sample)
         return self.reduced_model
 
-    def get_explanation(self, x: torch.Tensor, y: torch.Tensor = None, kind: str = 'local', k: int = 5,
+    def get_explanation(self, x: torch.Tensor, y: torch.Tensor = None, local: bool = True, k: int = 5,
                         device: torch.device = torch.device('cpu')):
         """
         Generate explanations.
@@ -93,9 +93,11 @@ class XReluClassifier(BaseXClassifier):
         :param device: cpu or cuda device
         :return: Explanation
         """
-        if kind == 'local':
+        assert len(x.shape) <= 2, 'Only 1 or 2 dimensional data are allowed.'
+        if local:
+            if len(x.shape) == 2: assert x.shape[0] == 1, 'Local explanation requires 1 single sample.'
             return generate_local_explanations(self.model, x, k, device)
-        elif kind == 'global':
+        else:
             return combine_local_explanations(self.model, x, y, k, device)
 
 
