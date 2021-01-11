@@ -12,27 +12,32 @@ from metrics import Metric, TopkAccuracy
 
 class Classifier(torch.nn.Module, ABC):
 	"""
-		Classifier is an abstract class representing a generic classifier.
+		Classifier is an abstract class representing a generic classifier. It already provides for a set of common
+		methods such as the fit(), the save() and the load() functions.
 		init(), forward() and get_loss() methods are required to be implemented by extending classes
 
 		:param name: str
 			name of the network: used for saving and loading purposes
-		:var trained: bool
+		:param device: torch.device
+			device on which to load the model after instantiating
+		:var trained: torch.bool
 			flag set at the end of the training and saved with the model. Only trained model can be loaded from memory
 	 """
 
 	@abstractmethod
-	def __init__(self, name: str = "net",):
+	def __init__(self, name: str = "net", device: torch.device = torch.device("cpu")):
 
 		super(Classifier, self).__init__()
 		self.name = name
-		self.register_buffer("trained", torch.tensor(False))
+		self.register_buffer("trained", torch.BoolTensor())
+		self.to(device)
 
 	@abstractmethod
 	def forward(self, x: torch.Tensor):
 		"""
 		forward method that needs to be implemented by each extending class. In this class only some checks on the input
 		are performed.
+
 		:param x: input tensor
 		"""
 		assert not torch.isnan(x).any(), "Input data contain nan values"
@@ -42,6 +47,9 @@ class Classifier(torch.nn.Module, ABC):
 	def get_loss(self, output: torch.Tensor, target: torch.Tensor):
 		"""
 		get_loss method is used by each class to calculate its own loss according to the different training strategy
+
+		:param output: output tensor from the forward function
+		:param target: label tensor
 		"""
 		pass
 
@@ -49,6 +57,7 @@ class Classifier(torch.nn.Module, ABC):
 	def set_seed(seed):
 		"""
 		Static method used to set the seed for an experiment. Needs to be called before doing anything else.
+
 		:param seed:
 		"""
 		np.random.seed(seed)
@@ -59,6 +68,7 @@ class Classifier(torch.nn.Module, ABC):
 	def get_device(self) -> torch.device:
 		"""
 		Return the device on which the classifier is actually loaded
+
 		:return: device in use
 		"""
 		return [*self.model.parameters()][0].device
@@ -157,6 +167,7 @@ class Classifier(torch.nn.Module, ABC):
 	             device: torch.device = torch.device("cpu"), outputs=None, labels=None) -> float:
 		"""
 		Evaluate function to test without training the performance of the model on a certain dataset
+
 		:param dataset: dataset on which to test
 		:param batch_size: number of training data for each step of the training
 		:param metric: metric to evaluate the predictions of the network
@@ -176,6 +187,7 @@ class Classifier(torch.nn.Module, ABC):
 	def predict(self, dataset, batch_size, device) -> Tuple[torch.Tensor, torch.Tensor]:
 		"""
 		Predict function to compute the prediction of the model on a certain dataset
+
 		:param dataset: dataset on which to test
 		:param batch_size: number of training data for each step of the training
 		:param device: device on which to perform the training
@@ -193,6 +205,7 @@ class Classifier(torch.nn.Module, ABC):
 	def save(self, set_trained=False, name=None) -> None:
 		"""
 		Save model on a file named with the name of the model if parameter name is not set.
+
 		:param set_trained: Used to set the buffer flag "trained" at the end of training.
 		:param name: Save the model with a name different from the one assigned in the __init__
 		"""
@@ -207,6 +220,7 @@ class Classifier(torch.nn.Module, ABC):
 		Load model on a specific device (can be different from the one used during training). If set_trained is true than
 		the model flag "trained" is set to true first and the model is saved again. If set_trained is not set and
 		the model flag "trained" is not true a ClassifierNotTrainedError is raised
+
 		:param device: device on which to load the model
 		:param set_trained: whether to set the buffer flag "trained" before loading or not.
 		:param name: Load a model with a name different from the one assigned in the __init__

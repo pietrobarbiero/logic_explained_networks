@@ -12,8 +12,9 @@ from classifier import Classifier
 class Interpretable_ReLU(Classifier):
     """
         Feed forward Neural Network employing ReLU activation function of variable depth but completely interpretable.
-        After being trained it provides for local explanation for the prediction on single sample and global
-        explanations for a class on the overall dataset
+        After being trained it provides for local explanation for the prediction on a single example and global
+        explanations on the overall dataset
+
         :param n_classes: int
             number of classes to classify - dimension of the output layer of the network
         :param n_features: int
@@ -29,34 +30,28 @@ class Interpretable_ReLU(Classifier):
     def __init__(self, n_classes: int, n_features: int, hidden_neurons: list, loss: torch.nn.modules.loss,
                  l1_weight: float = 1e-4, device: torch.device = torch.device('cpu'), name: str = "net"):
 
-        super(Interpretable_ReLU, self).__init__(name)
         self.n_classes = n_classes
         self.n_features = n_features
 
-        layers = [
-            torch.nn.Linear(n_features, hidden_neurons[0]),
-            torch.nn.ReLU(),
-        ]
-        for i in range(len(hidden_neurons) - 1):
+        layers = []
+        for i in range(len(hidden_neurons) + 1):
+            input_nodes = hidden_neurons[i-1] if i != 0 else n_features
+            output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else n_classes
             layers.extend([
-                torch.nn.Linear(i, i+1),
-                torch.nn.ReLU()
+                torch.nn.Linear(input_nodes, output_nodes),
+                torch.nn.ReLU() if i != len(hidden_neurons) else torch.nn.Sigmoid()
             ])
-        layers.extend([[
-            torch.nn.Linear(hidden_neurons[-1], n_classes),
-            torch.nn.Sigmoid(),
-        ]])
         self.model = torch.nn.Sequential(*layers)
         self.loss = loss
         self.l1_weight = l1_weight
 
-        self.register_buffer("trained", torch.tensor(False))
-        self.to(device)
+        super(Interpretable_ReLU, self).__init__(name, device)
 
     def forward(self, x) -> torch.Tensor:
         """
         forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
-        A probability value is returned in output after sigmoif activation
+        A probability value is returned in output after sigmoid activation
+
         :param x: input tensor
         :return: output classification
         """
@@ -68,6 +63,7 @@ class Interpretable_ReLU(Classifier):
         """
         get_loss method extended from Classifier. The loss passed in the __init__ function of the Interpretable_ReLU is
         employed. An L1 weight regularization is also always applied
+
         :param output: output tensor from the forward function
         :param target: label tensor
         :return: loss tensor value
@@ -234,28 +230,3 @@ class Interpretable_ReLU(Classifier):
 
 if __name__ == "__main__":
     pass
-    # LFCClassifier.set_seed(0)
-    # d_path = "..//data//CUB_200_2011"
-    # d = dl.CUB200
-    # cosine = False
-    # os.environ['CUDA_VISIBLE_DEVICES'] = '0,'  # '1'
-    # dev = "cpu" if not torch.cuda.is_available() else "cuda"
-    # n = "cosine.pth" if cosine else "linear.pth"
-    # attr_w = 25
-    # orth_w = 0.0025
-    # wd = 0.0001
-    # lr = 0.1
-    # c_w = 0.01  # 0.001
-    #
-    # fsc_dataset = dl.FSCDataset(d_path, d)
-    # train_d, fine_t_d = fsc_dataset.get_splits_for_fsc()
-    # train_d, val_d = train_d.get_splits_train_val()
-    #
-    # clf = LFCClassifier(d, len(train_d.classes), name=n, use_attributes=False, cosine_classifier=cosine)
-    #
-    # df: pd.DataFrame = clf.fit(train_d, val_d, device=dev, verbose=True, l_r=lr, weight_decay=wd)
-    # # df : pd.DataFrame = pd.read_csv(f"{n}.csv")
-    #
-    # tm = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-    # df.to_csv(f"{n}_{tm}.csv")
-    # print("Dataframe_saved")
