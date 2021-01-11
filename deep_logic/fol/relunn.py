@@ -4,8 +4,8 @@ import torch
 import numpy as np
 from sympy import simplify_logic
 
-from ..utils import collect_parameters
-from ..relunn import get_reduced_model
+from ..utils.base import collect_parameters
+from ..utils.relunn import get_reduced_model
 
 
 def generate_local_explanations(model: torch.nn.Module, x_sample: torch.Tensor, k: int = 5,

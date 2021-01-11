@@ -6,7 +6,8 @@ import torch
 class TestTemplateObject(unittest.TestCase):
     def test_relunets(self):
         import numpy as np
-        from deep_logic import get_reduced_model, validate_network, validate_data
+        from deep_logic.utils.relunn import get_reduced_model
+        from deep_logic.utils.base import validate_network, validate_data
         from deep_logic.fol import generate_local_explanations, combine_local_explanations
 
         torch.manual_seed(10)
@@ -58,7 +59,8 @@ class TestTemplateObject(unittest.TestCase):
     def test_psi_example(self):
         import torch
         import numpy as np
-        from deep_logic import validate_network, prune_equal_fanin, collect_parameters
+        from deep_logic.utils.base import validate_network
+        from deep_logic.utils.sigmoidnn import prune_equal_fanin
         from deep_logic import fol
 
         torch.manual_seed(0)
@@ -106,7 +108,7 @@ class TestTemplateObject(unittest.TestCase):
         return
 
     def test_pruning(self):
-        from deep_logic import prune_equal_fanin, validate_pruning
+        from deep_logic.utils.sigmoidnn import prune_equal_fanin, validate_pruning
 
         layers = [torch.nn.Linear(3, 4), torch.nn.Sigmoid(), torch.nn.Linear(4, 1), torch.nn.Sigmoid()]
         net = torch.nn.Sequential(*layers)
@@ -118,7 +120,7 @@ class TestTemplateObject(unittest.TestCase):
         return
 
     def test_parameter_collection(self):
-        from deep_logic import collect_parameters
+        from deep_logic.utils.base import collect_parameters
 
         layers = [torch.nn.Linear(3, 4), torch.nn.Sigmoid(), torch.nn.Linear(4, 1), torch.nn.Sigmoid()]
         net = torch.nn.Sequential(*layers)
@@ -131,7 +133,7 @@ class TestTemplateObject(unittest.TestCase):
         return
 
     def test_validation(self):
-        from deep_logic import validate_data, validate_network
+        from deep_logic.utils.base import validate_data, validate_network
 
         x = torch.arange(0, 1, step=0.1)
         validate_data(x)
