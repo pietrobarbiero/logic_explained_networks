@@ -106,7 +106,7 @@ def compute_fol_formula(truth_table: np.array, predictions: np.array, feature_na
     formula = formula.replace('~(False)', 'True')
 
     # simplify formula
-    simplified_formula = simplify_logic(formula)
+    simplified_formula = simplify_logic(formula, force=True)
     return str(simplified_formula)
 
 

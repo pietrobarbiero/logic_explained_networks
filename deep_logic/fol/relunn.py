@@ -79,8 +79,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
     # the global explanation is the disjunction of local explanations
     global_explanation = ' | '.join(local_explanations)
-    # TODO: force
-    global_explanation_simplified = simplify_logic(global_explanation, 'dnf')
+    global_explanation_simplified = simplify_logic(global_explanation, 'dnf', force=True)
 
     # predictions based on FOL formula
     minterms = str(global_explanation_simplified).split(' | ')
