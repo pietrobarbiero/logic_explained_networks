@@ -23,7 +23,7 @@ class BaseXModel:
         pass
 
 
-class BaseXClassifier(torch.nn.Module, BaseXModel):
+class BaseClassifier(torch.nn.Module):
     """
     Classifier is an abstract class representing a generic classifier. It already provides for a set of common
     methods such as the fit(), the save() and the load() functions.
@@ -40,7 +40,7 @@ class BaseXClassifier(torch.nn.Module, BaseXModel):
     @abstractmethod
     def __init__(self, name: str = "net", device: torch.device = torch.device("cpu")):
 
-        super(BaseXClassifier, self).__init__()
+        super(BaseClassifier, self).__init__()
         self.name = name
         self.register_buffer("trained", torch.BoolTensor())
         self.to(device)
@@ -63,6 +63,7 @@ class BaseXClassifier(torch.nn.Module, BaseXModel):
         """
         return [*self.model.parameters()][0].device
 
+    @abstractmethod
     def forward(self, x):
         """
         forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
@@ -74,7 +75,7 @@ class BaseXClassifier(torch.nn.Module, BaseXModel):
         assert not torch.isnan(x).any(), "Input data contain nan values"
         assert not torch.isinf(x).any(), "Input data contain inf values"
 
-    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 16, epochs: int = 170,
+    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10,
             l_r: float = 0.1, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),
             verbose: bool = True) -> pd.DataFrame:
         """
@@ -102,8 +103,8 @@ class BaseXClassifier(torch.nn.Module, BaseXModel):
         # Training epochs
         best_acc, best_epoch = 0.0, 0
         train_accs, val_accs, tot_losses = [], [], []
-        # train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True, num_workers=8)
-        train_loader = torch.utils.data.DataLoader(train_set, batch_size)
+        train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True, num_workers=8)
+        # train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True)
         pbar = tqdm(range(epochs), ncols=100, position=0, leave=True) if verbose else None
         torch.autograd.set_detect_anomaly(True)
         for epoch in range(epochs):
@@ -148,10 +149,10 @@ class BaseXClassifier(torch.nn.Module, BaseXModel):
                 pbar.update()
 
             # Save best model
-            if val_acc >= best_acc and epoch >= epochs / 2:
+            if val_acc >= best_acc and epoch >= epochs / 2 or epochs == 1:
                 best_acc = val_acc
                 best_epoch = epoch + 1
-                self.save(set_trained=True)
+                self.save()
 
         # Best model is loaded and saved again with buffer "trained" set to true
         self.load(device, set_trained=True)
@@ -166,7 +167,7 @@ class BaseXClassifier(torch.nn.Module, BaseXModel):
         performance_df = pd.DataFrame(performance_dict)
         return performance_df
 
-    def evaluate(self, dataset: Dataset, batch_size: int, metric: Metric = TopkAccuracy(),
+    def evaluate(self, dataset: Dataset, batch_size: int = 64, metric: Metric = TopkAccuracy(),
                  device: torch.device = torch.device("cpu"), outputs=None, labels=None) -> float:
         """
         Evaluate function to test without training the performance of the model on a certain dataset

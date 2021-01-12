@@ -1,9 +1,9 @@
 import torch
 
-from .base import BaseXClassifier
+from .base import BaseClassifier, BaseXModel
 
 
-class LogisticRegressionClassifier(BaseXClassifier):
+class LogisticRegressionClassifier(BaseClassifier, BaseXModel):
     """
         Logistic Regression class module. It does not provides for explanations.
 
@@ -52,6 +52,9 @@ class LogisticRegressionClassifier(BaseXClassifier):
         """
         output_loss = self.loss(output, target)
         return output_loss
+
+    def get_explanation(self, x: torch.Tensor):
+        raise NotImplementedError  # TODO: implement
 
 
 if __name__ == "__main__":

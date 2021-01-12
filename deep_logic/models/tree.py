@@ -6,11 +6,11 @@ import torch
 from sklearn.tree import DecisionTreeClassifier
 from torch.utils.data import Dataset
 
-from .base import BaseXClassifier, ClassifierNotTrainedError
+from .base import BaseClassifier, ClassifierNotTrainedError, BaseXModel
 from ..utils.metrics import Metric, TopkAccuracy
 
 
-class XDecisionTreeClassifier(BaseXClassifier):
+class DecisionTreeClassifier(BaseClassifier, BaseXModel):
     """
         Decision Tree class module. It does provides for explanations.
 
@@ -41,7 +41,7 @@ class XDecisionTreeClassifier(BaseXClassifier):
         :param x: input tensor
         :return: output classification
         """
-        super(XDecisionTreeClassifier, self).forward(x)
+        super(DecisionTreeClassifier, self).forward(x)
         x = x.detach().cpu().numpy()
         output = self.model.predict_proba(x)
         return output
@@ -117,7 +117,6 @@ class XDecisionTreeClassifier(BaseXClassifier):
         :return: metric evaluated on the dataset
         """
         outputs, labels = self.predict(dataset)
-        outputs, labels = torch.FloatTensor(outputs), torch.FloatTensor(labels)
         metric_val = metric(outputs, labels)
         return metric_val
 
@@ -139,9 +138,9 @@ class XDecisionTreeClassifier(BaseXClassifier):
             labels.append(data[1].squeeze().cpu().detach().numpy())
 
         if data[1].shape[1] == 1:
-            return np.hstack(outputs), np.hstack(labels)
+            return torch.FloatTensor(np.hstack(outputs)), torch.FloatTensor(np.hstack(labels))
         else:
-            return np.vstack(outputs), np.vstack(labels)
+            return torch.FloatTensor(np.vstack(outputs)), torch.FloatTensor(np.vstack(labels))
 
     def save(self, name=None, **kwargs) -> None:
         from joblib import dump
@@ -168,6 +167,9 @@ class XDecisionTreeClassifier(BaseXClassifier):
             self.model = load(name)
         except FileNotFoundError:
             raise ClassifierNotTrainedError() from None
+
+    def get_explanation(self, x: torch.Tensor):
+        raise NotImplementedError  # TODO: implement
 
 
 class NotAvailableError(Exception):

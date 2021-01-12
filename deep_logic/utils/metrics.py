@@ -41,7 +41,9 @@ class TopkAccuracy(Metric):
         self.k = k
 
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
-        targets = targets.argmax(dim=1)
+
+        if len(targets.squeeze().shape) > 1:
+            targets = targets.argmax(dim=1)
         n_samples = targets.shape[0]
         _, topk_outputs = outputs.topk(self.k, 1)
         topk_acc = topk_outputs.eq(targets.reshape(-1, 1)).sum().item() / n_samples * 100

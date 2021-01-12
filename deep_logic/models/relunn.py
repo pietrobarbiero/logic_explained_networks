@@ -2,10 +2,10 @@ import torch
 
 from ..utils.relunn import get_reduced_model
 from ..fol.relunn import generate_local_explanations, combine_local_explanations
-from .base import BaseXClassifier
+from .base import BaseClassifier, BaseXModel
 
 
-class XReluClassifier(BaseXClassifier):
+class ReluClassifier(BaseClassifier, BaseXModel):
     """
         Feed forward Neural Network employing ReLU activation function of variable depth but completely interpretable.
         After being trained it provides for local explanation for the prediction on a single example and global
@@ -42,18 +42,6 @@ class XReluClassifier(BaseXClassifier):
         self.loss = loss
         self.l1_weight = l1_weight
 
-    def forward(self, x) -> torch.Tensor:
-        """
-        forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
-        A probability value is returned in output after sigmoid activation
-
-        :param x: input tensor
-        :return: output classification
-        """
-        super(XReluClassifier, self).forward(x)
-        output = self.model(x)
-        return output
-
     def get_loss(self, output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         get_loss method extended from Classifier. The loss passed in the __init__ function of the InterpretableReLU is
@@ -69,6 +57,18 @@ class XReluClassifier(BaseXClassifier):
                 l1_reg_loss += torch.sum(torch.abs(layer.weight))
         output_loss = self.loss(output, target)
         return output_loss + self.l1_weight * l1_reg_loss
+
+    def forward(self, x) -> torch.Tensor:
+        """
+        forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
+        A probability value is returned in output after sigmoid activation
+
+        :param x: input tensor
+        :return: output classification
+        """
+        super(ReluClassifier, self).forward(x)
+        output = self.model(x)
+        return output
 
     def get_reduced_model(self, x_sample: torch.Tensor) -> torch.nn.Module:
         """
