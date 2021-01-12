@@ -159,12 +159,12 @@ class TestTemplateObject(unittest.TestCase):
 
         model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.CrossEntropyLoss())
 
-        #It takes a few minutes
+        # It takes a few minutes
         results = model.fit(train_set=testset, val_set=testset, epochs=1)
 
         assert results.shape == (1, 4)
 
-        accuracy = model.evaluate(testset)
+        accuracy = results['Val accs'].values[-1]
 
         assert accuracy > 25.
 

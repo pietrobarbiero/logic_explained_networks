@@ -159,10 +159,10 @@ class BaseClassifier(torch.nn.Module):
 
         # Performance dictionary
         performance_dict = {
-            "tot_loss": tot_losses,
-            "train_accs": train_accs,
-            "val_accs": val_accs,
-            "best_epoch": best_epoch,
+            "Tot losses": tot_losses,
+            "Train accs": train_accs,
+            "Val accs": val_accs,
+            "Best epoch": best_epoch,
         }
         performance_df = pd.DataFrame(performance_dict)
         return performance_df
