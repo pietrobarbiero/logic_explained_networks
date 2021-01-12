@@ -7,15 +7,15 @@ from torch import optim
 from torch.utils.data import TensorDataset
 from torchvision.transforms import transforms
 
-from deep_logic.models.relunn import ReluClassifier
-from deep_logic.models.linear import LogisticRegressionClassifier
-from deep_logic.models.tree import DecisionTreeClassifier
+from deep_logic.models.relunn import XReluClassifier
+from deep_logic.models.linear import XLogisticRegressionClassifier
+from deep_logic.models.tree import XDecisionTreeClassifier
 from deep_logic.utils.base import set_seed, validate_network, validate_data
 from deep_logic.utils.metrics import Accuracy, TopkAccuracy
 from image_preprocessing.concept_extractor import CNNConceptExtractor
 
 
-class TestTemplateObject(unittest.TestCase):
+class TestModels(unittest.TestCase):
     def test_relunn(self):
 
         set_seed(0)
@@ -28,12 +28,12 @@ class TestTemplateObject(unittest.TestCase):
 
         loss = torch.nn.BCELoss()
         metric = Accuracy()
-        model = ReluClassifier(n_classes=1, n_features=2, hidden_neurons=[20, 10, 5], loss=loss, l1_weight=0.001)
+        model = XReluClassifier(n_classes=1, n_features=2, hidden_neurons=[20, 10, 5], loss=loss, l1_weight=0.001)
 
         results = model.fit(train_data, train_data, batch_size=4, epochs=100, l_r=0.01, metric=metric)
         assert results.shape == (100, 4)
 
-        accuracy = model.evaluate(train_data)
+        accuracy = model.evaluate(train_data, metric=metric)
         assert accuracy == 100.0
 
         reduced_model = model.get_reduced_model(x_sample)
@@ -50,12 +50,12 @@ class TestTemplateObject(unittest.TestCase):
 
         loss = torch.nn.BCELoss()
         metric = TopkAccuracy()
-        model = ReluClassifier(n_classes=2, n_features=2, hidden_neurons=[20, 10, 3], loss=loss, l1_weight=0)
+        model = XReluClassifier(n_classes=2, n_features=2, hidden_neurons=[20, 10, 3], loss=loss, l1_weight=0)
 
-        results = model.fit(train_data, train_data, batch_size=4, epochs=100, l_r=0.1, metric=metric)
+        results = model.fit(train_data, train_data, batch_size=4, epochs=100, l_r=0.01, metric=metric)
         assert results.shape == (100, 4)
 
-        accuracy = model.evaluate(train_data)
+        accuracy = model.evaluate(train_data, metric=metric)
         assert accuracy == 100.0
 
         reduced_model = model.get_reduced_model(x_sample)
@@ -72,14 +72,15 @@ class TestTemplateObject(unittest.TestCase):
 
         # Single class test
         x = torch.tensor([[0, 1], [1, 1], [1, 0], [0, 0]], dtype=torch.float).cpu()
+        # For the linear classifier we cannot use the real XOR problem since it cannot accomplish it
         y = torch.tensor([0, 1, 0, 0], dtype=torch.float).unsqueeze(1).cpu()
         train_data = TensorDataset(x, y)
 
         loss = torch.nn.BCELoss()
         metric = Accuracy()
-        model = LogisticRegressionClassifier(n_classes=1, n_features=2, loss=loss)
+        model = XLogisticRegressionClassifier(n_classes=1, n_features=2, loss=loss)
 
-        results = model.fit(train_data, train_data, batch_size=4, epochs=100, l_r=0.01, metric=metric)
+        results = model.fit(train_data, train_data, batch_size=4, epochs=100, l_r=0.1, metric=metric)
 
         assert results.shape == (100, 4)
 
@@ -89,18 +90,19 @@ class TestTemplateObject(unittest.TestCase):
 
         # Multi-class test
         x = torch.tensor([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=torch.float).cpu()
-        y = torch.tensor([[0, 1], [1, 0], [1, 0], [0, 1]], dtype=torch.float).cpu()
+        # For the linear classifier we cannot use the real XOR problem since it cannot accomplish it
+        y = torch.tensor([[1, 0], [0, 1], [1, 0], [1, 0]], dtype=torch.float).cpu()
         train_data = TensorDataset(x, y)
 
         loss = torch.nn.BCELoss()
         metric = TopkAccuracy()
-        model = LogisticRegressionClassifier(n_classes=2, n_features=2, loss=loss)
+        model = XLogisticRegressionClassifier(n_classes=2, n_features=2, loss=loss)
 
-        results = model.fit(train_data, train_data, batch_size=4, epochs=100, l_r=0.01, metric=metric)
+        results = model.fit(train_data, train_data, batch_size=4, epochs=100, l_r=0.1, metric=metric)
 
         assert results.shape == (100, 4)
 
-        accuracy = model.evaluate(train_data)
+        accuracy = model.evaluate(train_data, metric=metric)
 
         assert accuracy == 100.0
 
@@ -116,7 +118,7 @@ class TestTemplateObject(unittest.TestCase):
         train_data = TensorDataset(x, y)
 
         metric = Accuracy()
-        model = DecisionTreeClassifier(n_classes=1, n_features=2)
+        model = XDecisionTreeClassifier(n_classes=1, n_features=2)
 
         results = model.fit(train_data, train_data, metric=metric)
 
@@ -132,7 +134,7 @@ class TestTemplateObject(unittest.TestCase):
         train_data = TensorDataset(x, y)
 
         metric = TopkAccuracy()
-        model = DecisionTreeClassifier(n_classes=2, n_features=2)
+        model = XDecisionTreeClassifier(n_classes=2, n_features=2)
 
         results = model.fit(train_data, train_data, metric=metric)
 
@@ -144,6 +146,8 @@ class TestTemplateObject(unittest.TestCase):
 
         return
 
+
+class TestConceptExtractor(unittest.TestCase):
     def test_concept_extractor(self):
         set_seed(0)
 

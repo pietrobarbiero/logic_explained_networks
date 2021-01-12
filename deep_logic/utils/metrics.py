@@ -26,6 +26,10 @@ class Accuracy(Metric):
     """
 
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
+        if len(outputs.squeeze().shape) > 1:
+            outputs = outputs.argmax(dim=1)
+        if len(targets.squeeze().shape) > 1:
+            targets = targets.argmax(dim=1)
         n_samples = targets.shape[0]
         accuracy = targets.eq(outputs>0.5).sum().item() / n_samples * 100
         return accuracy
@@ -34,6 +38,7 @@ class Accuracy(Metric):
 class TopkAccuracy(Metric):
     """
     Top-k accuracy computed between the predictions of the model and the actual labels.
+    It requires to receive an output tensor of the shape (n,c) where c needs to be greater than 1
     :param k: number of elements of the outputs to consider in order to assert a datum as correctly classified
     """
 
@@ -41,7 +46,7 @@ class TopkAccuracy(Metric):
         self.k = k
 
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
-
+        assert len(outputs.squeeze().shape) > 1, "TopkAccuracy requires a multi-dimensional outputs"
         if len(targets.squeeze().shape) > 1:
             targets = targets.argmax(dim=1)
         n_samples = targets.shape[0]

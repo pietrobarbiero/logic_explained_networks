@@ -7,10 +7,10 @@ from sklearn.tree import DecisionTreeClassifier
 from torch.utils.data import Dataset
 
 from .base import BaseClassifier, ClassifierNotTrainedError, BaseXModel
-from ..utils.metrics import Metric, TopkAccuracy
+from ..utils.metrics import Metric, TopkAccuracy, Accuracy
 
 
-class DecisionTreeClassifier(BaseClassifier, BaseXModel):
+class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
     """
         Decision Tree class module. It does provides for explanations.
 
@@ -41,7 +41,7 @@ class DecisionTreeClassifier(BaseClassifier, BaseXModel):
         :param x: input tensor
         :return: output classification
         """
-        super(DecisionTreeClassifier, self).forward(x)
+        super(XDecisionTreeClassifier, self).forward(x)
         x = x.detach().cpu().numpy()
         output = self.model.predict_proba(x)
         return output
@@ -108,7 +108,7 @@ class DecisionTreeClassifier(BaseClassifier, BaseXModel):
         performance_df = pd.DataFrame(performance_dict)
         return performance_df
 
-    def evaluate(self, dataset: Dataset, metric: Metric = TopkAccuracy(), **kwargs) -> float:
+    def evaluate(self, dataset: Dataset, metric: Metric = Accuracy(), **kwargs) -> float:
         """
         Evaluate function to test without training the performance of the decision tree on a certain dataset
 
@@ -128,7 +128,7 @@ class DecisionTreeClassifier(BaseClassifier, BaseXModel):
         :return: a tuple containing the outputs computed on the dataset and the labels
         """
         outputs, labels = [], []
-        loader = torch.utils.data.DataLoader(dataset, 2)#, num_workers=8, pin_memory=True)
+        loader = torch.utils.data.DataLoader(dataset, 2)  # , num_workers=8, pin_memory=True)
         for data in loader:
             batch_data = data[0]
             batch_output = self.forward(batch_data)

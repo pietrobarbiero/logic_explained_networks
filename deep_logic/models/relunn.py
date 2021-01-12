@@ -5,7 +5,7 @@ from ..fol.relunn import generate_local_explanations, combine_local_explanations
 from .base import BaseClassifier, BaseXModel
 
 
-class ReluClassifier(BaseClassifier, BaseXModel):
+class XReluClassifier(BaseClassifier, BaseXModel):
     """
         Feed forward Neural Network employing ReLU activation function of variable depth but completely interpretable.
         After being trained it provides for local explanation for the prediction on a single example and global
@@ -66,7 +66,7 @@ class ReluClassifier(BaseClassifier, BaseXModel):
         :param x: input tensor
         :return: output classification
         """
-        super(ReluClassifier, self).forward(x)
+        super(XReluClassifier, self).forward(x)
         output = self.model(x)
         return output
 
@@ -95,7 +95,8 @@ class ReluClassifier(BaseClassifier, BaseXModel):
         """
         assert len(x.shape) <= 2, 'Only 1 or 2 dimensional data are allowed.'
         if local:
-            if len(x.shape) == 2: assert x.shape[0] == 1, 'Local explanation requires 1 single sample.'
+            if len(x.shape) == 2:
+                assert x.shape[0] == 1, 'Local explanation requires 1 single sample.'
             return generate_local_explanations(self.model, x, k, device)
         else:
             return combine_local_explanations(self.model, x, y, k, device)

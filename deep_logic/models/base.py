@@ -103,7 +103,7 @@ class BaseClassifier(torch.nn.Module):
         # Training epochs
         best_acc, best_epoch = 0.0, 0
         train_accs, val_accs, tot_losses = [], [], []
-        train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True, num_workers=8)
+        train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True) #, num_workers=4)
         # train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True)
         pbar = tqdm(range(epochs), ncols=100, position=0, leave=True) if verbose else None
         torch.autograd.set_detect_anomaly(True)
@@ -167,7 +167,7 @@ class BaseClassifier(torch.nn.Module):
         performance_df = pd.DataFrame(performance_dict)
         return performance_df
 
-    def evaluate(self, dataset: Dataset, batch_size: int = 64, metric: Metric = TopkAccuracy(),
+    def evaluate(self, dataset: Dataset, batch_size: int = 64, metric: Metric = Accuracy(),
                  device: torch.device = torch.device("cpu"), outputs=None, labels=None) -> float:
         """
         Evaluate function to test without training the performance of the model on a certain dataset
@@ -188,7 +188,8 @@ class BaseClassifier(torch.nn.Module):
         self.train()
         return metric_val
 
-    def predict(self, dataset, batch_size, device) -> Tuple[torch.Tensor, torch.Tensor]:
+    def predict(self, dataset, batch_size: int = 64, device: torch.device = torch.device("cpu")) \
+            -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Predict function to compute the prediction of the model on a certain dataset
 

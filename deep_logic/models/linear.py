@@ -3,7 +3,7 @@ import torch
 from .base import BaseClassifier, BaseXModel
 
 
-class LogisticRegressionClassifier(BaseClassifier, BaseXModel):
+class XLogisticRegressionClassifier(BaseClassifier, BaseXModel):
     """
         Logistic Regression class module. It does not provides for explanations.
 
@@ -37,7 +37,7 @@ class LogisticRegressionClassifier(BaseClassifier, BaseXModel):
         :param x: input tensor
         :return: output classification
         """
-        super(LogisticRegressionClassifier, self).forward(x)
+        super(XLogisticRegressionClassifier, self).forward(x)
         output = self.model(x)
         return output
 

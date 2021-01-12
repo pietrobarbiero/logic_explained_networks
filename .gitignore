@@ -70,3 +70,4 @@ target/
 .idea/
 *.gz
 data/cifar-10-batches-py/
+tests/net
