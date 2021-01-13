@@ -40,7 +40,7 @@ class TestTemplateObject(unittest.TestCase):
                     loss += 0.0001 * torch.norm(module.weight, 1)
             loss.backward()
             optimizer.step()
-        explanation = combine_local_explanations(model, x, y)
+        explanation = combine_local_explanations(model, x, y, concept_names=['feature0', 'feature1'])
         print(explanation)
 
         model.eval()
@@ -49,7 +49,7 @@ class TestTemplateObject(unittest.TestCase):
         model_reduced = get_reduced_model(model, x_sample)
         y_pred_reduced = model_reduced(x_sample)
 
-        explanation = generate_local_explanations(model_reduced, x_sample)
+        explanation = generate_local_explanations(model_reduced, x_sample, concept_names=['feature0', 'feature1'])
         print(explanation)
 
         assert y_pred.eq(y_pred_reduced)[0]

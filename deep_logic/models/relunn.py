@@ -1,3 +1,5 @@
+from typing import List
+
 import torch
 
 from ..utils.relunn import get_reduced_model
@@ -81,7 +83,7 @@ class XReluClassifier(BaseClassifier, BaseXModel):
         return self.reduced_model
 
     def explain(self, x: torch.Tensor, y: torch.Tensor = None, local: bool = True, k: int = 5,
-                        device: torch.device = torch.device('cpu')):
+                concept_names: List = None, device: torch.device = torch.device('cpu')):
         """
         Generate explanations.
 
@@ -97,9 +99,9 @@ class XReluClassifier(BaseClassifier, BaseXModel):
         if local:
             if len(x.shape) == 2:
                 assert x.shape[0] == 1, 'Local explanation requires 1 single sample.'
-            return generate_local_explanations(self.model, x, k, device)
+            return generate_local_explanations(self.model, x, k, concept_names, device)
         else:
-            return combine_local_explanations(self.model, x, y, k, device)
+            return combine_local_explanations(self.model, x, y, k, concept_names, device)
 
 
 if __name__ == "__main__":

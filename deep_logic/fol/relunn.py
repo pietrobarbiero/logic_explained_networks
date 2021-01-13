@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, List
 
 import torch
 import numpy as np
@@ -9,6 +9,7 @@ from ..utils.relunn import get_reduced_model
 
 
 def generate_local_explanations(model: torch.nn.Module, x_sample: torch.Tensor, k: int = 5,
+                                concept_names: List = None,
                                 device: torch.device = torch.device('cpu')) -> str:
     """
     Generate the FOL formula for a specific input.
@@ -16,6 +17,7 @@ def generate_local_explanations(model: torch.nn.Module, x_sample: torch.Tensor, 
     :param model: pytorch model
     :param x_sample: input sample
     :param k: upper bound to the number of symbols involved in the explanation (it controls the complexity of the explanation)
+    :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
     :return: local explanation
     """
@@ -45,16 +47,22 @@ def generate_local_explanations(model: torch.nn.Module, x_sample: torch.Tensor, 
             if explanation:
                 explanation += ' & '
 
-            if xij >= 0.5:
-                explanation += f'f{j}'
+            if concept_names:
+                term = concept_names[j]
             else:
-                explanation += f'~f{j}'
+                term = f'f{j}'
+
+            if xij >= 0.5:
+                explanation += term
+            else:
+                explanation += f'~{term}'
 
     return explanation
 
 
 def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
-                               k: int = 5, device: torch.device = torch.device('cpu')) -> Tuple[str, np.array]:
+                               k: int = 5, concept_names: List = None,
+                               device: torch.device = torch.device('cpu')) -> Tuple[str, np.array]:
     """
     Generate a global explanation combining local explanations.
 
@@ -62,6 +70,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     :param x: input samples
     :param y: target labels
     :param k: upper bound to the number of symbols involved in the explanation (it controls the complexity of the explanation)
+    :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
     :return: global explanation and predictions
     """
@@ -74,7 +83,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
         # generate local explanation only if the prediction is correct
         if output > 0.5 and (output > 0.5) == yi:
-            local_explanation = generate_local_explanations(model_reduced, xi, k, device)
+            local_explanation = generate_local_explanations(model_reduced, xi, k, concept_names=None, device=device)
             local_explanations.append(local_explanation)
 
     # the global explanation is the disjunction of local explanations
@@ -97,4 +106,13 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
         predictions += local_predictions
 
-    return global_explanation_simplified, predictions
+    feature_abbreviations = [f'f{i}' for i in range(len(concept_names))]
+    mapping = []
+    for f_abbr, f_name in zip(feature_abbreviations, concept_names):
+        mapping.append((f_abbr, f_name))
+
+    global_explanation_simplified_str = str(global_explanation_simplified)
+    for k, v in mapping:
+        global_explanation_simplified_str = global_explanation_simplified_str.replace(k, v)
+
+    return global_explanation_simplified_str, predictions
