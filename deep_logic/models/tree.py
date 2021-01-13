@@ -168,7 +168,7 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         except FileNotFoundError:
             raise ClassifierNotTrainedError() from None
 
-    def get_explanation(self, x: torch.Tensor):
+    def explain(self, x: torch.Tensor):
         raise NotImplementedError  # TODO: implement
 
 

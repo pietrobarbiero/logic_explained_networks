@@ -53,7 +53,7 @@ class XLogisticRegressionClassifier(BaseClassifier, BaseXModel):
         output_loss = self.loss(output, target)
         return output_loss
 
-    def get_explanation(self, x: torch.Tensor):
+    def explain(self, x: torch.Tensor):
         raise NotImplementedError  # TODO: implement
 
 

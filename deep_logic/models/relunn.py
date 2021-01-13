@@ -80,7 +80,7 @@ class XReluClassifier(BaseClassifier, BaseXModel):
         self.reduced_model = get_reduced_model(self.model, x_sample)
         return self.reduced_model
 
-    def get_explanation(self, x: torch.Tensor, y: torch.Tensor = None, local: bool = True, k: int = 5,
+    def explain(self, x: torch.Tensor, y: torch.Tensor = None, local: bool = True, k: int = 5,
                         device: torch.device = torch.device('cpu')):
         """
         Generate explanations.

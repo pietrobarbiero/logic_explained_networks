@@ -6,14 +6,14 @@ import torch
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
-from ..utils.metrics import Metric, TopkAccuracy
+from ..utils.metrics import Metric, TopkAccuracy, Accuracy
 
 
 class BaseXModel:
     """Base class for all models in XDL."""
 
     @abstractmethod
-    def get_explanation(self, x: torch.Tensor):
+    def explain(self, x: torch.Tensor):
         """
         Get explanation.
 
