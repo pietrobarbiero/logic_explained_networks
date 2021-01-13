@@ -31,7 +31,7 @@ class Accuracy(Metric):
         if len(targets.squeeze().shape) > 1:
             targets = targets.argmax(dim=1)
         n_samples = targets.shape[0]
-        accuracy = targets.eq(outputs>0.5).sum().item() / n_samples * 100
+        accuracy = targets.eq(outputs > 0.5).sum().item() / n_samples * 100
         return accuracy
 
 

@@ -13,6 +13,7 @@ from deep_logic.models.sigmoidnn import XSigmoidClassifier
 from deep_logic.models.tree import XDecisionTreeClassifier
 from deep_logic.utils.base import set_seed, validate_network, validate_data
 from deep_logic.utils.metrics import Accuracy, TopkAccuracy
+from image_preprocessing.concept_extractor import CNNConceptExtractor
 
 
 class TestModels(unittest.TestCase):
@@ -191,6 +192,33 @@ class TestModels(unittest.TestCase):
         accuracy = model.evaluate(train_data)
 
         assert accuracy == 100.0
+
+        return
+
+
+class TestConceptExtractor(unittest.TestCase):
+    def test_concept_extractor(self):
+        set_seed(0)
+
+        transform = transforms.Compose(
+            [transforms.ToTensor(),
+             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+        testset = torchvision.datasets.CIFAR10(root='../data', train=False,
+                                               download=True, transform=transform)
+
+        classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+
+        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.CrossEntropyLoss())
+
+        # It takes a few minutes
+        results = model.fit(train_set=testset, val_set=testset, epochs=1)
+
+        assert results.shape == (1, 4)
+
+        accuracy = results['Val accs'].values[-1]
+
+        assert accuracy > 25.
 
         return
 
