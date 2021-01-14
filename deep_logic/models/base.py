@@ -6,7 +6,8 @@ import torch
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
-from ..utils.metrics import Metric, TopkAccuracy, Accuracy
+from deep_logic.utils.base import ClassifierNotTrainedError, IncompatibleClassifierError
+from deep_logic.utils.metrics import Metric, TopkAccuracy, Accuracy
 
 
 class BaseXModel:
@@ -15,7 +16,7 @@ class BaseXModel:
     @abstractmethod
     def explain(self, x: torch.Tensor):
         """
-        Get explanation.
+        Get explanation of model decision taken on the input x.
 
         :param x: input tensor
         :return: Explanation.
@@ -94,22 +95,19 @@ class BaseClassifier(torch.nn.Module):
         """
 
         # Setting device
-        device = torch.device(device)
         self.to(device), self.train()
 
         # Setting loss function and optimizer
-        optimizer = torch.optim.Adam(self.parameters(), lr=l_r)
+        optimizer = torch.optim.Adam(self.parameters(), lr=l_r, weight_decay=0.0001)
 
         # Training epochs
         best_acc, best_epoch = 0.0, 0
         train_accs, val_accs, tot_losses = [], [], []
-        train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True) #, num_workers=4)
+        train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True, num_workers=4)
         # train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True)
         pbar = tqdm(range(epochs), ncols=100, position=0, leave=True) if verbose else None
         torch.autograd.set_detect_anomaly(True)
         for epoch in range(epochs):
-            if verbose:
-                pbar.set_postfix({"Epoch": f"{epoch + 1}/{epochs}"})
 
             tot_losses_i = []
             train_outputs, train_labels = [], []
@@ -144,9 +142,10 @@ class BaseClassifier(torch.nn.Module):
             tot_losses.append(tot_losses_i.mean().item())
 
             if verbose:
-                pbar.set_postfix({"Train_acc": f"{train_acc:.1f}", "Val_acc": f"{val_acc:.1f}",
-                                  "best_epoch": best_epoch})
+                pbar.set_postfix({"Tr_acc": f"{train_acc:.1f}", "Val_acc": f"{val_acc:.1f}",
+                                  "Loss": f"{tot_losses[-1]:.3f}", "best_epoch": best_epoch})
                 pbar.update()
+                print(" ")
 
             # Save best model
             if val_acc >= best_acc and epoch >= epochs / 2 or epochs == 1:
@@ -170,20 +169,21 @@ class BaseClassifier(torch.nn.Module):
     def evaluate(self, dataset: Dataset, batch_size: int = 64, metric: Metric = Accuracy(),
                  device: torch.device = torch.device("cpu"), outputs=None, labels=None) -> float:
         """
-        Evaluate function to test without training the performance of the model on a certain dataset
+        Evaluate function to test the performance of the model on a certain dataset without training
 
         :param dataset: dataset on which to test
         :param batch_size: number of training data for each step of the training
         :param metric: metric to evaluate the predictions of the network
         :param device: device on which to perform the training
         :param outputs: if the output is passed is not calculated again
-        :param labels: to be passed together with the output
+        :param labels: to be passed together with outputs
         :return: metric evaluated on the dataset
         """
         self.eval(), self.to(device)
         with torch.no_grad():
             if outputs is None or labels is None:
                 outputs, labels = self.predict(dataset, batch_size, device)
+
             metric_val = metric(outputs, labels)
         self.train()
         return metric_val
@@ -223,9 +223,9 @@ class BaseClassifier(torch.nn.Module):
 
     def load(self, device, set_trained=False, name=None) -> None:
         """
-        Load model on a specific device (can be different from the one used during training). If set_trained is true than
-        the model flag "trained" is set to true first and the model is saved again. If set_trained is not set and
-        the model flag "trained" is not true a ClassifierNotTrainedError is raised
+        Load model on a specific device (can be different from the one used during training).
+        If set_trained is true than the model flag "trained" is set to true first and the model is saved again.
+        If set_trained is not set and the model flag "trained" is not true a ClassifierNotTrainedError is raised
 
         :param device: device on which to load the model
         :param set_trained: whether to set the buffer flag "trained" before loading or not.
@@ -253,59 +253,5 @@ class BaseClassifier(torch.nn.Module):
         self.trained = torch.tensor(True)
 
 
-class ClassifierNotTrainedError(Exception):
-    """
-    Error raised when we try to load a classifier that it does not exists or when the classifier exists but
-    its training has not finished.
-    """
-
-    def __init__(self):
-        self.message = "Classifier not trained"
-
-    def __str__(self):
-        return self.message
-
-
-class IncompatibleClassifierError(Exception):
-    """
-    Error raised when we try to load a classifier with a different structure with respect to the current model.
-    """
-
-    def __init__(self, missing_keys, unexpected_keys):
-        self.message = "Unable to load the selected classifier.\n"
-        for key in missing_keys:
-            self.message += "Missing key: " + str(key) + ".\n"
-        for key in unexpected_keys:
-            self.message += "Unexpected key: " + str(key) + ".\n"
-
-    def __str__(self):
-        return self.message
-
-
 if __name__ == "__main__":
     pass
-# Classifier.set_seed(0)
-# d_path = "..//data//CUB_200_2011"
-# d = dl.CUB200
-# cosine = False
-# os.environ['CUDA_VISIBLE_DEVICES'] = '0,'  # '1'
-# dev = "cpu" if not torch.cuda.is_available() else "cuda"
-# n = "cosine.pth" if cosine else "linear.pth"
-# attr_w = 25
-# orth_w = 0.0025
-# wd = 0.0001
-# lr = 0.1
-# c_w = 0.01  # 0.001
-#
-# fsc_dataset = dl.FSCDataset(d_path, d)
-# train_d, fine_t_d = fsc_dataset.get_splits_for_fsc()
-# train_d, val_d = train_d.get_splits_train_val()
-#
-# clf = Classifier(d, len(train_d.classes), name=n, use_attributes=False, cosine_classifier=cosine)
-#
-# df: pd.DataFrame = clf.fit(train_d, val_d, device=dev, verbose=True, l_r=lr, weight_decay=wd)
-# # df : pd.DataFrame = pd.read_csv(f"{n}.csv")
-#
-# tm = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-# df.to_csv(f"{n}_{tm}.csv")
-# print("Dataframe_saved")
