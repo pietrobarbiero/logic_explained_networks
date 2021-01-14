@@ -89,9 +89,10 @@ class XReluClassifier(BaseClassifier, BaseXModel):
 
         :param x: input samples
         :param y: target labels (required for global explanations
-        :param kind: require local or global explanations
+        :param local: require local or global explanations
         :param k: upper bound to the number of symbols involved in the explanation (it controls the complexity of the
         explanation)
+        :param concept_names: concept names to use in the explanation
         :param device: cpu or cuda device
         :return: Explanation
         """

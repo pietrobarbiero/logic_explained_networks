@@ -77,7 +77,7 @@ class BaseClassifier(torch.nn.Module):
         assert not torch.isinf(x).any(), "Input data contain inf values"
 
     def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, n_workers: int = 0,
-            l_r: float = 0.1, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),
+            l_r: float = 0.01, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),
             verbose: bool = True) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.
@@ -99,7 +99,7 @@ class BaseClassifier(torch.nn.Module):
         self.to(device), self.train()
 
         # Setting loss function and optimizer
-        optimizer = torch.optim.Adam(self.parameters(), lr=l_r, weight_decay=0.0001)
+        optimizer = torch.optim.Adam(self.parameters(), lr=l_r, weight_decay=1e-6)
 
         # Training epochs
         best_acc, best_epoch = 0.0, 0
