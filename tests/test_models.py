@@ -1,3 +1,4 @@
+import os
 import unittest
 
 import torch
@@ -200,9 +201,13 @@ class TestConceptExtractor(unittest.TestCase):
     def test_concept_extractor(self):
         set_seed(0)
 
-        transform = transforms.Compose(
-            [transforms.ToTensor(),
-             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        transform = transforms.Compose([
+            transforms.CenterCrop(size=224),
+            transforms.Resize(size=224),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+        device = torch.device("cuda:1") if torch.cuda.is_available() else torch.device("cpu")
 
         testset = torchvision.datasets.CIFAR10(root='../data', train=False,
                                                download=True, transform=transform)
@@ -212,13 +217,15 @@ class TestConceptExtractor(unittest.TestCase):
         model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.CrossEntropyLoss())
 
         # It takes a few minutes
-        results = model.fit(train_set=testset, val_set=testset, epochs=1)
+        results = model.fit(train_set=testset, val_set=testset, epochs=10, device=device, n_workers=4)
 
         assert results.shape == (1, 4)
 
         accuracy = results['Val accs'].values[-1]
 
         assert accuracy > 25.
+
+        os.remove("net")
 
         return
 

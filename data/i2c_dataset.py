@@ -17,12 +17,7 @@ class ImageToConceptDataset(ImageFolder):
         super().__init__(root, transform)
         self.attributes = np.load(os.path.join(root, "attributes.npy"))
         self.attributes = self.attributes.astype(np.float32)
-        # with open(os.path.join(root, "attribute_groups.json"), "r") as f:
-        #     self.attribute_groups = json.load(f)
-        # for attribute_group in self.attribute_groups.values():
-        #     attribute_group_values = self.attributes[:, np.asarray(attribute_group)]
-        #     occurrences = np.sum(attribute_group_values)
-        #     assert occurrences <= dataset_length, "Wrong attribute groups"
+        # self.attributes = self.targets  # TODO: remove
         self.n_attributes = self.attributes.shape[1]
         self.dataset_name = dataset_name
         if samples is None:

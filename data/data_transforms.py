@@ -20,30 +20,26 @@ class ImageJitter(object):
 		return out
 
 
-TRAIN_TRANSFORMS = {
-	CUB200: transforms.Compose([
-		transforms.RandomResizedCrop(size=299),
-		ImageJitter({"Brightness": 0.4, "Contrast": 0.4, "Color": 0.4}),
-		transforms.RandomHorizontalFlip(),
-		transforms.ToTensor(),
-		transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-	])
-}
-VAL_TRANSFORMS = {
-	CUB200: transforms.Compose([
-		transforms.CenterCrop(size=299),
-		transforms.Resize(size=299),
-		transforms.ToTensor(),
-		transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-	])
-
-}
-
-
-def get_transform(dataset, data_augmentation=False):
-	if data_augmentation:
-		return TRAIN_TRANSFORMS[dataset]
+def get_transform(dataset, data_augmentation=False, inception=False):
+	size = 299 if inception else 224
+	if dataset == CUB200:
+		if data_augmentation:
+			transform = transforms.Compose([
+					transforms.RandomResizedCrop(size=size),
+					ImageJitter({"Brightness": 0.4, "Contrast": 0.4, "Color": 0.4}),
+					transforms.RandomHorizontalFlip(),
+					transforms.ToTensor(),
+					transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+				])
+		else:
+			transform = transforms.Compose([
+				transforms.CenterCrop(size=size),
+				transforms.Resize(size=size),
+				transforms.ToTensor(),
+				transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+			])
 	else:
-		return VAL_TRANSFORMS[dataset]
+		raise NotImplementedError()
+	return transform
 
 

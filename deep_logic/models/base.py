@@ -76,7 +76,7 @@ class BaseClassifier(torch.nn.Module):
         assert not torch.isnan(x).any(), "Input data contain nan values"
         assert not torch.isinf(x).any(), "Input data contain inf values"
 
-    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10,
+    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, n_workers: int = 0,
             l_r: float = 0.1, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),
             verbose: bool = True) -> pd.DataFrame:
         """
@@ -87,6 +87,7 @@ class BaseClassifier(torch.nn.Module):
         :param val_set: validation set used for early stopping
         :param batch_size: number of training data for each step of the training
         :param epochs: number of epochs to train the model
+        :param n_workers: number of process to employ when loading data
         :param l_r: learning rate parameter of the Adam optimizer
         :param metric: metric to evaluate the predictions of the network
         :param device: device on which to perform the training
@@ -103,15 +104,15 @@ class BaseClassifier(torch.nn.Module):
         # Training epochs
         best_acc, best_epoch = 0.0, 0
         train_accs, val_accs, tot_losses = [], [], []
-        train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True, num_workers=4)
+        train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True,
+                                                   num_workers=n_workers, prefetch_factor=4)
         # train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True)
         pbar = tqdm(range(epochs), ncols=100, position=0, leave=True) if verbose else None
         torch.autograd.set_detect_anomaly(True)
         for epoch in range(epochs):
-
             tot_losses_i = []
             train_outputs, train_labels = [], []
-            for data in train_loader:
+            for i, data in enumerate(train_loader):
                 # Load batch (dataset, labels) on the correct device
                 batch_data, batch_labels = data[0].to(device), data[1].to(device)
                 optimizer.zero_grad()
