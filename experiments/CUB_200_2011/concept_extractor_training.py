@@ -12,17 +12,17 @@ if __name__ == '__main__':
 
     epochs = 50
     seeds = [0, 1, 2]
-    device = torch.device("cuda:1") if torch.cuda.is_available() else torch.device("cpu")
+    device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
     metric = metrics.F1Score
-    cnn_model = cnn_models.INCEPTION
+    cnn_model = cnn_models.RESNET50
     pretrained = True
-    l_r = 0.01
+    l_r = 0.001
     loss = torch.nn.BCELoss
-    print("epochs", epochs, "\ndevice", device, "\nmetric", metric, "\ncnn_model", cnn_model, "\npretrained",
+    print("\nepochs", epochs, "\ndevice", device, "\nmetric", metric, "\ncnn_model", cnn_model, "\npretrained",
           pretrained, "\nl_r", l_r, "\nloss", loss)
 
     for seed in seeds:
-        print("seed", seed)
+        print("\nseed", seed)
         set_seed(seed)
         transform = data_transforms.get_transform(dataset=data_transforms.CUB200, data_augmentation=True)
 
@@ -30,8 +30,8 @@ if __name__ == '__main__':
         train_set, val_set, test_set = get_splits_train_val_test(dataset)
 
         name = f"model_{cnn_model}_dataset_{CUB200}_lr_{l_r}_epochs_{epochs}_seed_{seed}"
-        model = CNNConceptExtractor(n_classes=dataset.n_attributes,
-                                    cnn_model=cnn_model, loss=loss(), name=name, pretrained=pretrained)
+        model = CNNConceptExtractor(n_classes=dataset.n_attributes, cnn_model=cnn_model,
+                                    loss=loss(), name=name, pretrained=pretrained)
         # It takes a few
         results = model.fit(train_set=train_set, val_set=val_set, epochs=epochs, l_r=l_r,
                             device=device, metric=metric())

@@ -143,7 +143,7 @@ class BaseClassifier(torch.nn.Module):
 
             if verbose:
                 pbar.set_postfix({"Tr_acc": f"{train_acc:.1f}", "Val_acc": f"{val_acc:.1f}",
-                                  "Loss": f"{tot_losses[-1]:.3f}", "best_epoch": best_epoch})
+                                  "Loss": f"{tot_losses[-1]:.3f}", "best_e": best_epoch})
                 pbar.update()
                 print(" ")
 
@@ -183,7 +183,6 @@ class BaseClassifier(torch.nn.Module):
         with torch.no_grad():
             if outputs is None or labels is None:
                 outputs, labels = self.predict(dataset, batch_size, device)
-
             metric_val = metric(outputs, labels)
         self.train()
         return metric_val
@@ -199,8 +198,8 @@ class BaseClassifier(torch.nn.Module):
         :return: a tuple containing the outputs computed on the dataset and the labels
         """
         outputs, labels = [], []
-        # loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=8, pin_memory=True)
-        loader = torch.utils.data.DataLoader(dataset, batch_size)
+        loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=4, pin_memory=True)
+        # loader = torch.utils.data.DataLoader(dataset, batch_size)
         for i, data in enumerate(loader):
             batch_data, batch_labels, = data[0].to(device), data[1].to(device)
             batch_outputs = self.forward(batch_data)

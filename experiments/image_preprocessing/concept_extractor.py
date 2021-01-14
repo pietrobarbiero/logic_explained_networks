@@ -44,7 +44,7 @@ class CNNConceptExtractor(BaseClassifier):
         """
         loss = self.loss(outputs, targets)
         if self.cnn_model == INCEPTION and self._aux_output is not None:
-            loss += 0.4 * self.loss(self._aux_output, targets)
+            loss += 0.1 * self.loss(self._aux_output, targets)
         return loss
 
     def forward(self, x, logits=False) -> torch.Tensor:
@@ -60,7 +60,7 @@ class CNNConceptExtractor(BaseClassifier):
         output = self.model(x)
 
         # Inception return 2 logits tensor
-        if self.cnn_model == INCEPTION:
+        if self.cnn_model == INCEPTION and self.training:
             self._aux_output = output[1] if logits else torch.sigmoid(output[1])
             output = output[0]
 
