@@ -2,24 +2,22 @@ import os
 import unittest
 
 import torch
-import numpy as np
 import torchvision
-from torch import optim
 from torch.utils.data import TensorDataset
 from torchvision.transforms import transforms
 
-from deep_logic.models.relunn import XReluClassifier
 from deep_logic.models.linear import XLogisticRegressionClassifier
+from deep_logic.models.relunn import XReluClassifier
 from deep_logic.models.sigmoidnn import XSigmoidClassifier
 from deep_logic.models.tree import XDecisionTreeClassifier
-from deep_logic.utils.base import set_seed, validate_network, validate_data
+from deep_logic.utils.base import set_seed
 from deep_logic.utils.metrics import Accuracy, TopkAccuracy
+from image_preprocessing.cnn_models import RESNET18, RESNET50, INCEPTION, RESNET101
 from image_preprocessing.concept_extractor import CNNConceptExtractor
 
 
 class TestModels(unittest.TestCase):
     def test_relunn(self):
-
         set_seed(0)
 
         # Test with 1 target
@@ -71,7 +69,6 @@ class TestModels(unittest.TestCase):
         return
 
     def test_sigmoidnn(self):
-
         set_seed(0)
 
         # Test with 1 target
@@ -117,7 +114,6 @@ class TestModels(unittest.TestCase):
         return
 
     def test_linear(self):
-
         set_seed(0)
 
         # Single class test
@@ -159,7 +155,6 @@ class TestModels(unittest.TestCase):
         return
 
     def test_tree(self):
-
         set_seed(0)
 
         # Single class test
@@ -193,40 +188,6 @@ class TestModels(unittest.TestCase):
         accuracy = model.evaluate(train_data)
 
         assert accuracy == 100.0
-
-        return
-
-
-class TestConceptExtractor(unittest.TestCase):
-    def test_concept_extractor(self):
-        set_seed(0)
-
-        transform = transforms.Compose([
-            transforms.CenterCrop(size=224),
-            transforms.Resize(size=224),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-
-        device = torch.device("cuda:1") if torch.cuda.is_available() else torch.device("cpu")
-
-        testset = torchvision.datasets.CIFAR10(root='../data', train=False,
-                                               download=True, transform=transform)
-
-        classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-
-        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.CrossEntropyLoss())
-
-        # It takes a few minutes
-        results = model.fit(train_set=testset, val_set=testset, epochs=10, device=device, n_workers=4)
-
-        assert results.shape == (1, 4)
-
-        accuracy = results['Val accs'].values[-1]
-
-        assert accuracy > 25.
-
-        os.remove("net")
-
         return
 
 
