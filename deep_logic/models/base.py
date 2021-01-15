@@ -43,7 +43,7 @@ class BaseClassifier(torch.nn.Module):
 
         super(BaseClassifier, self).__init__()
         self.name = name
-        self.register_buffer("trained", torch.BoolTensor())
+        self.register_buffer("trained", torch.tensor(True))
         self.to(device)
 
     @abstractmethod
@@ -105,7 +105,7 @@ class BaseClassifier(torch.nn.Module):
         best_acc, best_epoch = 0.0, 0
         train_accs, val_accs, tot_losses = [], [], []
         train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True,
-                                                   num_workers=n_workers, prefetch_factor=4)
+                                                   num_workers=n_workers, prefetch_factor=4 if n_workers!=0 else 2)
         # train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True)
         pbar = tqdm(range(epochs), ncols=100, position=0, leave=True) if verbose else None
         torch.autograd.set_detect_anomaly(True)
