@@ -26,15 +26,19 @@ class Accuracy(Metric):
     """
 
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
+        outputs, targets = outputs.squeeze(), targets.squeeze()
         if len(outputs.shape) > 1:
             if len(targets.shape) > 1:
                 outputs = outputs > 0.5
             else:
                 outputs = outputs.argmax(dim=1)
         else:
-            assert len(targets.squeeze().shape) == 1, "Target tensor needs to be (N,1) tensor if output is such."
-            outputs = outputs.argmax(dim=1)
-        n_samples = targets.shape[0]
+            assert len(targets.shape) == 1, "Target tensor needs to be (N,1) tensor if output is such."
+            outputs = outputs > 0.5
+        if len(outputs.shape) > 1:
+            n_samples = targets.shape[0]
+        else:
+            n_samples = targets.shape[0] * targets.shape[1]
         accuracy = targets.eq(outputs).sum().item() / n_samples * 100
         return accuracy
 

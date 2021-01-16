@@ -49,7 +49,7 @@ class TestModels(unittest.TestCase):
         x_sample = torch.tensor([0, 1], dtype=torch.float)
 
         loss = torch.nn.BCELoss()
-        metric = TopkAccuracy()
+        metric = Accuracy()
         model = XReluClassifier(n_classes=2, n_features=2, hidden_neurons=[20, 10, 3], loss=loss, l1_weight=0.001)
 
         results = model.fit(train_data, train_data, batch_size=4, epochs=100, l_r=0.01, metric=metric)
@@ -97,7 +97,7 @@ class TestModels(unittest.TestCase):
         train_data = TensorDataset(x, y)
 
         loss = torch.nn.BCELoss()
-        metric = TopkAccuracy()
+        metric = Accuracy()
         model = XSigmoidClassifier(n_classes=2, n_features=2, hidden_neurons=[20, 10, 3], loss=loss, l1_weight=0)
 
         results = model.fit(train_data, train_data, batch_size=4, epochs=1000, l_r=0.01, metric=metric)
@@ -141,7 +141,7 @@ class TestModels(unittest.TestCase):
         train_data = TensorDataset(x, y)
 
         loss = torch.nn.BCELoss()
-        metric = TopkAccuracy()
+        metric = Accuracy()
         model = XLogisticRegressionClassifier(n_classes=2, n_features=2, loss=loss)
 
         results = model.fit(train_data, train_data, batch_size=4, epochs=100, l_r=0.1, metric=metric)
@@ -178,7 +178,7 @@ class TestModels(unittest.TestCase):
         y = torch.tensor([[0, 1], [1, 0], [1, 0], [0, 1]], dtype=torch.float).cpu()
         train_data = TensorDataset(x, y)
 
-        metric = TopkAccuracy()
+        metric = Accuracy()
         model = XDecisionTreeClassifier(n_classes=2, n_features=2)
 
         results = model.fit(train_data, train_data, metric=metric)
