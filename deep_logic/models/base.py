@@ -76,7 +76,7 @@ class BaseClassifier(torch.nn.Module):
         assert not torch.isnan(x).any(), "Input data contain nan values"
         assert not torch.isinf(x).any(), "Input data contain inf values"
 
-    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, n_workers: int = 0,
+    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, num_workers: int = 0,
             l_r: float = 0.01, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),
             verbose: bool = True) -> pd.DataFrame:
         """
@@ -87,7 +87,7 @@ class BaseClassifier(torch.nn.Module):
         :param val_set: validation set used for early stopping
         :param batch_size: number of training data for each step of the training
         :param epochs: number of epochs to train the model
-        :param n_workers: number of process to employ when loading data
+        :param num_workers: number of process to employ when loading data
         :param l_r: learning rate parameter of the Adam optimizer
         :param metric: metric to evaluate the predictions of the network
         :param device: device on which to perform the training
@@ -105,7 +105,7 @@ class BaseClassifier(torch.nn.Module):
         best_acc, best_epoch = 0.0, 0
         train_accs, val_accs, tot_losses = [], [], []
         train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True,
-                                                   num_workers=n_workers, prefetch_factor=4 if n_workers!=0 else 2)
+                                                   num_workers=0)#, prefetch_factor=4 if n_workers!=0 else 2)
         # train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True)
         pbar = tqdm(range(epochs), ncols=100, position=0, leave=True) if verbose else None
         torch.autograd.set_detect_anomaly(True)
@@ -134,8 +134,8 @@ class BaseClassifier(torch.nn.Module):
             tot_losses_i = torch.stack(tot_losses_i)
 
             # Compute accuracy, f1 and constraint_loss on the whole train, validation dataset
-            train_acc = self.evaluate(train_set, batch_size, metric, device, train_outputs, train_labels)
-            val_acc = self.evaluate(val_set, batch_size, metric, device)
+            train_acc = self.evaluate(train_set, batch_size, metric, num_workers, device, train_outputs, train_labels)
+            val_acc = self.evaluate(val_set, batch_size, metric, num_workers, device)
 
             # Save epoch results
             train_accs.append(train_acc)
@@ -167,7 +167,8 @@ class BaseClassifier(torch.nn.Module):
         performance_df = pd.DataFrame(performance_dict)
         return performance_df
 
-    def evaluate(self, dataset: Dataset, batch_size: int = 64, metric: Metric = Accuracy(),
+    def evaluate(self, dataset: Dataset, batch_size: int = 64,
+                 metric: Metric = Accuracy(), num_workers: int = 0,
                  device: torch.device = torch.device("cpu"), outputs=None, labels=None) -> float:
         """
         Evaluate function to test the performance of the model on a certain dataset without training
@@ -175,6 +176,7 @@ class BaseClassifier(torch.nn.Module):
         :param dataset: dataset on which to test
         :param batch_size: number of training data for each step of the training
         :param metric: metric to evaluate the predictions of the network
+        :param num_workers: number of process to employ when loading data
         :param device: device on which to perform the training
         :param outputs: if the output is passed is not calculated again
         :param labels: to be passed together with outputs
@@ -183,24 +185,24 @@ class BaseClassifier(torch.nn.Module):
         self.eval(), self.to(device)
         with torch.no_grad():
             if outputs is None or labels is None:
-                outputs, labels = self.predict(dataset, batch_size, device)
+                outputs, labels = self.predict(dataset, batch_size, num_workers,  device)
             metric_val = metric(outputs, labels)
         self.train()
         return metric_val
 
-    def predict(self, dataset, batch_size: int = 64, device: torch.device = torch.device("cpu")) \
-            -> Tuple[torch.Tensor, torch.Tensor]:
+    def predict(self, dataset, batch_size: int = 64, num_workers: int = 4,
+                device: torch.device = torch.device("cpu")) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Predict function to compute the prediction of the model on a certain dataset
 
         :param dataset: dataset on which to test
         :param batch_size: number of training data for each step of the training
+        :param num_workers: number of process to employ when loading data
         :param device: device on which to perform the training
         :return: a tuple containing the outputs computed on the dataset and the labels
         """
         outputs, labels = [], []
-        loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=4, pin_memory=True)
-        # loader = torch.utils.data.DataLoader(dataset, batch_size)
+        loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=num_workers, pin_memory=True)
         for i, data in enumerate(loader):
             batch_data, batch_labels, = data[0].to(device), data[1].to(device)
             batch_outputs = self.forward(batch_data)
