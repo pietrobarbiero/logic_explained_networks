@@ -15,6 +15,8 @@ class TestTemplateObject(unittest.TestCase):
 
         x = torch.tensor([[0, 1], [1, 1], [1, 0], [0, 0]], dtype=torch.float)
         y = torch.tensor([1, 0, 1, 0], dtype=torch.float).unsqueeze(1)
+        x_test = torch.tensor([[0, 1], [1, 0], [1, 0], [1, 0]], dtype=torch.float)
+        y_test = torch.tensor([1, 1, 1, 1], dtype=torch.float).unsqueeze(1)
         x_sample = torch.tensor([0, 1], dtype=torch.float)
 
         layers = [
@@ -40,7 +42,7 @@ class TestTemplateObject(unittest.TestCase):
                     loss += 0.0001 * torch.norm(module.weight, 1)
             loss.backward()
             optimizer.step()
-        explanation = combine_local_explanations(model, x, y, concept_names=['feature0', 'feature1'])
+        explanation = combine_local_explanations(model, x_test, y_test)
         print(explanation)
 
         model.eval()
@@ -49,7 +51,7 @@ class TestTemplateObject(unittest.TestCase):
         model_reduced = get_reduced_model(model, x_sample)
         y_pred_reduced = model_reduced(x_sample)
 
-        explanation = generate_local_explanations(model_reduced, x_sample, concept_names=['feature0', 'feature1'])
+        explanation = generate_local_explanations(model_reduced, x_sample, concept_names=['f0', 'f1'])
         print(explanation)
 
         assert y_pred.eq(y_pred_reduced)[0]
