@@ -20,15 +20,17 @@ class CNNConceptExtractor(BaseClassifier):
             whether to instantiate the model with the weights trained on ImageNet or randomly
     """
 
-    def __init__(self, n_classes: int, cnn_model: str = RESNET10,
-                 loss: torch.nn.modules.loss = torch.nn.BCELoss(), name: str = "net",
-                 device: torch.device = torch.device("cpu"), pretrained: bool = False):
+    def __init__(self, n_classes: int, cnn_model: str = RESNET10, loss: torch.nn.modules.loss = torch.nn.BCELoss(),
+                 transfer_learning=False, pretrained: bool = False, name: str = "net",
+                 device: torch.device = torch.device("cpu"), ):
         super().__init__(name, device)
 
         assert cnn_model in CNN_MODELS, f"Required CNN model is not available, it needs to be among {CNN_MODELS.keys()}"
+        assert not transfer_learning or pretrained, "Transfer learning can be applied only when pretrained is True"
+
         self.n_classes = n_classes
         self.cnn_model = cnn_model
-        self.model = get_model(cnn_model, n_classes, pretrained=pretrained)
+        self.model = get_model(cnn_model, n_classes, pretrained=pretrained, transfer_learning=transfer_learning)
         self.loss = loss
         self._output = None
         self._aux_output = None

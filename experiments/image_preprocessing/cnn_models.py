@@ -28,9 +28,12 @@ CNN_MODELS = {
 }
 
 
-def get_model(model_name, n_classes, pretrained=True):
+def get_model(model_name, n_classes, pretrained=True, transfer_learning=True):
     model_dict = CNN_MODELS[model_name]
     model = model_dict(pretrained=pretrained)
+    if transfer_learning:
+        for param in model.parameters():
+            param.requires_grad = False
     feat_dim = model.fc.weight.shape[1]
     model.fc = torch.nn.Linear(feat_dim, n_classes)
     if model_name == INCEPTION:
