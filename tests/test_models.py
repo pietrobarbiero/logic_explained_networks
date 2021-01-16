@@ -39,8 +39,8 @@ class TestModels(unittest.TestCase):
         reduced_model = model.get_reduced_model(x_sample)
         assert isinstance(reduced_model, torch.nn.Sequential)
 
-        explanation = model.explain(x_sample, k=2)
-        assert explanation == '~f0 & f1'
+        explanation = model.explain(x, y, sample_id=0, local=True)
+        assert explanation == 'feature00001 & ~feature00000'
 
         # Test with multiple targets
         x = torch.tensor([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=torch.float).cpu()
@@ -56,17 +56,16 @@ class TestModels(unittest.TestCase):
         assert results.shape == (100, 4)
 
         accuracy = model.evaluate(train_data, metric=metric)
-        print(accuracy)
         assert accuracy == 100.0
+        print(accuracy)
 
         reduced_model = model.get_reduced_model(x_sample)
         assert isinstance(reduced_model, torch.nn.Sequential)
 
-        explanation = model.explain(x_sample, k=2)
-        print(explanation)
-        assert explanation == '~f0'
-
-        return
+        # TODO: not implemented yet
+        # explanation = model.explain(x, y, sample_id=0, local=True)
+        # assert explanation == 'feature00001 & ~feature00000'
+        # return
 
     def test_sigmoidnn(self):
         set_seed(0)

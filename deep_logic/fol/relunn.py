@@ -16,8 +16,9 @@ def generate_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torc
     Generate the FOL formula for a specific input.
 
     :param model: pytorch model
-    :param x_sample: input sample
-    :param k: upper bound to the number of symbols involved in the explanation (it controls the complexity of the explanation)
+    :param x: all input samples in the dataset
+    :param y: all labels in the dataset
+    :param sample_id: number of the element to analyse
     :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
     :return: local explanation
@@ -34,7 +35,7 @@ def generate_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torc
     # sort features by weight importance
     sorted_features = np.argsort(-w_abs)
 
-    class_id = y[sample_id]
+    class_id = y[sample_id]  # TODO: NOT WORKING IF Y MULTILABEL = [[0, 1], [1, 0], ...]
     class_mask = (y!=class_id).squeeze()
     x_opposite = x[class_mask]
     y_opposite = y[class_mask]
@@ -100,6 +101,7 @@ def replace_names(explanation: str, concept_names: List[str]) -> str:
     return explanation
 
 
+# TODO: update function with new signature of local explanation
 def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
                                topk_explanations: int = 2, concept_names: List = None,
                                device: torch.device = torch.device('cpu')) -> Tuple[str, np.array, collections.Counter]:
