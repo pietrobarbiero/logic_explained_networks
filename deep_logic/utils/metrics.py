@@ -26,8 +26,8 @@ class Accuracy(Metric):
     """
 
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
-        if len(outputs.squeeze().shape) > 1:
-            if len(targets.squeeze().shape) > 1:
+        if len(outputs.shape) > 1:
+            if len(targets.shape) > 1:
                 outputs = outputs > 0.5
             else:
                 outputs = outputs.argmax(dim=1)
