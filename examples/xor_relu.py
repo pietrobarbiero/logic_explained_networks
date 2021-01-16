@@ -76,7 +76,9 @@ def main():
     xin = torch.tensor([0.3, 0.95])
     model_reduced = get_reduced_model(model, xin)
     output = model_reduced(xin)
-    explanation = generate_local_explanations(model_reduced, xin, 2)
+    x = torch.cat([x_train, xin.unsqueeze(0)])
+    y = torch.cat([y_train, torch.FloatTensor(1).unsqueeze(0)])
+    explanation = generate_local_explanations(model_reduced, x, y, len(x_train), concept_names=['x1', 'x2'])
 
     plt.figure(figsize=[8, 4])
     plt.subplot(121)
@@ -86,8 +88,8 @@ def main():
     c = plt.Circle((xin[0], xin[1]), radius=0.2, edgecolor='k', fill=False, linestyle='--')
     plt.gca().add_artist(c)
     plt.scatter(xnp[:, 0], xnp[:, 1], c=ynp, cmap='BrBG')
-    plt.xlabel('f0')
-    plt.ylabel('f1')
+    plt.xlabel('x1')
+    plt.ylabel('x2')
     plt.xlim([-0.5, 1.5])
     plt.ylim([-0.5, 1.5])
     plt.subplot(122)
@@ -97,18 +99,20 @@ def main():
     c = plt.Circle((xin[0], xin[1]), radius=0.2, edgecolor='k', fill=False, linestyle='--')
     plt.gca().add_artist(c)
     plt.scatter(xnp[:, 0], xnp[:, 1], c=ynp, cmap='BrBG')
-    plt.xlabel('f0')
-    plt.ylabel('f1')
+    plt.xlabel('x1')
+    plt.ylabel('x2')
     plt.xlim([-0.5, 1.5])
     plt.ylim([-0.5, 1.5])
     plt.tight_layout()
     plt.savefig('decision_boundaries.png')
     plt.show()
 
-    global_explanation, predictions = combine_local_explanations(model, x_train, y_train)
+    global_explanation, predictions, counter = combine_local_explanations(model, x_train, y_train,
+                                                                          concept_names=['x1', 'x2'])
 
     accuracy = np.sum(predictions == ynp) / len(ynp)
     print(f'Accuracy of when using the formula {global_explanation}: {accuracy:.4f}')
+    print(counter)
 
     return
 
