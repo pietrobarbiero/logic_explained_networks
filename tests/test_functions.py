@@ -8,7 +8,7 @@ class TestTemplateObject(unittest.TestCase):
         import numpy as np
         from deep_logic.utils.relunn import get_reduced_model
         from deep_logic.utils.base import validate_network, validate_data
-        from deep_logic.fol import generate_local_explanations, combine_local_explanations
+        from deep_logic.fol import explain_semi_local, combine_local_explanations
 
         torch.manual_seed(10)
         np.random.seed(0)
@@ -44,7 +44,7 @@ class TestTemplateObject(unittest.TestCase):
             optimizer.step()
 
         model_reduced = get_reduced_model(model, x_sample)
-        explanation = generate_local_explanations(model_reduced, x, y, 0, concept_names=['f0', 'f1'])
+        explanation = explain_semi_local(model, x, y, x_sample, concept_names=['f0', 'f1'])
         print(explanation)
 
         explanation = combine_local_explanations(model, x_test, y_test)
