@@ -99,20 +99,21 @@ class BaseClassifier(torch.nn.Module):
         self.to(device), self.train()
 
         # Setting loss function and optimizer
+        parameters = [param for param in self.parameters() if param.requires_grad]
         optimizer = torch.optim.Adam(self.parameters(), lr=l_r, weight_decay=1e-6)
 
         # Training epochs
         best_acc, best_epoch = 0.0, 0
         train_accs, val_accs, tot_losses = [], [], []
         train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True,
-                                                   num_workers=0)#, prefetch_factor=4 if n_workers!=0 else 2)
-        # train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True)
+                                                   num_workers=num_workers, prefetch_factor=4 if num_workers != 0 else 2)
         pbar = tqdm(range(epochs), ncols=100, position=0, leave=True) if verbose else None
         torch.autograd.set_detect_anomaly(True)
         for epoch in range(epochs):
             tot_losses_i = []
             train_outputs, train_labels = [], []
             for i, data in enumerate(train_loader):
+                # print(i)
                 # Load batch (dataset, labels) on the correct device
                 batch_data, batch_labels = data[0].to(device), data[1].to(device)
                 optimizer.zero_grad()

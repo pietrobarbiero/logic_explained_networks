@@ -82,7 +82,7 @@ class XSigmoidClassifier(BaseClassifier, BaseXModel):
         """
         return generate_fol_explanations(self.model, device)
 
-    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10,
+    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, num_workers: int = 0,
             l_r: float = 0.1, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),
             verbose: bool = True, fanin: int = 2) -> pd.DataFrame:
         """
@@ -93,6 +93,7 @@ class XSigmoidClassifier(BaseClassifier, BaseXModel):
         :param val_set: validation set used for early stopping
         :param batch_size: number of training data for each step of the training
         :param epochs: number of epochs to train the model
+        :param num_workers: number of process to employ to fetch data
         :param l_r: learning rate parameter of the Adam optimizer
         :param metric: metric to evaluate the predictions of the network
         :param device: device on which to perform the training
@@ -111,7 +112,7 @@ class XSigmoidClassifier(BaseClassifier, BaseXModel):
         # Training epochs
         best_acc, best_epoch = 0.0, 0
         train_accs, val_accs, tot_losses = [], [], []
-        train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True) #, num_workers=4)
+        train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True)
         # train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True)
         pbar = tqdm(range(epochs), ncols=100, position=0, leave=True) if verbose else None
         torch.autograd.set_detect_anomaly(True)
@@ -148,8 +149,8 @@ class XSigmoidClassifier(BaseClassifier, BaseXModel):
             tot_losses_i = torch.stack(tot_losses_i)
 
             # Compute accuracy, f1 and constraint_loss on the whole train, validation dataset
-            train_acc = self.evaluate(train_set, batch_size, metric, device, train_outputs, train_labels)
-            val_acc = self.evaluate(val_set, batch_size, metric, device)
+            train_acc = self.evaluate(train_set, batch_size, metric, num_workers, device, train_outputs, train_labels)
+            val_acc = self.evaluate(val_set, batch_size, metric, device=device)
 
             # Save epoch results
             train_accs.append(train_acc)
@@ -179,7 +180,6 @@ class XSigmoidClassifier(BaseClassifier, BaseXModel):
         }
         performance_df = pd.DataFrame(performance_dict)
         return performance_df
-
 
 
 if __name__ == "__main__":

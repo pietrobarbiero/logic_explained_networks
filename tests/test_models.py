@@ -39,8 +39,8 @@ class TestModels(unittest.TestCase):
         reduced_model = model.get_reduced_model(x_sample)
         assert isinstance(reduced_model, torch.nn.Sequential)
 
-        explanation = model.explain(x_sample, k=2)
-        assert explanation == '~f0 & f1'
+        explanation = model.explain(x, y, sample_id=0, local=True)
+        assert explanation == 'feature00001 & ~feature00000'
 
         # Test with multiple targets
         x = torch.tensor([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=torch.float).cpu()
@@ -49,24 +49,23 @@ class TestModels(unittest.TestCase):
         x_sample = torch.tensor([0, 1], dtype=torch.float)
 
         loss = torch.nn.BCELoss()
-        metric = TopkAccuracy()
+        metric = Accuracy()
         model = XReluClassifier(n_classes=2, n_features=2, hidden_neurons=[20, 10, 3], loss=loss, l1_weight=0.001)
 
         results = model.fit(train_data, train_data, batch_size=4, epochs=100, l_r=0.01, metric=metric)
         assert results.shape == (100, 4)
 
         accuracy = model.evaluate(train_data, metric=metric)
-        print(accuracy)
         assert accuracy == 100.0
+        print(accuracy)
 
         reduced_model = model.get_reduced_model(x_sample)
         assert isinstance(reduced_model, torch.nn.Sequential)
 
-        explanation = model.explain(x_sample, k=2)
-        print(explanation)
-        assert explanation == '~f0'
-
-        return
+        # TODO: not implemented yet
+        # explanation = model.explain(x, y, sample_id=0, local=True)
+        # assert explanation == 'feature00001 & ~feature00000'
+        # return
 
     def test_sigmoidnn(self):
         set_seed(0)
@@ -97,7 +96,7 @@ class TestModels(unittest.TestCase):
         train_data = TensorDataset(x, y)
 
         loss = torch.nn.BCELoss()
-        metric = TopkAccuracy()
+        metric = Accuracy()
         model = XSigmoidClassifier(n_classes=2, n_features=2, hidden_neurons=[20, 10, 3], loss=loss, l1_weight=0)
 
         results = model.fit(train_data, train_data, batch_size=4, epochs=1000, l_r=0.01, metric=metric)
@@ -141,7 +140,7 @@ class TestModels(unittest.TestCase):
         train_data = TensorDataset(x, y)
 
         loss = torch.nn.BCELoss()
-        metric = TopkAccuracy()
+        metric = Accuracy()
         model = XLogisticRegressionClassifier(n_classes=2, n_features=2, loss=loss)
 
         results = model.fit(train_data, train_data, batch_size=4, epochs=100, l_r=0.1, metric=metric)
@@ -178,7 +177,7 @@ class TestModels(unittest.TestCase):
         y = torch.tensor([[0, 1], [1, 0], [1, 0], [0, 1]], dtype=torch.float).cpu()
         train_data = TensorDataset(x, y)
 
-        metric = TopkAccuracy()
+        metric = Accuracy()
         model = XDecisionTreeClassifier(n_classes=2, n_features=2)
 
         results = model.fit(train_data, train_data, metric=metric)

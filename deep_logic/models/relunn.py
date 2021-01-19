@@ -82,27 +82,28 @@ class XReluClassifier(BaseClassifier, BaseXModel):
         self.reduced_model = get_reduced_model(self.model, x_sample)
         return self.reduced_model
 
-    def explain(self, x: torch.Tensor, y: torch.Tensor = None, local: bool = True, k: int = 5,
+    def explain(self, x: torch.Tensor, y: torch.Tensor = None, sample_id: int = None, local: bool = True,
                 concept_names: List = None, device: torch.device = torch.device('cpu')):
         """
         Generate explanations.
 
         :param x: input samples
-        :param y: target labels (required for global explanations
+        :param y: target labels
+        :param sample_id: number of the sample to be explained (for local explanation)
         :param local: require local or global explanations
-        :param k: upper bound to the number of symbols involved in the explanation (it controls the complexity of the
-        explanation)
         :param concept_names: concept names to use in the explanation
         :param device: cpu or cuda device
         :return: Explanation
         """
         assert len(x.shape) <= 2, 'Only 1 or 2 dimensional data are allowed.'
+        assert sample_id is not None or not local, "Local explanation requires sample_id to be defined"
         if local:
-            if len(x.shape) == 2:
-                assert x.shape[0] == 1, 'Local explanation requires 1 single sample.'
-            return generate_local_explanations(self.model, x, k, concept_names, device)
+            # if len(x.shape) == 2:
+            #     assert x.shape[0] == 1, 'Local explanation requires 1 single sample.'
+            return generate_local_explanations(self.model, x, y, sample_id, concept_names, device)
         else:
-            return combine_local_explanations(self.model, x, y, k, concept_names, device)
+            # return combine_local_explanations(self.model, x, y, concept_names, device)
+            raise NotImplementedError()
 
 
 if __name__ == "__main__":
