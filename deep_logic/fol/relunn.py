@@ -40,27 +40,27 @@ def explain_semi_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
 
     # Build formula incrementally
     x_sample = x_sample.unsqueeze(0)
-    y_pred_sample = (model(x_sample) > 0.5).to(torch.float)
+    y_pred_sample = (model((x_sample > 0.5).to(torch.float)) > 0.5).to(torch.float)
     mask = (y != y_pred_sample).squeeze()
     x_validation = torch.cat([x[mask], x_sample]).to(torch.bool)
     y_validation = torch.cat([y[mask], y_pred_sample]).squeeze()
-    y_preds_0 = torch.ones(y_validation.size(0), dtype=torch.bool)
-    # x_sample = x_sample > 0.5
+    # y_preds_0 = torch.ones(y_validation.size(0), dtype=torch.bool)
+    x_sample = x_sample > 0.5
+    x_sample_opposite = copy.deepcopy(x_sample).to(torch.float)
+    x_sample_zero = torch.zeros(x_sample.shape).to(torch.float)
     explanation = ''
     for j in sorted_features:
-        if x_sample[:, j] > 0.5:
-            y_preds = y_preds_0 * x_validation[:, j]
-        else:
-            y_preds = y_preds_0 * ~x_validation[:, j]
+        x_sample_opposite[:, j] = ~x_sample[:, j]
+        x_sample_zero[:, j] = ~x_sample[:, j]
+        y_pred_opposite = model(x_sample_opposite) > 0.5
+        y_pred_zero = model(x_sample_zero) > 0.5
+        x_sample_opposite[:, j] = x_sample[:, j]
+        x_sample_zero[:, j] = x_sample[:, j]
 
-        if y_preds.eq(y_validation).all().item():
-            break
-
-        if explanation:
-            explanation += ' & '
-        explanation += f'feature{j:010}' if x_sample[:, j] > 0.5 else f'~feature{j:010}'
-
-        y_preds_0 = y_preds
+        if not y_pred_opposite.eq(y_pred_sample).item() or not y_pred_zero.eq(y_pred_sample).item():
+            if explanation:
+                explanation += ' & '
+            explanation += f'feature{j:010}' if x_sample[:, j] > 0.5 else f'~feature{j:010}'
 
     # Simplify formula
     for term in explanation.split(' & '):
