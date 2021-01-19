@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-from deep_logic.fol import combine_local_explanations, generate_local_explanations
+from deep_logic.fol import combine_local_explanations, explain_semi_local
 from deep_logic.utils.base import validate_data, validate_network
 from deep_logic.utils.relunn import get_reduced_model
 
@@ -76,9 +76,7 @@ def main():
     xin = torch.tensor([0.3, 0.95])
     model_reduced = get_reduced_model(model, xin)
     output = model_reduced(xin)
-    x = torch.cat([x_train, xin.unsqueeze(0)])
-    y = torch.cat([y_train, torch.FloatTensor(1).unsqueeze(0)])
-    explanation = generate_local_explanations(model_reduced, x, y, len(x_train), concept_names=['x1', 'x2'])
+    explanation = explain_semi_local(model, x_train, y_train, xin, concept_names=['x1', 'x2'])
 
     plt.figure(figsize=[8, 4])
     plt.subplot(121)
