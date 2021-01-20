@@ -1,5 +1,36 @@
 import torch
+from torch.nn.utils import prune
 from copy import deepcopy
+import numpy as np
+
+
+def prune_features(model: torch.nn.Module) -> torch.nn.Module:
+    """
+    Prune the inputs of the model.
+
+    :param model: pytorch model
+    :return: pruned model
+    """
+    model.eval()
+    for i, module in enumerate(model.children()):
+        # prune only Linear layers
+        if isinstance(module, torch.nn.Linear):
+            # create mask
+            mask = torch.ones(module.weight.shape)
+
+            # identify weights with the lowest absolute values
+            w_abs = torch.norm(module.weight, dim=0)
+            w_max = torch.max(w_abs)
+            w_bool = (w_abs / w_max) < 0.5
+            mask[:, w_bool] = 0
+
+            # prune
+            torch.nn.utils.prune.custom_from_mask(module, name="weight", mask=mask)
+
+        break
+
+    model.train()
+    return model
 
 
 def get_reduced_model(model: torch.nn.Module, x_sample: torch.Tensor) -> torch.nn.Module:
@@ -24,8 +55,8 @@ def get_reduced_model(model: torch.nn.Module, x_sample: torch.Tensor) -> torch.n
     bias_reduced = None
     for i, module in enumerate(model.children()):
         if isinstance(module, torch.nn.Linear):
-            weight = deepcopy(module.weight).detach()
-            bias = deepcopy(module.bias).detach()
+            weight = deepcopy(module.weight.detach())
+            bias = deepcopy(module.bias.detach())
 
             # linear layer
             hi = module(x_sample_copy)
@@ -34,9 +65,9 @@ def get_reduced_model(model: torch.nn.Module, x_sample: torch.Tensor) -> torch.n
 
             # prune nodes that are not firing
             # (except for last layer where we don't have a relu!)
-            if count_linear_layers != n_linear_layers-1:
-                weight[hi<=0] = 0
-                bias[hi<=0] = 0
+            if count_linear_layers != n_linear_layers - 1:
+                weight[hi <= 0] = 0
+                bias[hi <= 0] = 0
 
             # compute reduced weight matrix
             if i == 0:

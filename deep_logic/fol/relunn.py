@@ -169,11 +169,15 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
         # generate local explanation only if the prediction is correct
         if output > 0.5 and (output > 0.5) == yi:
-            local_explanation = explain_semi_local(model, x, y, xi,
-                                                   concept_names=None, device=device)
+            # local_explanation = explain_semi_local(model, x, y, xi,
+            #                                        concept_names=None, device=device)
+            # local_explanations.append(local_explanation)
+            # local_explanation_translated = explain_semi_local(model, x, y, xi,
+            #                                                   concept_names=concept_names, device=device)
+            # local_explanations_translated.append(local_explanation_translated)
+            local_explanation = explain_local(model, x, y, xi, concept_names=None, device=device)
             local_explanations.append(local_explanation)
-            local_explanation_translated = explain_semi_local(model, x, y, xi,
-                                                              concept_names=concept_names, device=device)
+            local_explanation_translated = explain_local(model, x, y, xi, concept_names=concept_names, device=device)
             local_explanations_translated.append(local_explanation_translated)
 
     counter = collections.Counter(local_explanations)
@@ -198,3 +202,40 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
         global_explanation_simplified_str = replace_names(global_explanation_simplified_str, concept_names)
 
     return global_explanation_simplified_str, predictions, counter_translated
+
+
+def explain_local(model: torch.nn.Module, x, y, x_sample,
+                  concept_names: List = None, device: torch.device = torch.device('cpu')):
+    x_sample = x_sample.unsqueeze(0)
+    w, b = collect_parameters(model, device)
+    feature_weights = w[0]
+    feature_used_bool = np.sum(np.abs(feature_weights), axis=0) > 0
+    feature_used = np.nonzero(feature_used_bool)[0]
+    explanation = ''
+    for j in feature_used:
+        if explanation:
+            explanation += ' & '
+        explanation += f'feature{j:010}' if x_sample[:, j] > 0.5 else f'~feature{j:010}'
+
+    # Simplify formula
+    y_pred_sample = (model((x_sample > 0.5).to(torch.float)) > 0.5).to(torch.float)
+    mask = (y != y_pred_sample).squeeze()
+    x_validation = torch.cat([x[mask], x_sample]).to(torch.bool)
+    y_validation = torch.cat([y[mask], y_pred_sample]).squeeze()
+    for term in explanation.split(' & '):
+        explanation_simplified = copy.deepcopy(explanation)
+
+        if explanation_simplified.endswith(f'{term}'):
+            explanation_simplified = explanation_simplified.replace(f' & {term}', '')
+        else:
+            explanation_simplified = explanation_simplified.replace(f'{term} & ', '')
+
+        if explanation_simplified:
+            accuracy, _ = test_explanation(explanation_simplified, x_validation, y_validation)
+            if accuracy == 1:
+                explanation = copy.deepcopy(explanation_simplified)
+
+    if concept_names:
+        explanation = replace_names(explanation, concept_names)
+
+    return explanation
