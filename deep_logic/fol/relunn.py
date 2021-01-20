@@ -35,41 +35,63 @@ def explain_semi_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
     if w_max == 0:
         return 'False'
 
+    # w_bool = (w_abs / w_max) > 0.5
     # sort features by weight importance
     sorted_features = np.argsort(-w_abs)
 
-    # Build formula incrementally
-    x_sample = x_sample.unsqueeze(0)
+    # # build explanation
+    # x_sample = x_sample.unsqueeze(0)
+    # explanation = ''
+    # used_features = []
+    # for j in sorted_features:
+    #     if w_bool[j] < 0.5:
+    #         break
+    #     if explanation:
+    #         explanation += ' & '
+    #     explanation += f'feature{j:010}' if x_sample[:, j] > 0.5 else f'~feature{j:010}'
+    #     used_features.append(j)
+
     y_pred_sample = (model((x_sample > 0.5).to(torch.float)) > 0.5).to(torch.float)
     mask = (y != y_pred_sample).squeeze()
     x_validation = torch.cat([x[mask], x_sample]).to(torch.bool)
     y_validation = torch.cat([y[mask], y_pred_sample]).squeeze()
-    # y_preds_0 = torch.ones(y_validation.size(0), dtype=torch.bool)
-    x_sample = x_sample > 0.5
-    x_sample_opposite = copy.deepcopy(x_sample).to(torch.float)
-    x_sample_zero = torch.zeros(x_sample.shape).to(torch.float)
+    # accuracy, _ = test_explanation(explanation, x_validation, y_validation)
+
+    # if accuracy < 1:
+    y_preds_0 = torch.ones(y_validation.size(0), dtype=torch.bool)
+    # x_sample = x_sample > 0.5
     explanation = ''
     for j in sorted_features:
-        x_sample_opposite[:, j] = ~x_sample[:, j]
-        x_sample_zero[:, j] = ~x_sample[:, j]
-        y_pred_opposite = model(x_sample_opposite) > 0.5
-        y_pred_zero = model(x_sample_zero) > 0.5
-        x_sample_opposite[:, j] = x_sample[:, j]
-        x_sample_zero[:, j] = x_sample[:, j]
+        # if j in used_features:
+        #     continue
 
-        if not y_pred_opposite.eq(y_pred_sample).item() or not y_pred_zero.eq(y_pred_sample).item():
-            if explanation:
-                explanation += ' & '
-            explanation += f'feature{j:010}' if x_sample[:, j] > 0.5 else f'~feature{j:010}'
+        if x_sample[:, j] > 0.5:
+            y_preds = y_preds_0 * x_validation[:, j]
+        else:
+            y_preds = y_preds_0 * ~x_validation[:, j]
 
-    # Simplify formula
-    for term in explanation.split(' & '):
-        explanation_simplified = copy.deepcopy(explanation)
-        explanation_simplified = explanation_simplified.replace(f'{term} & ', '')
-        if explanation_simplified:
-            accuracy, _ = test_explanation(explanation_simplified, x_validation, y_validation)
-            if accuracy == 1:
-                explanation = copy.deepcopy(explanation_simplified)
+        if y_preds.eq(y_validation).all().item():
+            break
+
+        if explanation:
+            explanation += ' & '
+        explanation += f'feature{j:010}' if x_sample[:, j] > 0.5 else f'~feature{j:010}'
+
+        y_preds_0 = y_preds
+
+    # # Simplify formula
+    # for term in explanation.split(' & '):
+    #     explanation_simplified = copy.deepcopy(explanation)
+    #
+    #     if explanation_simplified.endswith(f'{term}'):
+    #         explanation_simplified = explanation_simplified.replace(f' & {term}', '')
+    #     else:
+    #         explanation_simplified = explanation_simplified.replace(f'{term} & ', '')
+    #
+    #     if explanation_simplified:
+    #         accuracy, _ = test_explanation(explanation_simplified, x_validation, y_validation)
+    #         if accuracy == 1:
+    #             explanation = copy.deepcopy(explanation_simplified)
 
     if concept_names:
         explanation = replace_names(explanation, concept_names)
