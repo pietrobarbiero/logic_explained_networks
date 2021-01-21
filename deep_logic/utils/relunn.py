@@ -1,31 +1,35 @@
 import torch
 from torch.nn.utils import prune
 from copy import deepcopy
-import numpy as np
 
 
-def prune_features(model: torch.nn.Module) -> torch.nn.Module:
+def prune_features(model: torch.nn.Module, n_classes: int) -> torch.nn.Module:
     """
     Prune the inputs of the model.
 
     :param model: pytorch model
+    :param n_classes: number of classes
     :return: pruned model
     """
     model.eval()
     for i, module in enumerate(model.children()):
         # prune only Linear layers
         if isinstance(module, torch.nn.Linear):
-            # create mask
-            mask = torch.ones(module.weight.shape)
-
-            # identify weights with the lowest absolute values
-            w_abs = torch.norm(module.weight, dim=0)
-            w_max = torch.max(w_abs)
-            w_bool = (w_abs / w_max) < 0.5
-            mask[:, w_bool] = 0
+            # pruning
+            blocks = []
+            block_size = (module.weight.shape[0] // n_classes, module.weight.shape[1])
+            for c in range(n_classes):
+                # identify weights with the lowest absolute values
+                w_abs = torch.norm(module.weight[c*block_size[0]:(c+1)*block_size[0]], dim=0)
+                w_max = torch.max(w_abs)
+                w_bool = (w_abs / w_max) < 0.5
+                mask = torch.ones(block_size)
+                mask[:, w_bool] = 0
+                blocks.append(mask)
 
             # prune
-            torch.nn.utils.prune.custom_from_mask(module, name="weight", mask=mask)
+            final_mask = torch.vstack(blocks)
+            torch.nn.utils.prune.custom_from_mask(module, name="weight", mask=final_mask)
 
         break
 
