@@ -72,3 +72,6 @@ target/
 data/cifar-10-batches-py/
 tests/net
 data/CUB_200_2011/
+examples/.ipynb_checkpoints/
+experiments/MNIST/.ipynb_checkpoints/
+experiments/MNIST/net
