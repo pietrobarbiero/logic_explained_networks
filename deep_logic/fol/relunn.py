@@ -220,7 +220,10 @@ def explain_local(model: torch.nn.Module, x, y, x_sample,
     x_sample = x_sample.unsqueeze(0)
     y_pred_sample = model(x_sample)
     pred_class = torch.argmax(y_pred_sample, dim=1).item()
-    n_classes = len(torch.unique(y))
+    if len(y.shape) == 1:
+        n_classes = len(torch.unique(y))
+    else:
+        n_classes = y.shape[1]
 
     w, b = collect_parameters(model, device)
     feature_weights = w[0]
