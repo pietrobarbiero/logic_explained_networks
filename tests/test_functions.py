@@ -12,8 +12,7 @@ class TestTemplateObject(unittest.TestCase):
             test_explanation, replace_names
         import deep_logic as dl
 
-        torch.manual_seed(10)
-        np.random.seed(0)
+        dl.utils.base.set_seed(0)
 
         x = torch.tensor([
             [0, 0, 0, 0],
@@ -59,6 +58,8 @@ class TestTemplateObject(unittest.TestCase):
                 y_pred_d = torch.argmax(y_pred, dim=1)
                 accuracy = y_pred_d.eq(y).sum().item() / y.size(0)
                 print(f'Epoch {epoch}: train accuracy: {accuracy:.4f}')
+
+        get_reduced_model(model, x[0])
 
         explanation = explain_global(model, n_classes, target_class=1)
         accuracy, preds = test_explanation(explanation, 1, x, y)

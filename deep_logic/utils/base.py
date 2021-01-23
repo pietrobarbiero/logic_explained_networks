@@ -79,32 +79,3 @@ def validate_network(model: torch.nn.Module, model_type: str = 'relu') -> None:
             assert isinstance(module, torch.nn.Linear) or isinstance(module, torch.nn.Sigmoid)
 
     return
-
-
-class ClassifierNotTrainedError(Exception):
-    """
-    Error raised when we try to load a classifier that it does not exists or when the classifier exists but
-    its training has not finished.
-    """
-
-    def __init__(self):
-        self.message = "Classifier not trained"
-
-    def __str__(self):
-        return self.message
-
-
-class IncompatibleClassifierError(Exception):
-    """
-    Error raised when we try to load a classifier with a different structure with respect to the current model.
-    """
-
-    def __init__(self, missing_keys, unexpected_keys):
-        self.message = "Unable to load the selected classifier.\n"
-        for key in missing_keys:
-            self.message += "Missing key: " + str(key) + ".\n"
-        for key in unexpected_keys:
-            self.message += "Unexpected key: " + str(key) + ".\n"
-
-    def __str__(self):
-        return self.message
