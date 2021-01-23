@@ -1,9 +1,10 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from sympy import simplify_logic
 
-import deep_logic as dl
+from deep_logic.fol import test_explanation, explain_local, explain_global, replace_names
+from deep_logic.utils.base import validate_data, validate_network
+from deep_logic.utils.relunn import get_reduced_model
 
 
 def main():
@@ -31,8 +32,8 @@ def main():
     ]
     model = torch.nn.Sequential(*layers)
 
-    dl.validate_network(model, model_type='relu')
-    dl.validate_data(x_train)
+    validate_network(model, model_type='relu')
+    validate_data(x_train)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     model.train()
@@ -73,9 +74,9 @@ def main():
     ## Local decision boundaries
 
     xin = torch.tensor([0.3, 0.95])
-    model_reduced = dl.get_reduced_model(model, xin)
+    model_reduced = get_reduced_model(model, xin)
     output = model_reduced(xin)
-    explanation = dl.fol.generate_local_explanations(model_reduced, xin, 2)
+    explanation = explain_local(model, x_train, y_train, xin, 1, concept_names=['x1', 'x2'])
 
     plt.figure(figsize=[8, 4])
     plt.subplot(121)
@@ -85,8 +86,8 @@ def main():
     c = plt.Circle((xin[0], xin[1]), radius=0.2, edgecolor='k', fill=False, linestyle='--')
     plt.gca().add_artist(c)
     plt.scatter(xnp[:, 0], xnp[:, 1], c=ynp, cmap='BrBG')
-    plt.xlabel('f0')
-    plt.ylabel('f1')
+    plt.xlabel('x1')
+    plt.ylabel('x2')
     plt.xlim([-0.5, 1.5])
     plt.ylim([-0.5, 1.5])
     plt.subplot(122)
@@ -96,18 +97,18 @@ def main():
     c = plt.Circle((xin[0], xin[1]), radius=0.2, edgecolor='k', fill=False, linestyle='--')
     plt.gca().add_artist(c)
     plt.scatter(xnp[:, 0], xnp[:, 1], c=ynp, cmap='BrBG')
-    plt.xlabel('f0')
-    plt.ylabel('f1')
+    plt.xlabel('x1')
+    plt.ylabel('x2')
     plt.xlim([-0.5, 1.5])
     plt.ylim([-0.5, 1.5])
     plt.tight_layout()
     plt.savefig('decision_boundaries.png')
     plt.show()
 
-    global_explanation, predictions = dl.fol.combine_local_explanations(model, x_train, y_train)
-
-    accuracy = np.sum(predictions == ynp) / len(ynp)
-    print(f'Accuracy of when using the formula {global_explanation}: {accuracy:.4f}')
+    global_explanation = explain_global(model, 2, target_class=1)
+    accuracy, preds = test_explanation(global_explanation, 1, x_train, y_train)
+    explanation = replace_names(global_explanation, concept_names=['x1', 'x2'])
+    print(f'Accuracy of when using the formula {explanation}: {accuracy:.4f}')
 
     return
 

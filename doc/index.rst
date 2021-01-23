@@ -5,10 +5,7 @@ Welcome to Deep Logic
 Deep Logic is a python package providing a set of utilities to
 build deep learning models that are explainable by design.
 
-This library provides APIs to get first-order logic explanations from:
-
-* ReLU networks (:doc:`../user_guide/tutorial_relu`);
-* :math:`\psi`-networks, i.e. neural networks with sigmoid activations (:doc:`../user_guide/tutorial_psi`).
+This library provides APIs to get first-order logic explanations from deep neural networks.
 
 Quick start
 -----------
@@ -18,7 +15,7 @@ You can install Deep Logic along with all its dependencies from
 
 .. code:: bash
 
-    $ pip install -r requirements.txt deep-logic
+    pip install -r requirements.txt deep-logic
 
 
 Source
@@ -33,7 +30,7 @@ The source code and minimal working examples can be found on
     :maxdepth: 2
 
     user_guide/installation
-    user_guide/tutorial_relu
+    user_guide/tutorial_deepnn
     user_guide/tutorial_psi
     user_guide/contributing
     user_guide/running_tests
@@ -42,11 +39,12 @@ The source code and minimal working examples can be found on
     :caption: API Reference
     :maxdepth: 2
 
-    modules/relunn
-    modules/fol_relu
-    modules/prune
-    modules/fol_psi
-    modules/utils
+    modules/fol/relunn
+    modules/fol/sigmoidnn
+    modules/nn/linear
+    modules/utils/base
+    modules/utils/relunn
+    modules/utils/sigmoidnn
 
 
 .. toctree::
