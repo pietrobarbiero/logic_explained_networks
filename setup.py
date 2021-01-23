@@ -13,7 +13,7 @@ with open(ver_file) as f:
 
 DISTNAME = 'deep-logic'
 DESCRIPTION = 'Deep logic: Interpretable neural networks in Python.'
-with codecs.open('README.rst', encoding='utf-8-sig') as f:
+with codecs.open('README.rst', encoding='utf-8') as f:
     LONG_DESCRIPTION = f.read()
 MAINTAINER = 'P. Barbiero'
 MAINTAINER_EMAIL = 'barbiero@tutanota.com'
@@ -58,6 +58,7 @@ setup(name=DISTNAME,
       version=VERSION,
       download_url=DOWNLOAD_URL,
       long_description=LONG_DESCRIPTION,
+      long_description_content_type='text/rst',
       zip_safe=False,  # the package can run out of an .egg file
       classifiers=CLASSIFIERS,
       packages=find_packages(),
