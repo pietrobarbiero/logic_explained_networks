@@ -71,12 +71,16 @@ def simplify_formula(explanation: str, model: torch.nn.Module,
     :return: Simplified formula
     """
     y_pred_sample = (model((x_sample > 0.5).to(torch.float)) > 0.5).to(torch.float)
-    if y_pred_sample != target_class:
+    if len(y_pred_sample) > 1:
+        y_pred_sample = torch.argmax(y_pred_sample)
+
+    if not y_pred_sample.eq(target_class):
         return ''
 
+    x_sample = x_sample.unsqueeze(0)
     mask = (y != y_pred_sample).squeeze()
     x_validation = torch.cat([x[mask], x_sample]).to(torch.bool)
-    y_validation = torch.cat([y[mask], y_pred_sample]).squeeze()
+    y_validation = torch.cat([y[mask], y_pred_sample.unsqueeze(0)]).squeeze()
     for term in explanation.split(' & '):
         explanation_simplified = copy.deepcopy(explanation)
 

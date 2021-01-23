@@ -10,6 +10,7 @@ class TestTemplateObject(unittest.TestCase):
         from deep_logic.utils.base import validate_network, validate_data
         from deep_logic.fol import explain_local, combine_local_explanations, explain_global, \
             test_explanation, replace_names
+        from deep_logic.fol.base import simplify_formula
         import deep_logic as dl
 
         dl.utils.base.set_seed(0)
@@ -67,9 +68,11 @@ class TestTemplateObject(unittest.TestCase):
         print(f'Accuracy of when using the formula {explanation}: {accuracy:.4f}')
         assert explanation == '(x1 & ~x2) | (x2 & ~x1)'
 
-        explanation = explain_local(model, x, y, x[1], target_class=y[1].item(), concept_names=['f1', 'f2', 'f3', 'f4'])
-        print(explanation)
-        assert explanation == '~f1 & f2'
+        explanation = explain_local(model, x, y, x[1], target_class=y[1].item())
+        simplified_formula = simplify_formula(explanation, model, x, y, x[1], y[1].item())
+        simplified_formula = replace_names(simplified_formula, concept_names=['x1', 'x2', 'x3', 'x4'])
+        print(simplified_formula)
+        assert simplified_formula == '~x1 & x2'
 
         for target_class in range(n_classes):
             global_explanation = explain_global(model, n_classes,
@@ -100,11 +103,11 @@ class TestTemplateObject(unittest.TestCase):
         n_classes = len(torch.unique(y))
 
         layers = [
-            torch.nn.Linear(2, 10 * n_classes),
+            torch.nn.Linear(2, 10 * n_classes, bias=False),
             torch.nn.ReLU(),
-            dl.nn.XLinear(10, 4, n_classes),
+            dl.nn.XLinear(10, 4, n_classes, bias=False),
             torch.nn.ReLU(),
-            dl.nn.XLinear(4, 1, n_classes),
+            dl.nn.XLinear(4, 1, n_classes, bias=False),
             torch.nn.Sigmoid(),
         ]
         model = torch.nn.Sequential(*layers)
@@ -134,6 +137,8 @@ class TestTemplateObject(unittest.TestCase):
                 y_pred_d = torch.argmax(y_pred, dim=1)
                 accuracy = y_pred_d.eq(y).sum().item() / y.size(0)
                 print(f'Epoch {epoch}: train accuracy: {accuracy:.4f}')
+
+        reduced_model = get_reduced_model(model, x[1], bias=False)
 
         explanation = explain_local(model, x, y, x[1], target_class=y[1].item(), concept_names=['f1', 'f2'])
         print(explanation)
