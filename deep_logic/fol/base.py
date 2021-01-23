@@ -10,13 +10,13 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
     Test explanation
 
     :param explanation: formula
-    :target_class: class ID
+    :param target_class: class ID
     :param x: input data
     :param y: input labels
     :return: Accuracy of the explanation and predictions
     """
     minterms = str(explanation).split(' | ')
-    x_bool = x.detach().numpy() > 0.5
+    x_bool = x.cpu().detach().numpy() > 0.5
     predictions = np.zeros(x.shape[0], dtype=bool)
     for minterm in minterms:
         minterm = minterm.replace('(', '').replace(')', '').split(' & ')
@@ -33,7 +33,7 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
     if len(y.squeeze().shape) > 1:
         y = torch.argmax(y, dim=1) == target_class
 
-    accuracy = sum(predictions == y.detach().numpy().squeeze()) / len(predictions)
+    accuracy = sum(predictions == y.cpu().detach().numpy().squeeze()) / len(predictions)
     return accuracy, predictions
 
 

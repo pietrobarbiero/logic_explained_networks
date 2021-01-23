@@ -37,7 +37,11 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
         if pred_class.eq(true_class).item() and pred_class.eq(target_class).item():
             local_explanation = explain_local(model, x, y, xi, target_class, concept_names=None, device=device)
             local_explanations.append(local_explanation)
-            local_explanation_translated = replace_names(local_explanation, concept_names)
+
+            if concept_names:
+                local_explanation_translated = replace_names(local_explanation, concept_names)
+            else:
+                local_explanation_translated = local_explanation
             local_explanations_translated.append(local_explanation_translated)
 
     if len(local_explanations) == 0:
