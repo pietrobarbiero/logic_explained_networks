@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-from deep_logic.fol import combine_local_explanations, explain_semi_local
+from deep_logic.fol import test_explanation, explain_local, explain_global, replace_names
 from deep_logic.utils.base import validate_data, validate_network
 from deep_logic.utils.relunn import get_reduced_model
 
@@ -76,7 +76,7 @@ def main():
     xin = torch.tensor([0.3, 0.95])
     model_reduced = get_reduced_model(model, xin)
     output = model_reduced(xin)
-    explanation = explain_semi_local(model, x_train, y_train, xin, concept_names=['x1', 'x2'])
+    explanation = explain_local(model, x_train, y_train, xin, 1, concept_names=['x1', 'x2'])
 
     plt.figure(figsize=[8, 4])
     plt.subplot(121)
@@ -105,12 +105,10 @@ def main():
     plt.savefig('decision_boundaries.png')
     plt.show()
 
-    global_explanation, predictions, counter = combine_local_explanations(model, x_train, y_train,
-                                                                          concept_names=['x1', 'x2'])
-
-    accuracy = np.sum(predictions == ynp) / len(ynp)
-    print(f'Accuracy of when using the formula {global_explanation}: {accuracy:.4f}')
-    print(counter)
+    global_explanation = explain_global(model, 2, target_class=1)
+    accuracy, preds = test_explanation(global_explanation, 1, x_train, y_train)
+    explanation = replace_names(global_explanation, concept_names=['x1', 'x2'])
+    print(f'Accuracy of when using the formula {explanation}: {accuracy:.4f}')
 
     return
 

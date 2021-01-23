@@ -8,23 +8,20 @@ class TestTemplateObject(unittest.TestCase):
         import numpy as np
         from deep_logic.utils.relunn import get_reduced_model
         from deep_logic.utils.base import validate_network, validate_data
-        from deep_logic.fol import explain_local, combine_local_explanations
+        from deep_logic.fol import explain_local, combine_local_explanations, explain_global, \
+            test_explanation, replace_names
         import deep_logic as dl
 
         torch.manual_seed(10)
         np.random.seed(0)
 
         x = torch.tensor([
-            [0, 0, 0.5, 0.5],
-            [0, 1, 0.5, 0.5],
-            [1, 0, 0.5, 0.5],
-            [1, 1, 0.5, 0.5],
-            [0.5, 0.5, 0, 0],
-            [0.5, 0.5, 0, 1],
-            [0.5, 0.5, 1, 0],
-            [0.5, 0.5, 1, 1],
+            [0, 0, 0, 0],
+            [0, 1, 0, 0],
+            [1, 0, 0, 0],
+            [1, 1, 0, 0],
         ], dtype=torch.float)
-        y = torch.tensor([0, 1, 1, 0, 2, 3, 3, 3], dtype=torch.long)
+        y = torch.tensor([0, 1, 1, 0], dtype=torch.long)
         n_classes = len(torch.unique(y))
 
         layers = [
@@ -63,15 +60,27 @@ class TestTemplateObject(unittest.TestCase):
                 accuracy = y_pred_d.eq(y).sum().item() / y.size(0)
                 print(f'Epoch {epoch}: train accuracy: {accuracy:.4f}')
 
-        explanation = explain_local(model, x, y, x[1], concept_names=['f1', 'f2', 'f3', 'f4'])
+        explanation = explain_global(model, n_classes, target_class=1)
+        accuracy, preds = test_explanation(explanation, 1, x, y)
+        explanation = replace_names(explanation, concept_names=['x1', 'x2', 'x3', 'x4'])
+        print(f'Accuracy of when using the formula {explanation}: {accuracy:.4f}')
+        assert explanation == '(x1 & ~x2) | (x2 & ~x1)'
+
+        explanation = explain_local(model, x, y, x[1], target_class=y[1].item(), concept_names=['f1', 'f2', 'f3', 'f4'])
         print(explanation)
+        assert explanation == '~f1 & f2'
 
         for target_class in range(n_classes):
-            global_explanation, _, counter = combine_local_explanations(model, x, y, target_class=target_class,
-                                                                        topk_explanations=5,
-                                                                        concept_names=['f1', 'f2', 'f3', 'f4'])
+            global_explanation = explain_global(model, n_classes,
+                                                target_class=target_class,
+                                                concept_names=['f1', 'f2', 'f3', 'f4'])
             print(f'Target class: {target_class} - Explanation: {global_explanation}')
-            print(f'\t{counter}')
+
+        assert global_explanation == '(f1 & ~f2) | (f2 & ~f1)'
+
+        explanation, _, _ = combine_local_explanations(model, x, y, 0, concept_names=['f1', 'f2', 'f3', 'f4'])
+        print(explanation)
+        assert explanation == '(f1 & f2) | (~f1 & ~f2)'
 
         return
 
@@ -125,8 +134,9 @@ class TestTemplateObject(unittest.TestCase):
                 accuracy = y_pred_d.eq(y).sum().item() / y.size(0)
                 print(f'Epoch {epoch}: train accuracy: {accuracy:.4f}')
 
-        explanation = explain_local(model, x, y, x[1], concept_names=['f1', 'f2'])
+        explanation = explain_local(model, x, y, x[1], target_class=y[1].item(), concept_names=['f1', 'f2'])
         print(explanation)
+        assert explanation == 'f1 & f2'
 
         for target_class in range(n_classes):
             global_explanation, _, counter = combine_local_explanations(model, x, y, target_class=target_class,
@@ -134,6 +144,8 @@ class TestTemplateObject(unittest.TestCase):
                                                                         concept_names=['f1', 'f2', 'f3', 'f4'])
             print(f'Target class: {target_class} - Explanation: {global_explanation}')
             print(f'\t{counter}')
+
+        assert global_explanation == ''
 
         return
 
