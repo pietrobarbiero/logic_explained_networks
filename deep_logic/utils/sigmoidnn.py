@@ -28,7 +28,8 @@ def prune_equal_fanin(model: torch.nn.Module, k: int = 2,
             for j in range(len(idx)):
                 mask[j, idx[j]] = 0
             # prune
-            prune.custom_from_mask(module, name="weight", mask=mask.to(device))
+            mask = mask.to(device)
+            prune.custom_from_mask(module, name="weight", mask=mask)
 
     if validate:
         validate_network(model, 'psi')
