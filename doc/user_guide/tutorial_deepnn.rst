@@ -1,4 +1,4 @@
-FOL explanations of ReLU-networks
+FOL explanations of deep networks
 =======================================
 
 First of all we need to import some useful libraries:
@@ -38,24 +38,20 @@ We can instantiate a simple feed-forward neural network with 3 layers:
 
     layers = [
         torch.nn.Linear(x_train.size(1), 10),
-        torch.nn.ReLU(),
+        torch.nn.LeakyReLU(),
         torch.nn.Linear(10, 4),
-        torch.nn.ReLU(),
+        torch.nn.LeakyReLU(),
         torch.nn.Linear(4, 1),
         torch.nn.Sigmoid(),
     ]
     model = torch.nn.Sequential(*layers)
 
-Before training the network, we should validate the input data and the
-network architecture. The requirements are the following:
-
-* all the input features should be in :math:`[0,1]`;
-* all the activation functions should be ReLUs.
+Before training the network, we should validate the input data.
+The only requirement is the following for all the input features to be in ``[0,1]``.
 
 .. code:: python
 
     dl.validate_data(x_train)
-    dl.validate_network(model, 'relu')
 
 We can now train the network:
 
@@ -67,13 +63,9 @@ We can now train the network:
         # forward pass
         optimizer.zero_grad()
         y_pred = model(x_train)
-        # Compute Loss
-        loss = torch.nn.functional.mse_loss(y_pred, y_train)
 
-        # L1 regularization
-        for module in model.children():
-            if isinstance(module, torch.nn.Linear):
-                loss += 0.001 * torch.norm(module.weight, 1)
+        # Compute Loss
+        loss = torch.nn.functional.binary_crossentropy_loss(y_pred, y_train)
 
         # backward pass
         loss.backward()
@@ -92,16 +84,14 @@ at the reduced model:
 
 .. code:: python
 
-    xin = torch.tensor([0.49, 0.95])
-    model_reduced = dl.get_reduced_model(model, xin)
-    output = model_reduced(xin)
-    explanation = fol.generate_local_explanations(model_reduced, xin)
+    explanation = dl.fol.explain_local(model, x_train, y_train, x_sample=x[1],
+                                       target_class=1, concept_names=['x1', 'x2'])
     print(explanation)
 
 The local explanation will be a given in terms of conjunctions
 of input features which are locally relevant.
 For this specific input, the explanation would be
-:math:`\neg f_0 \land f_1`.
+``~f0 AND f1``.
 
 We can also compare the decision boundaries of the full model wrt
 the reduced model to check that they are `locally` similar:
@@ -144,12 +134,14 @@ explanations of the predictions for a specific class:
 
 .. code:: python
 
-    global_explanation = fol.combine_local_explanations(model, x_train, y_train)
-    simplified_explanation = simplify_logic(global_explanation, 'dnf')
+    global_explanation = explain_global(model, n_classes=2, target_class=1)
+    accuracy, predictions = test_explanation(global_explanation, target_class=1, x_train, y_train)
+    global_explanation = replace_names(global_explanation, concept_names=['f1', 'f2'])
+    print(f'Accuracy of when using the formula {global_explanation}: {accuracy:.4f}')
 
-The global explanation is given as a disjunction of local explanations
+The global explanation is given in a disjunctive normal form
 for a specified class.
-For this problem the generated explanation for class :math:`y=1` is
-:math:`(f_1 \land \neg f_2) \lor (f_2  \land \neg f_1)`
-which corresponds to :math:`f_1 \oplus f_2`
-(i.e. the exclusive OR function).
+For this problem the generated explanation for class ``y=1`` is
+``(f1 AND ~f2) OR (f2  AND ~f1)``
+which corresponds to ``f1 XOR f2``
+(i.e. the `exclusive OR` function).
