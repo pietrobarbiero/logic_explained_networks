@@ -138,7 +138,7 @@ class TestTemplateObject(unittest.TestCase):
                 accuracy = y_pred_d.eq(y).sum().item() / y.size(0)
                 print(f'Epoch {epoch}: train accuracy: {accuracy:.4f}')
 
-        reduced_model = get_reduced_model(model, x[1], bias=False)
+        reduced_model = get_reduced_model(model, x[1], bias=False, activation=False)
 
         explanation = explain_local(model, x, y, x[1], target_class=y[1].item(), concept_names=['f1', 'f2'])
         print(explanation)
