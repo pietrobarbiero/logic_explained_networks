@@ -3,10 +3,12 @@ from torch.nn.utils import prune
 from copy import deepcopy
 
 
-def prune_features(model: torch.nn.Module, n_classes: int) -> torch.nn.Module:
+def prune_features(model: torch.nn.Module, n_classes: int,
+                   device: torch.device = torch.device("cpu")) -> torch.nn.Module:
     """
     Prune the inputs of the model.
 
+    :param device:
     :param model: pytorch model
     :param n_classes: number of classes
     :return: pruned model
@@ -28,7 +30,7 @@ def prune_features(model: torch.nn.Module, n_classes: int) -> torch.nn.Module:
                 blocks.append(mask)
 
             # prune
-            final_mask = torch.vstack(blocks)
+            final_mask = torch.vstack(blocks).to(device)
             torch.nn.utils.prune.custom_from_mask(module, name="weight", mask=final_mask)
 
         break
