@@ -72,3 +72,42 @@ def get_splits_train_val_test(dataset: ImageToConceptDataset, val_transform: tra
                                           samples=train_samples)
 
     return train_dataset, val_dataset, test_dataset
+
+
+def show_batch(dataset, labels_names, batch_size=8, save=False):
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, random=True)
+    batch_data = next(iter(data_loader))
+    assert len(batch_data) == 2, "Error when loading data"
+    batch_images, batch_labels = batch_data[0], batch_data[1]
+    fig = plt.figure()
+    plt.rcParams.update({'font.size': 6})
+    for j, sample in enumerate(batch_images):
+        ax = plt.subplot(batch_size/2, 2, j + 1)
+        if isinstance(sample, torch.Tensor):
+            sample = sample.numpy()
+        elif isinstance(sample, np.ndarray):
+            sample = sample.squeeze()
+        elif isinstance(sample, Image.Image):
+            sample = np.asarray(sample)
+        else:
+            raise NotImplementedError
+        if sample.shape[0] == 3:
+            sample = np.rollaxis(sample, 0, 3)
+        if np.max(sample) < 200 or np.min(sample) < 0:
+            sample = (sample * 255).astype(np.uint8)
+        plt.imshow(sample)
+        title = ""
+        label = batch_labels[j]
+        if isinstance(label, torch.Tensor):
+            label = label.numpy()
+        if label.size > 1:
+            for i in np.where(label == 1)[0]:
+                title += labels_names[i] + ", "
+        else:
+            title = labels_names[label]
+        title = title[:100]
+        ax.set_title(title)
+        ax.axis('off')
+    if save:
+        plt.savefig("../images/fig" + str(np.random.randint(1000)))
+    plt.show()

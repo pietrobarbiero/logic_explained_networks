@@ -117,7 +117,6 @@ class BaseClassifier(torch.nn.Module):
             tot_losses_i = []
             train_outputs, train_labels = [], []
             for i, data in enumerate(train_loader):
-                # print(i)
                 # Load batch (dataset, labels) on the correct device
                 batch_data, batch_labels = data[0].to(device), data[1].to(device)
                 optimizer.zero_grad()

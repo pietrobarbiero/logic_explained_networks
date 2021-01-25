@@ -72,5 +72,6 @@ class F1Score(Metric):
 
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
         discrete_output = outputs.cpu().numpy() > 0.5
-        f1_val = f1_score(discrete_output, targets.cpu().numpy(), average='macro', zero_division=0) * 100
+        targets = targets.cpu().numpy()
+        f1_val = f1_score(discrete_output, targets, average='macro', zero_division=0) * 100
         return f1_val
