@@ -3,6 +3,7 @@ from typing import Tuple
 
 import pandas as pd
 import torch
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
@@ -77,7 +78,7 @@ class BaseClassifier(torch.nn.Module):
         assert not torch.isinf(x).any(), "Input data contain inf values"
 
     def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, num_workers: int = 0,
-            l_r: float = 0.01, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),
+            l_r: float = 0.01, lr_scheduler: bool = False, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),
             verbose: bool = True) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.
@@ -89,6 +90,7 @@ class BaseClassifier(torch.nn.Module):
         :param epochs: number of epochs to train the model
         :param num_workers: number of process to employ when loading data
         :param l_r: learning rate parameter of the Adam optimizer
+        :param lr_scheduler: whether to use learning rate scheduler (ReduceLROnPleteau)
         :param metric: metric to evaluate the predictions of the network
         :param device: device on which to perform the training
         :param verbose: whether to output or not epoch metrics
@@ -100,7 +102,9 @@ class BaseClassifier(torch.nn.Module):
 
         # Setting loss function and optimizer
         parameters = [param for param in self.parameters() if param.requires_grad]
-        optimizer = torch.optim.Adam(self.parameters(), lr=l_r, weight_decay=1e-6)
+        optimizer = torch.optim.AdamW(parameters, lr=l_r, weight_decay=1e-3)
+        scheduler = ReduceLROnPlateau(optimizer, mode='max', verbose=verbose, factor=0.33, min_lr=1e-3*l_r,
+                                      patience=epochs//10) if lr_scheduler else None
 
         # Training epochs
         best_acc, best_epoch = 0.0, 0
@@ -138,6 +142,10 @@ class BaseClassifier(torch.nn.Module):
             train_acc = self.evaluate(train_set, batch_size, metric, num_workers, device, train_outputs, train_labels)
             val_acc = self.evaluate(val_set, batch_size, metric, num_workers, device)
 
+            # Step learning rate scheduler
+            if lr_scheduler:
+                scheduler.step(train_acc)
+
             # Save epoch results
             train_accs.append(train_acc)
             val_accs.append(val_acc)
@@ -154,6 +162,9 @@ class BaseClassifier(torch.nn.Module):
                 best_acc = val_acc
                 best_epoch = epoch + 1
                 self.save()
+
+        if verbose:
+            pbar.close()
 
         # Best model is loaded and saved again with buffer "trained" set to true
         self.load(device, set_trained=True)
