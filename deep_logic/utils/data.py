@@ -5,11 +5,15 @@ import random
 import numpy as np
 from typing import Tuple
 
-
+import torch
+from PIL import Image
+from torchvision import transforms
 from data.i2c_dataset import ImageToConceptDataset
+from matplotlib import pyplot as plt
 
 
-def get_splits_train_val_test(dataset: ImageToConceptDataset, val_split: float = 0.1, test_split: float = 0.1) \
+def get_splits_train_val_test(dataset: ImageToConceptDataset, val_transform: transforms.Compose,
+                              val_split: float = 0.1, test_split: float = 0.1) \
         -> Tuple[ImageToConceptDataset, ImageToConceptDataset, ImageToConceptDataset]:
     train_json = os.path.join(os.path.dirname(dataset.root), f"train_samples_{dataset.dataset_name}.json")
     val_json = os.path.join(os.path.dirname(dataset.root), f"val_samples_{dataset.dataset_name}.json")
@@ -31,7 +35,7 @@ def get_splits_train_val_test(dataset: ImageToConceptDataset, val_split: float =
         with open(os.path.join(val_json), "w") as f:
             val_file = {"samples": val_samples}
             json.dump(val_file, f)
-    val_dataset = ImageToConceptDataset(dataset.root, dataset.transform, dataset.dataset_name, 
+    val_dataset = ImageToConceptDataset(dataset.root, val_transform, dataset.dataset_name,
                                         samples=val_samples)
 
     # Creating dataset for Validation by splitting the samples in the dataset
@@ -51,7 +55,7 @@ def get_splits_train_val_test(dataset: ImageToConceptDataset, val_split: float =
         with open(os.path.join(test_json), "w") as f:
             test_file = {"samples": test_samples}
             json.dump(test_file, f)
-    test_dataset = ImageToConceptDataset(dataset.root, dataset.transform, dataset.dataset_name, 
+    test_dataset = ImageToConceptDataset(dataset.root, val_transform, dataset.dataset_name,
                                          samples=test_samples)
 
     # Creating dataset for Training with the remaining samples

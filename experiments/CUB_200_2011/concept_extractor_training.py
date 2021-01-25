@@ -24,11 +24,13 @@ if __name__ == '__main__':
     for seed in seeds:
         print("\nseed", seed)
         set_seed(seed)
-        transform = data_transforms.get_transform(dataset=data_transforms.CUB200, data_augmentation=True,
-                                                  inception=cnn_model == cnn_models.INCEPTION)
+        train_transform = data_transforms.get_transform(dataset=CUB200, data_augmentation=True,
+                                                        inception=cnn_model == cnn_models.INCEPTION)
+        val_transform = data_transforms.get_transform(dataset=CUB200, data_augmentation=False,
+                                                      inception=cnn_model == cnn_models.INCEPTION)
 
-        dataset = ImageToConceptDataset("../../data/CUB_200_2011", transform, dataset_name=CUB200)
-        train_set, val_set, test_set = get_splits_train_val_test(dataset)
+        dataset = ImageToConceptDataset(root, train_transform, dataset_name=CUB200)
+        train_set, val_set, test_set = get_splits_train_val_test(dataset, val_transform)
 
         name = f"model_{cnn_model}_dataset_{CUB200}_lr_{l_r}_epochs_{epochs}_seed_{seed}"
         model = CNNConceptExtractor(n_classes=dataset.n_attributes, cnn_model=cnn_model,
