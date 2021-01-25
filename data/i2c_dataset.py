@@ -16,8 +16,9 @@ class ImageToConceptDataset(ImageFolder):
     def __init__(self, root: str, transform: transforms, dataset_name: str, samples: list = None):
         super().__init__(root, transform)
         self.attributes = np.load(os.path.join(root, "attributes.npy"))
+        with open(os.path.join(root, "attributes_names.txt"), "r") as f:
+            self.attribute_names = json.load(f)
         self.attributes = self.attributes.astype(np.float32)
-        # self.attributes = self.targets  # TODO: remove
         self.n_attributes = self.attributes.shape[1]
         self.dataset_name = dataset_name
         if samples is None:

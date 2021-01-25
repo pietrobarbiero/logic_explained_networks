@@ -46,7 +46,15 @@ def download_cub(force=False):
     with open("attribute_groups.json", "w") as f:
         json.dump(attribute_groups, f)
     print("Attribute groups saved")
-
+    with open("attributes_names.txt", "r") as f:
+        attribute_names = []
+        lines = f.readlines()
+        for line in lines:
+            attr_name = line.split(" ")[1]
+            attribute_names.append(attr_name)
+    with open("attributes_names.txt", "w") as f:
+        json.dump(attribute_names, f)
+    print("Attribute names saved")
     for item in os.listdir():
         if item != "images":
             os.system(f"rm -r {item}")
