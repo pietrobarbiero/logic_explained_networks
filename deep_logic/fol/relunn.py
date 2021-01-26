@@ -11,7 +11,8 @@ from ..utils.base import collect_parameters
 
 
 def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
-                               target_class: int, topk_explanations: int = 2, concept_names: List = None,
+                               target_class: int, simplify: bool = True,
+                               topk_explanations: int = 2, concept_names: List = None,
                                device: torch.device = torch.device('cpu')) -> Tuple[str, np.array, collections.Counter]:
     """
     Generate a global explanation combining local explanations.
@@ -20,6 +21,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     :param x: input samples
     :param y: target labels
     :param target_class: class ID
+    :param simplify: simplify local explanation
     :param topk_explanations: number of most common local explanations to combine in a global explanation (it controls the complexity of the global explanation)
     :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
@@ -35,7 +37,12 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
         # generate local explanation only if the prediction is correct
         if pred_class.eq(true_class).item() and pred_class.eq(target_class).item():
-            local_explanation = explain_local(model, x, y, xi, target_class, concept_names=None, device=device)
+            local_explanation = explain_local(model, x, y, xi, target_class, simplify,
+                                              concept_names=None, device=device)
+
+            if local_explanation in ['', 'False', 'True']:
+                continue
+
             local_explanations.append(local_explanation)
 
             if concept_names:
@@ -76,7 +83,8 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
 
 def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
-                  target_class: int, concept_names: List = None, device: torch.device = torch.device('cpu')) -> str:
+                  target_class: int, simplify: bool = True, concept_names: List = None,
+                  device: torch.device = torch.device('cpu')) -> str:
     """
     Generate a local explanation for a single sample.
 
@@ -85,6 +93,7 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
     :param y: target labels
     :param x_sample: input for which the explanation is required
     :param target_class: class ID
+    :param simplify: simplify local explanation
     :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
     :return: Local explanation
@@ -112,7 +121,6 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
             explanation += ' & '
         explanation += f'feature{j:010}' if x_sample[:, j] > 0.5 else f'~feature{j:010}'
 
-    simplify = False
     if simplify:
         explanation = simplify_formula(explanation, model, x, y, x_sample, target_class)
 

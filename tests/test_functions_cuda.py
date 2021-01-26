@@ -65,7 +65,8 @@ class TestTemplateObject(unittest.TestCase):
                                      device=device)
         print(explanation)
 
-        explanation = explain_local(model, x, y, x[1], y[1].item(), concept_names=['f1', 'f2', 'f3', 'f4'], device=device)
+        explanation = explain_local(model, x, y, x[1], y[1].item(),
+                                    concept_names=['f1', 'f2', 'f3', 'f4'], device=device)
         print(explanation)
 
         for target_class in range(n_classes):

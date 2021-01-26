@@ -63,7 +63,14 @@ class TestTemplateObject(unittest.TestCase):
         get_reduced_model(model, x[0])
 
         explanation = explain_global(model, n_classes, target_class=1)
+        accuracy, preds = test_explanation(explanation, 0, x, y)
+        print(f'Explanation: {explanation}')
+        print(f'x: {x}')
+        print(f'y: {y}')
+        print(f'Accuracy: {accuracy}')
+        print(f'Predictions: {preds}')
         accuracy, preds = test_explanation(explanation, 1, x, y)
+        print(accuracy)
         explanation = replace_names(explanation, concept_names=['x1', 'x2', 'x3', 'x4'])
         print(f'Accuracy of when using the formula {explanation}: {accuracy:.4f}')
         assert explanation == '(x1 & ~x2) | (x2 & ~x1)'
