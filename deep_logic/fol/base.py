@@ -16,24 +16,31 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
     :return: Accuracy of the explanation and predictions
     """
     minterms = str(explanation).split(' | ')
-    x_bool = x.cpu().detach().numpy() > 0.5
-    predictions = np.zeros(x.shape[0], dtype=bool)
+    x = x > 0.5
+    local_predictions = []
     for minterm in minterms:
         minterm = minterm.replace('(', '').replace(')', '').split(' & ')
-        local_predictions = np.ones(x.shape[0], dtype=bool)
+        features = []
         for terms in minterm:
             terms = terms.split('feature')
             if terms[0] == '~':
-                local_predictions *= ~x_bool[:, int(terms[1])]
+                features.append(~x[:, int(terms[1])])
             else:
-                local_predictions *= x_bool[:, int(terms[1])]
+                features.append(x[:, int(terms[1])])
 
-        predictions += local_predictions
+        local_prediction = torch.stack(features, dim=0).prod(dim=0)
+        local_predictions.append(local_prediction)
 
     if len(y.squeeze().shape) > 1:
-        y = torch.argmax(y, dim=1) == target_class
+        predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).cpu().detach().numpy()
+        y = torch.argmax(y, dim=1).eq(target_class)
+    else:
+        predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).eq(target_class).cpu().detach().numpy()
+        y = y > 0.5
 
-    accuracy = sum(predictions == y.cpu().detach().numpy().squeeze()) / len(predictions)
+    y = y.cpu().detach().numpy().squeeze()
+
+    accuracy = sum(predictions == y) / len(predictions)
     return accuracy, predictions
 
 
@@ -73,6 +80,8 @@ def simplify_formula(explanation: str, model: torch.nn.Module,
     y_pred_sample = (model((x_sample > 0.5).to(torch.float)) > 0.5).to(torch.float)
     if y_pred_sample.numel() > 1:
         y_pred_sample = torch.argmax(y_pred_sample).unsqueeze(0)
+    elif len(y_pred_sample.shape) == 1:
+        y_pred_sample = y_pred_sample.unsqueeze(0)
 
     if len(y.squeeze().shape) > 1:
         y = torch.argmax(y, dim=1)

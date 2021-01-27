@@ -8,10 +8,11 @@ from sympy import simplify_logic
 from .base import replace_names, test_explanation, simplify_formula
 from .sigmoidnn import _build_truth_table
 from ..utils.base import collect_parameters
+from ..utils.relunn import get_reduced_model
 
 
 def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
-                               target_class: int, simplify: bool = True,
+                               target_class: int, simplify: bool = True, is_pruned: bool = False,
                                topk_explanations: int = 2, concept_names: List = None,
                                device: torch.device = torch.device('cpu')) -> Tuple[str, np.array, collections.Counter]:
     """
@@ -22,34 +23,95 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     :param y: target labels
     :param target_class: class ID
     :param simplify: simplify local explanation
+    :param is_pruned: True if the model has been pruned
     :param topk_explanations: number of most common local explanations to combine in a global explanation (it controls the complexity of the global explanation)
     :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
     :return: Global explanation, predictions, and ranking of local explanations
     """
+    y = y.squeeze()
+    if len(y.squeeze().shape) > 1:
+        y = torch.argmax(y, dim=1)
+
+    _, idx = np.unique((x[y == target_class] > 0.5).cpu().detach().numpy(), axis=0, return_index=True)
+    x_target = x[y == target_class][idx]
+    y_target = y[y == target_class][idx]
+
+    # # identify non pruned features
+    # w, b = collect_parameters(model, device)
+    # feature_weights = w[0]
+    # block_size = feature_weights.shape[0] // len(y.unique())
+    # feature_used_bool = np.sum(np.abs(feature_weights[target_class * block_size:(target_class + 1) * block_size]),
+    #                            axis=0) > 0
+    # feature_used = np.nonzero(feature_used_bool)[0]
+    #
+    # # collapse samples having the same boolean values for the features used by the model
+    # _, idx = np.unique((x[y == target_class][:, feature_used] > 0.5).cpu().detach().numpy(), axis=0, return_index=True)
+    # x_reduced = x[y == target_class][idx]
+    # y_reduced = y[y == target_class][idx]
+
+    # get model's predictions
+    preds = model(x_target)
+    if len(preds.squeeze().shape) > 1:
+        preds = torch.argmax(preds, dim=1)
+    else:
+        preds = preds.squeeze() > 0.5
+
+    # identify samples correctly classified of the target class
+    correct_mask = y_target.eq(preds)
+    x_target_correct = x_target[correct_mask]
+    y_target_correct = y_target[correct_mask]
+
+    # collapse samples having the same boolean values and class label different from the target class
+    _, idx = np.unique((x[y != target_class] > 0.5).cpu().detach().numpy(), axis=0, return_index=True)
+    x_reduced_opposite = x[y != target_class][idx]
+    y_reduced_opposite = y[y != target_class][idx]
+    preds_opposite = model(x_reduced_opposite)
+    if len(preds_opposite.squeeze().shape) > 1:
+        preds_opposite = torch.argmax(preds_opposite, dim=1)
+    else:
+        preds_opposite = (preds_opposite > 0.5).squeeze()
+
+    # identify samples correctly classified of the opposite class
+    correct_mask = y_reduced_opposite.eq(preds_opposite)
+    x_reduced_opposite_correct = x_reduced_opposite[correct_mask]
+    y_reduced_opposite_correct = y_reduced_opposite[correct_mask]
+
+    # select the subset of samples belonging to the target class
+    x_validation = torch.cat([x_reduced_opposite_correct, x_target_correct], dim=0)
+    y_validation = torch.cat([y_reduced_opposite_correct, y_target_correct], dim=0)
+
+    # generate local explanation only for samples where:
+    # 1) the model's prediction is correct and
+    # 2) the class label corresponds to the target class
     local_explanations = []
+    local_explanations_raw = []
     local_explanations_translated = []
-    for sample_id, (xi, yi) in enumerate(zip(x, y)):
-        # get prediction for each sample
-        output = model(xi)
-        pred_class = torch.argmax(output)
-        true_class = torch.argmax(yi)
+    for sample_id, (xi, yi) in enumerate(zip(x_target, y_target)):
+        local_explanation = explain_local(model, x_validation, y_validation,
+                                          xi.to(torch.float), target_class,
+                                          simplify=False, is_pruned=is_pruned,
+                                          concept_names=None, device=device)
 
-        # generate local explanation only if the prediction is correct
-        if pred_class.eq(true_class).item() and pred_class.eq(target_class).item():
-            local_explanation = explain_local(model, x, y, xi, target_class, simplify,
-                                              concept_names=None, device=device)
+        if local_explanation in ['', 'False', 'True'] or local_explanation in local_explanations_raw:
+            continue
 
-            if local_explanation in ['', 'False', 'True']:
-                continue
+        local_explanations_raw.append(local_explanation)
+        # if simplify:
+        #     local_explanation = simplify_formula(local_explanation, model,
+        #                                          x_validation, y_validation,
+        #                                          xi, target_class)
 
-            local_explanations.append(local_explanation)
+        if local_explanation in ['']:
+            continue
+        local_explanations.append(local_explanation)
 
-            if concept_names:
-                local_explanation_translated = replace_names(local_explanation, concept_names)
-            else:
-                local_explanation_translated = local_explanation
-            local_explanations_translated.append(local_explanation_translated)
+        # get explanations using original concept names (if any)
+        if concept_names:
+            local_explanation_translated = replace_names(local_explanation, concept_names)
+        else:
+            local_explanation_translated = local_explanation
+        local_explanations_translated.append(local_explanation_translated)
 
     if len(local_explanations) == 0:
         return '', np.array, collections.Counter()
@@ -73,7 +135,8 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
         return '', np.array, collections.Counter()
 
     # predictions based on FOL formula
-    accuracy, predictions = test_explanation(global_explanation_simplified, target_class, x, y)
+    accuracy, predictions = test_explanation(global_explanation_simplified, target_class,
+                                             x_validation, y_validation)
 
     # replace concept names
     if concept_names:
@@ -83,7 +146,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
 
 def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
-                  target_class: int, simplify: bool = True, concept_names: List = None,
+                  target_class: int, simplify: bool = True, is_pruned: bool = False, concept_names: List = None,
                   device: torch.device = torch.device('cpu')) -> str:
     """
     Generate a local explanation for a single sample.
@@ -94,6 +157,7 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
     :param x_sample: input for which the explanation is required
     :param target_class: class ID
     :param simplify: simplify local explanation
+    :param is_pruned: True if the model has been pruned
     :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
     :return: Local explanation
@@ -107,12 +171,24 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
     else:
         n_classes = y.shape[1]
 
-    # identify non-pruned features
-    w, b = collect_parameters(model, device)
-    feature_weights = w[0]
-    block_size = feature_weights.shape[0] // n_classes
-    feature_used_bool = np.sum(np.abs(feature_weights[pred_class*block_size:(pred_class+1)*block_size]), axis=0) > 0
-    feature_used = np.nonzero(feature_used_bool)[0]
+    if is_pruned:
+        # identify non-pruned features
+        w, b = collect_parameters(model, device)
+        feature_weights = w[0]
+        block_size = feature_weights.shape[0] // n_classes
+        feature_used_bool = np.sum(np.abs(feature_weights[pred_class * block_size:(pred_class + 1) * block_size]),
+                                   axis=0) > 0
+        feature_used = np.sort(np.nonzero(feature_used_bool)[0])
+
+    else:
+        reduced_model = get_reduced_model(model, x_sample.squeeze())
+        w, b = collect_parameters(reduced_model, device)
+        w_abs = torch.norm(torch.FloatTensor(w[0]), dim=0)
+        w_max = torch.max(w_abs)
+        w_bool = ((w_abs / w_max) > 0.5).cpu().detach().numpy().squeeze()
+        if sum(w_bool) == 0:
+            return ''
+        feature_used = np.sort(np.nonzero(w_bool)[0])
 
     # explanation is the conjunction of non-pruned features
     explanation = ''
@@ -148,7 +224,8 @@ def explain_global(model: torch.nn.Module, n_classes: int,
     w, b = collect_parameters(model, device)
     feature_weights = w[0]
     block_size = feature_weights.shape[0] // n_classes
-    feature_used_bool = np.sum(np.abs(feature_weights[target_class*block_size:(target_class+1)*block_size]), axis=0) > 0
+    feature_used_bool = np.sum(np.abs(feature_weights[target_class * block_size:(target_class + 1) * block_size]),
+                               axis=0) > 0
     feature_used = np.nonzero(feature_used_bool)[0]
 
     # if the number of features is too high, then don't even try to get something
