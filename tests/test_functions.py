@@ -171,7 +171,7 @@ class TestTemplateObject(unittest.TestCase):
         assert explanation == 'x1 | x2'
 
         explanation = explain_local(model, x, y, x[1], is_pruned=True, target_class=y[1])
-        simplified_formula = simplify_formula(explanation, model, x, y, x[1], y[1])
+        simplified_formula = simplify_formula(explanation, model, x, y.squeeze(), x[1], y[1])
         simplified_formula = replace_names(simplified_formula, concept_names=['x1', 'x2', 'x3', 'x4'])
         print(simplified_formula)
         assert simplified_formula == 'x2'

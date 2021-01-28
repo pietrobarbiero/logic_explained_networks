@@ -33,22 +33,8 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     if len(y.squeeze().shape) > 1:
         y = torch.argmax(y, dim=1)
 
-    _, idx = np.unique((x[y == target_class] > 0.5).cpu().detach().numpy(), axis=0, return_index=True)
-    x_target = x[y == target_class][idx]
-    y_target = y[y == target_class][idx]
-
-    # # identify non pruned features
-    # w, b = collect_parameters(model, device)
-    # feature_weights = w[0]
-    # block_size = feature_weights.shape[0] // len(y.unique())
-    # feature_used_bool = np.sum(np.abs(feature_weights[target_class * block_size:(target_class + 1) * block_size]),
-    #                            axis=0) > 0
-    # feature_used = np.nonzero(feature_used_bool)[0]
-    #
-    # # collapse samples having the same boolean values for the features used by the model
-    # _, idx = np.unique((x[y == target_class][:, feature_used] > 0.5).cpu().detach().numpy(), axis=0, return_index=True)
-    # x_reduced = x[y == target_class][idx]
-    # y_reduced = y[y == target_class][idx]
+    x_target = x[y == target_class]
+    y_target = y[y == target_class]
 
     # get model's predictions
     preds = model(x_target)
@@ -85,25 +71,28 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     # 1) the model's prediction is correct and
     # 2) the class label corresponds to the target class
     local_explanations = []
-    local_explanations_raw = []
+    local_explanations_raw = {}
     local_explanations_translated = []
     for sample_id, (xi, yi) in enumerate(zip(x_target, y_target)):
-        local_explanation = explain_local(model, x_validation, y_validation,
-                                          xi.to(torch.float), target_class,
-                                          simplify=False, is_pruned=is_pruned,
-                                          concept_names=None, device=device)
+        local_explanation_raw = explain_local(model, x_validation, y_validation,
+                                              xi.to(torch.float), target_class,
+                                              simplify=False, is_pruned=is_pruned,
+                                              concept_names=None, device=device)
 
-        if local_explanation in ['', 'False', 'True'] or local_explanation in local_explanations_raw:
+        if local_explanation_raw in ['', 'False', 'True']:
             continue
 
-        local_explanations_raw.append(local_explanation)
-        # if simplify:
-        #     local_explanation = simplify_formula(local_explanation, model,
-        #                                          x_validation, y_validation,
-        #                                          xi, target_class)
+        if local_explanation_raw in local_explanations_raw:
+            local_explanation = local_explanations_raw[local_explanation_raw]
+        elif simplify and local_explanation_raw not in local_explanations_raw:
+            local_explanation = simplify_formula(local_explanation_raw, model,
+                                                 x_validation, y_validation,
+                                                 xi, target_class)
 
         if local_explanation in ['']:
             continue
+
+        local_explanations_raw[local_explanation_raw] = local_explanation
         local_explanations.append(local_explanation)
 
         # get explanations using original concept names (if any)

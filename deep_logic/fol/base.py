@@ -80,11 +80,13 @@ def simplify_formula(explanation: str, model: torch.nn.Module,
     y_pred_sample = (model((x_sample > 0.5).to(torch.float)) > 0.5).to(torch.float)
     if y_pred_sample.numel() > 1:
         y_pred_sample = torch.argmax(y_pred_sample).unsqueeze(0)
-    elif len(y_pred_sample.shape) == 1:
-        y_pred_sample = y_pred_sample.unsqueeze(0)
+    # elif len(y_pred_sample.shape) == 1:
+    #     y_pred_sample = y_pred_sample.unsqueeze(0)
 
     if len(y.squeeze().shape) > 1:
         y = torch.argmax(y, dim=1)
+    # elif len(y.squeeze().shape) == 1:
+    #     y = y.unsqueeze(0)
 
     if not y_pred_sample.eq(target_class):
         return ''
