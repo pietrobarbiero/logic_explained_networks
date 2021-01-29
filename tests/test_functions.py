@@ -79,7 +79,7 @@ class TestTemplateObject(unittest.TestCase):
         print(f'Accuracy of when using the formula {explanation}: {accuracy:.4f}')
         assert explanation == '(x1 & ~x2) | (x2 & ~x1)'
 
-        explanation = explain_local(model, x, y, x[1], is_pruned=True, target_class=y[1].item())
+        explanation = explain_local(model, x, y, x[1], method='pruning', target_class=y[1].item())
         simplified_formula = simplify_formula(explanation, model, x, y, x[1], y[1].item())
         simplified_formula = replace_names(simplified_formula, concept_names=['x1', 'x2', 'x3', 'x4'])
         print(simplified_formula)
@@ -93,7 +93,7 @@ class TestTemplateObject(unittest.TestCase):
 
         assert global_explanation == '(f1 & ~f2) | (f2 & ~f1)'
 
-        explanation, _, _ = combine_local_explanations(model, x, y, 0, is_pruned=True, concept_names=['f1', 'f2', 'f3', 'f4'])
+        explanation, _, _ = combine_local_explanations(model, x, y, 0, method='pruning', concept_names=['f1', 'f2', 'f3', 'f4'])
         print(explanation)
         assert explanation == '(f1 & f2) | (~f1 & ~f2)'
 
@@ -170,7 +170,7 @@ class TestTemplateObject(unittest.TestCase):
         print(f'Accuracy of when using the formula {explanation}: {accuracy:.4f}')
         assert explanation == 'x1 | x2'
 
-        explanation = explain_local(model, x, y, x[1], is_pruned=True, target_class=y[1])
+        explanation = explain_local(model, x, y, x[1], method='pruning', target_class=y[1])
         simplified_formula = simplify_formula(explanation, model, x, y.squeeze(), x[1], y[1])
         simplified_formula = replace_names(simplified_formula, concept_names=['x1', 'x2', 'x3', 'x4'])
         print(simplified_formula)
@@ -184,7 +184,7 @@ class TestTemplateObject(unittest.TestCase):
 
         assert global_explanation == 'f1 | f2'
 
-        explanation, _, _ = combine_local_explanations(model, x, y, 0, is_pruned=True, concept_names=['f1', 'f2', 'f3', 'f4'])
+        explanation, _, _ = combine_local_explanations(model, x, y, 0, method='pruning', concept_names=['f1', 'f2', 'f3', 'f4'])
         print(explanation)
         assert explanation == '~f1 & ~f2'
 
@@ -237,13 +237,14 @@ class TestTemplateObject(unittest.TestCase):
 
         reduced_model = get_reduced_model(model, x[1], bias=False, activation=False)
 
-        explanation = explain_local(model, x, y, x[1], target_class=y[1].item(), concept_names=['f1', 'f2'])
+        explanation = explain_local(model, x, y, x[1], method='weights',
+                                    target_class=y[1].item(), concept_names=['f1', 'f2'])
         print(explanation)
         assert explanation == 'f1 & f2'
 
         for target_class in range(n_classes):
             global_explanation, _, counter = combine_local_explanations(model, x, y, target_class=target_class,
-                                                                        topk_explanations=5,
+                                                                        topk_explanations=5, method='weights',
                                                                         concept_names=['f1', 'f2', 'f3', 'f4'])
             print(f'Target class: {target_class} - Explanation: {global_explanation}')
             print(f'\t{counter}')
@@ -299,13 +300,13 @@ class TestTemplateObject(unittest.TestCase):
 
         reduced_model = get_reduced_model(model, x[1], bias=False, activation=False)
 
-        explanation = explain_local(model, x, y, x[1], is_pruned=True, target_class=y[1].item(), concept_names=['f1', 'f2'])
+        explanation = explain_local(model, x, y, x[1], method='pruning', target_class=y[1].item(), concept_names=['f1', 'f2'])
         print(explanation)
         assert explanation == 'f1 & f2'
 
         for target_class in range(n_classes):
             global_explanation, _, counter = combine_local_explanations(model, x, y, target_class=target_class,
-                                                                        is_pruned=True,
+                                                                        method='pruning',
                                                                         topk_explanations=5,
                                                                         concept_names=['f1', 'f2', 'f3', 'f4'])
             print(f'Target class: {target_class} - Explanation: {global_explanation}')

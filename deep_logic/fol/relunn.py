@@ -8,11 +8,11 @@ from sympy import simplify_logic
 from .base import replace_names, test_explanation, simplify_formula
 from .sigmoidnn import _build_truth_table
 from ..utils.base import collect_parameters
-from ..utils.relunn import get_reduced_model
+from ..utils.feature_selection import rank_pruning, rank_weights, rank_lime
 
 
 def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
-                               target_class: int, simplify: bool = True, is_pruned: bool = False,
+                               target_class: int, method: str, simplify: bool = True,
                                topk_explanations: int = 2, concept_names: List = None,
                                device: torch.device = torch.device('cpu')) -> Tuple[str, np.array, collections.Counter]:
     """
@@ -22,8 +22,8 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     :param x: input samples
     :param y: target labels
     :param target_class: class ID
+    :param method: local feature importance method
     :param simplify: simplify local explanation
-    :param is_pruned: True if the model has been pruned
     :param topk_explanations: number of most common local explanations to combine in a global explanation (it controls the complexity of the global explanation)
     :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
@@ -76,7 +76,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     for sample_id, (xi, yi) in enumerate(zip(x_target, y_target)):
         local_explanation_raw = explain_local(model, x_validation, y_validation,
                                               xi.to(torch.float), target_class,
-                                              simplify=False, is_pruned=is_pruned,
+                                              method=method, simplify=False,
                                               concept_names=None, device=device)
 
         if local_explanation_raw in ['', 'False', 'True']:
@@ -135,7 +135,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
 
 def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
-                  target_class: int, simplify: bool = True, is_pruned: bool = False, concept_names: List = None,
+                  target_class: int, method: str, simplify: bool = True, concept_names: List = None,
                   device: torch.device = torch.device('cpu')) -> str:
     """
     Generate a local explanation for a single sample.
@@ -145,39 +145,28 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
     :param y: target labels
     :param x_sample: input for which the explanation is required
     :param target_class: class ID
+    :param method: local feature importance method
     :param simplify: simplify local explanation
-    :param is_pruned: True if the model has been pruned
     :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
     :return: Local explanation
     """
-    # get the model prediction on the individual sample
     x_sample = x_sample.unsqueeze(0)
-    y_pred_sample = model(x_sample)
-    pred_class = torch.argmax(y_pred_sample, dim=1).item()
-    if len(y.shape) == 1:
-        n_classes = len(torch.unique(y))
-    else:
-        n_classes = y.shape[1]
 
-    if is_pruned:
-        # identify non-pruned features
-        w, b = collect_parameters(model, device)
-        feature_weights = w[0]
-        block_size = feature_weights.shape[0] // n_classes
-        feature_used_bool = np.sum(np.abs(feature_weights[pred_class * block_size:(pred_class + 1) * block_size]),
-                                   axis=0) > 0
-        feature_used = np.sort(np.nonzero(feature_used_bool)[0])
+    if method == 'pruning':
+        feature_used = rank_pruning(model, x_sample, y, device)
+
+    elif method == 'weights':
+        feature_used = rank_weights(model, x_sample, device)
+
+    elif method == 'lime':
+        feature_used = rank_lime(model, x, x_sample, 4, device)
+
+    # elif method == 'shap':
+    #     pass
 
     else:
-        reduced_model = get_reduced_model(model, x_sample.squeeze())
-        w, b = collect_parameters(reduced_model, device)
-        w_abs = torch.norm(torch.FloatTensor(w[0]), dim=0)
-        w_max = torch.max(w_abs)
-        w_bool = ((w_abs / w_max) > 0.5).cpu().detach().numpy().squeeze()
-        if sum(w_bool) == 0:
-            return ''
-        feature_used = np.sort(np.nonzero(w_bool)[0])
+        feature_used = rank_weights(model, x_sample, device)
 
     # explanation is the conjunction of non-pruned features
     explanation = ''

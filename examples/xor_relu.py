@@ -108,7 +108,7 @@ def main():
     plt.show()
 
     global_explanation, _, _ = combine_local_explanations(model, x_train, y_train,
-                                                          target_class=1, is_pruned=True)
+                                                          target_class=1, method='pruning')
     accuracy, preds = test_explanation(global_explanation, 1, x_train, y_train)
     explanation = replace_names(global_explanation, concept_names=['x1', 'x2'])
     print(f'Accuracy of when using the formula {explanation}: {accuracy:.4f}')

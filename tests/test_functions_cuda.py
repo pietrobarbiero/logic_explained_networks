@@ -65,7 +65,7 @@ class TestTemplateObject(unittest.TestCase):
                                      device=device)
         print(explanation)
 
-        explanation = explain_local(model, x, y, x[1], y[1].item(), is_pruned=True,
+        explanation = explain_local(model, x, y, x[1], y[1].item(), method='pruning',
                                     concept_names=['f1', 'f2', 'f3', 'f4'], device=device)
         print(explanation)
 
