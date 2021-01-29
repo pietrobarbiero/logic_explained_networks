@@ -71,6 +71,7 @@ class F1Score(Metric):
     """
 
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
+        assert outputs.shape == targets.shape, "F1 needs outputs and targets to have same shape"
         discrete_output = outputs.cpu().numpy() > 0.5
         targets = targets.cpu().numpy()
         f1_val = f1_score(discrete_output, targets, average='macro', zero_division=0) * 100

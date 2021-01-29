@@ -78,8 +78,8 @@ class BaseClassifier(torch.nn.Module):
         assert not torch.isinf(x).any(), "Input data contain inf values"
 
     def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, num_workers: int = 0,
-            l_r: float = 0.01, lr_scheduler: bool = False, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),
-            verbose: bool = True) -> pd.DataFrame:
+            l_r: float = 0.01, lr_scheduler: bool = False, metric: Metric = TopkAccuracy(),
+            device: torch.device = torch.device("cpu"), verbose: bool = True) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.
         Adam optimizer is always employed
@@ -101,13 +101,12 @@ class BaseClassifier(torch.nn.Module):
         self.to(device), self.train()
 
         # Setting loss function and optimizer
-        parameters = [param for param in self.parameters() if param.requires_grad]
-        optimizer = torch.optim.AdamW(parameters, lr=l_r, weight_decay=1e-3)
-        scheduler = ReduceLROnPlateau(optimizer, mode='max', verbose=verbose, factor=0.33, min_lr=1e-3*l_r,
-                                      patience=epochs//10) if lr_scheduler else None
+        optimizer = torch.optim.AdamW(self.parameters())
+        scheduler = ReduceLROnPlateau(optimizer, mode='max', verbose=verbose,
+                                      factor=0.33, min_lr=1e-3*l_r) if lr_scheduler else None
 
         # Training epochs
-        best_acc, best_epoch = 0.0, 0
+        best_acc, best_epoch = 0.0, -1
         train_accs, val_accs, tot_losses = [], [], []
         train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True,
                                                    num_workers=num_workers, prefetch_factor=4 if num_workers != 0 else 2)
@@ -150,17 +149,17 @@ class BaseClassifier(torch.nn.Module):
             val_accs.append(val_acc)
             tot_losses.append(tot_losses_i.mean().item())
 
-            if verbose:
-                pbar.set_postfix({"Tr_acc": f"{train_acc:.1f}", "Val_acc": f"{val_acc:.1f}",
-                                  "Loss": f"{tot_losses[-1]:.3f}", "best_e": best_epoch})
-                pbar.update()
-                print(" ")
-
             # Save best model
             if val_acc >= best_acc and epoch >= epochs / 2 or epochs == 1:
                 best_acc = val_acc
                 best_epoch = epoch + 1
                 self.save()
+
+            if verbose:
+                pbar.set_postfix({"Tr_acc": f"{train_acc:.1f}", "Val_acc": f"{val_acc:.1f}",
+                                  "Loss": f"{tot_losses[-1]:.3f}", "best_e": best_epoch})
+                pbar.update()
+                print(" ")
 
         if verbose:
             pbar.close()

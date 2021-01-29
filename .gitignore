@@ -75,3 +75,6 @@ data/CUB_200_2011/
 examples/.ipynb_checkpoints/
 experiments/MNIST/.ipynb_checkpoints/
 experiments/MNIST/net
+data/samples_cub200_fine_tuning.json
+data/samples_cub200_training.json
+*.tgz
