@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import random
@@ -7,17 +8,25 @@ from typing import Tuple
 
 import torch
 from PIL import Image
+from torch.utils.data import Subset
 from torchvision import transforms
 from data.i2c_dataset import ImageToConceptDataset
 from matplotlib import pyplot as plt
 
 
-def get_splits_train_val_test(dataset: ImageToConceptDataset, val_transform: transforms.Compose,
-                              val_split: float = 0.1, test_split: float = 0.1) \
-        -> Tuple[ImageToConceptDataset, ImageToConceptDataset, ImageToConceptDataset]:
+def get_splits_train_val_test(dataset: ImageToConceptDataset, val_split: float = 0.1, test_split: float = 0.1,
+                              test_transform: transforms.Compose = None) \
+        -> Tuple[Subset, Subset, Subset]:
     train_json = os.path.join(os.path.dirname(dataset.root), f"train_samples_{dataset.dataset_name}.json")
     val_json = os.path.join(os.path.dirname(dataset.root), f"val_samples_{dataset.dataset_name}.json")
     test_json = os.path.join(os.path.dirname(dataset.root), f"test_samples_{dataset.dataset_name}.json")
+
+    # Copying dataset if test_transform is given
+    if test_transform is not None:
+        dataset_copy = copy.deepcopy(dataset)
+        dataset_copy.transform = test_transform
+    else:
+        dataset_copy = dataset
 
     # Creating dataset for Validation by splitting the samples in the dataset
     if os.path.isfile(val_json):
@@ -35,8 +44,7 @@ def get_splits_train_val_test(dataset: ImageToConceptDataset, val_transform: tra
         with open(os.path.join(val_json), "w") as f:
             val_file = {"samples": val_samples}
             json.dump(val_file, f)
-    val_dataset = ImageToConceptDataset(dataset.root, val_transform, dataset.dataset_name,
-                                        samples=val_samples)
+    val_dataset = Subset(dataset_copy, val_samples)
 
     # Creating dataset for Validation by splitting the samples in the dataset
     if os.path.isfile(test_json):
@@ -55,8 +63,7 @@ def get_splits_train_val_test(dataset: ImageToConceptDataset, val_transform: tra
         with open(os.path.join(test_json), "w") as f:
             test_file = {"samples": test_samples}
             json.dump(test_file, f)
-    test_dataset = ImageToConceptDataset(dataset.root, val_transform, dataset.dataset_name,
-                                         samples=test_samples)
+    test_dataset = Subset(dataset_copy, test_samples)
 
     # Creating dataset for Training with the remaining samples
     if os.path.isfile(train_json):
@@ -64,18 +71,63 @@ def get_splits_train_val_test(dataset: ImageToConceptDataset, val_transform: tra
             train_file = json.load(f)
             train_samples = train_file["samples"]
     else:
-        train_samples = [i for i in dataset.indices if i not in val_samples and i not in test_samples]
+        train_samples = [i for i in range(len(dataset)) if i not in val_samples and i not in test_samples]
         with open(os.path.join(train_json), "w") as f:
             train_file = {"samples": train_samples}
             json.dump(train_file, f)
-    train_dataset = ImageToConceptDataset(dataset.root, dataset.transform, dataset.dataset_name, 
-                                          samples=train_samples)
+    train_dataset = Subset(dataset, train_samples)
 
     return train_dataset, val_dataset, test_dataset
 
 
+def get_splits_for_fsc(dataset: ImageToConceptDataset, train_split: float = 0.5,
+                       test_transform: transforms.Compose = None) -> Tuple[Subset, Subset]:
+    train_json  = os.path.join(os.path.dirname(dataset.root), f"samples_{dataset.dataset_name}_training.json")
+    ft_json     = os.path.join(os.path.dirname(dataset.root), f"samples_{dataset.dataset_name}_fine_tuning.json")
+
+    # Copying dataset if test_transform is given
+    if test_transform is not None:
+        dataset_copy = copy.deepcopy(dataset)
+        dataset_copy.transform = test_transform
+    else:
+        dataset_copy = dataset
+
+    # Creating dataset for Fine-tuning by splitting the classes of the dataset
+    if os.path.isfile(train_json):
+        with open(os.path.join(train_json), "r") as f:
+            train_file = json.load(f)
+            train_samples = train_file["samples"]
+            train_classes = train_file["classes"]
+    else:
+        train_len_split = int(len(dataset.classes) * train_split)
+        train_classes = sorted(random.sample(dataset.classes, train_len_split))
+        train_samples = [i for i in range(len(dataset)) if dataset.classes[dataset.targets[i]] in train_classes]
+        assert abs(len(train_samples) / len(dataset) - train_split) < 0.001, "Error while splitting the dataset"
+        with open(os.path.join(train_json), "w") as f:
+            train_file = {"samples": train_samples, "classes": train_classes}
+            json.dump(train_file, f)
+    train_dataset = Subset(dataset, train_samples)
+
+    # Creating dataset for Training with the all the classes
+    if os.path.isfile(ft_json):
+        with open(os.path.join(ft_json), "r") as f:
+            ft_file = json.load(f)
+            ft_samples = ft_file["samples"]
+            ft_classes = ft_file["classes"]
+    else:
+        ft_samples = [i for i in range(len(dataset)) if i not in train_samples]
+        ft_classes = [c for c in dataset.classes if c not in train_classes]
+        with open(os.path.join(ft_json), "w") as f:
+            ft_file = {"samples": ft_samples, "classes": ft_classes}
+            json.dump(ft_file, f)
+    assert abs(len(ft_classes) - len(dataset.classes) * (1 - train_split)) < 0.001, "Error while splitting dataset"
+    ft_dataset = Subset(dataset_copy, ft_samples)
+
+    return train_dataset, ft_dataset
+
+
 def show_batch(dataset, labels_names, batch_size=8, save=False):
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, random=True)
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
     batch_data = next(iter(data_loader))
     assert len(batch_data) == 2, "Error when loading data"
     batch_images, batch_labels = batch_data[0], batch_data[1]
