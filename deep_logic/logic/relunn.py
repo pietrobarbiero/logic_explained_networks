@@ -7,7 +7,7 @@ from sympy import simplify_logic
 
 from .base import replace_names, test_explanation, simplify_formula
 from .sigmoidnn import _build_truth_table
-from ..utils.base import collect_parameters
+from ..utils.base import collect_parameters, to_categorical
 from ..utils.feature_selection import rank_pruning, rank_weights, rank_lime
 
 
@@ -29,19 +29,13 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     :param device: cpu or cuda device
     :return: Global explanation, predictions, and ranking of local explanations
     """
-    y = y.squeeze()
-    if len(y.squeeze().shape) > 1:
-        y = torch.argmax(y, dim=1)
-
+    y = to_categorical(y)
     x_target = x[y == target_class]
     y_target = y[y == target_class]
 
     # get model's predictions
     preds = model(x_target)
-    if len(preds.squeeze().shape) > 1:
-        preds = torch.argmax(preds, dim=1)
-    else:
-        preds = preds.squeeze() > 0.5
+    preds = to_categorical(preds)
 
     # identify samples correctly classified of the target class
     correct_mask = y_target.eq(preds)

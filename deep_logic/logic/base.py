@@ -3,6 +3,9 @@ from typing import Tuple, List
 
 import torch
 import numpy as np
+from sklearn.metrics import accuracy_score
+
+from ..utils.base import to_categorical
 
 
 def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor) -> Tuple[float, np.ndarray]:
@@ -31,16 +34,13 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
         local_prediction = torch.stack(features, dim=0).prod(dim=0)
         local_predictions.append(local_prediction)
 
-    if len(y.squeeze().shape) > 1:
-        predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).cpu().detach().numpy()
-        y = torch.argmax(y, dim=1).eq(target_class)
-    else:
-        predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).eq(target_class).cpu().detach().numpy()
-        y = y > 0.5
+    y = to_categorical(y).cpu().detach().numpy()
+    # if len(y.squeeze().shape) > 1:
+    #     predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).cpu().detach().numpy()
+    # else:
+    predictions = torch.stack(local_predictions, dim=0).sum(dim=0).eq(target_class).cpu().detach().numpy()
 
-    y = y.cpu().detach().numpy().squeeze()
-
-    accuracy = sum(predictions == y) / len(predictions)
+    accuracy = accuracy_score(y, predictions)
     return accuracy, predictions
 
 
@@ -72,27 +72,24 @@ def simplify_formula(explanation: str, model: torch.nn.Module,
     :param explanation: local formula to be simplified.
     :param model: torch model.
     :param x: input data.
-    :param y: target labels.
+    :param y: target labels (1D).
     :param x_sample: sample associated to the local formula.
     :param target_class: target class
     :return: Simplified formula
     """
-    y_pred_sample = (model((x_sample > 0.5).to(torch.float)) > 0.5).to(torch.float)
-    if y_pred_sample.numel() > 1:
-        y_pred_sample = torch.argmax(y_pred_sample).unsqueeze(0)
-    # elif len(y_pred_sample.shape) == 1:
-    #     y_pred_sample = y_pred_sample.unsqueeze(0)
+    y = to_categorical(y)
+    if len(x_sample.shape) == 1:
+        x_sample = x_sample.unsqueeze(0)
 
-    if len(y.squeeze().shape) > 1:
-        y = torch.argmax(y, dim=1)
-    # elif len(y.squeeze().shape) == 1:
-    #     y = y.unsqueeze(0)
+    y_pred_sample = model((x_sample > 0.5).to(torch.float))
+    y_pred_sample = to_categorical(y_pred_sample)
 
     if not y_pred_sample.eq(target_class):
         return ''
 
     if len(x_sample.shape) == 1:
         x_sample = x_sample.unsqueeze(0)
+
     mask = (y != y_pred_sample).squeeze()
     x_validation = torch.cat([x[mask], x_sample]).to(torch.bool)
     y_validation = torch.cat([y[mask], y_pred_sample]).squeeze()

@@ -1,4 +1,4 @@
-from . import fol
+from . import logic
 from . import utils
 from . import nn
 

@@ -16,6 +16,27 @@ def set_seed(seed):
     torch.backends.cudnn.benchmark = False
 
 
+def to_categorical(y: torch.Tensor) -> torch.Tensor:
+    """
+    Transform input tensor to categorical.
+
+    :param y: input tensor.
+    :return: Categorical tensor
+    """
+    if len(y.shape) == 2 and y.shape[1] > 1:
+        # one hot encoding to categorical
+        yc = torch.argmax(y, dim=1)
+
+    else:
+        # binary/probabilities to categorical
+        yc = y.squeeze() > 0.5
+
+    if len(yc.size()) == 0:
+        yc = yc.unsqueeze(0)
+
+    return yc
+
+
 def collect_parameters(model: torch.nn.Module,
                        device: torch.device = torch.device('cpu')) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """
