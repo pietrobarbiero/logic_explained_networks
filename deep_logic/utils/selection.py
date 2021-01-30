@@ -11,14 +11,19 @@ def rank_pruning(model, x_sample, y, device):
     y_pred_sample = model(x_sample)
     pred_class = to_categorical(y_pred_sample)
     y = to_categorical(y)
-    n_classes = len(torch.unique(y))
 
     # identify non-pruned features
     w, b = collect_parameters(model, device)
     feature_weights = w[0]
-    block_size = feature_weights.shape[0] // n_classes
-    feature_used_bool = np.sum(np.abs(feature_weights[pred_class * block_size:(pred_class + 1) * block_size]),
-                               axis=0) > 0
+
+    n_classes = len(torch.unique(y))
+    if n_classes == 2:
+        feature_used_bool = np.sum(np.abs(feature_weights), axis=0) > 0
+
+    else:
+        block_size = feature_weights.shape[0] // n_classes
+        feature_used_bool = np.sum(np.abs(feature_weights[pred_class * block_size:(pred_class + 1) * block_size]), axis=0) > 0
+
     feature_used = np.sort(np.nonzero(feature_used_bool)[0])
     return feature_used
 
