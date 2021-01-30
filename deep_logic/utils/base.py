@@ -1,7 +1,9 @@
 from typing import Tuple, List
 
+import sklearn
 import torch
 import numpy as np
+from sklearn.tree import _tree, DecisionTreeClassifier
 
 
 def set_seed(seed):
@@ -100,3 +102,54 @@ def validate_network(model: torch.nn.Module, model_type: str = 'relu') -> None:
             assert isinstance(module, torch.nn.Linear) or isinstance(module, torch.nn.Sigmoid)
 
     return
+
+
+def tree_to_formula(tree: DecisionTreeClassifier, concept_names: List[str], target_class: int) -> str:
+    """
+    Translate a decision tree into a set of decision rules.
+
+    :param tree: sklearn decision tree
+    :param concept_names: concept names
+    :param target_class: target class
+    :return: decision rule
+    """
+    tree_ = tree.tree_
+    feature_name = [
+        concept_names[i] if i != _tree.TREE_UNDEFINED else "undefined!"
+        for i in tree_.feature
+    ]
+    pathto = dict()
+
+    global k
+    global explanation
+    explanation = ''
+    k = 0
+
+    def recurse(node, depth, parent):
+        global k
+        global explanation
+        indent = "  " * depth
+
+        if tree_.feature[node] != _tree.TREE_UNDEFINED:
+            name = feature_name[node]
+            threshold = tree_.threshold[node]
+            s = f'{name} <= {threshold:.2f}'
+            if node == 0:
+                pathto[node] = s
+            else:
+                pathto[node] = pathto[parent] + ' & ' + s
+
+            recurse(tree_.children_left[node], depth + 1, node)
+            s = f'{name} > {threshold:.2f}'
+            if node == 0:
+                pathto[node] = s
+            else:
+                pathto[node] = pathto[parent] + ' & ' + s
+            recurse(tree_.children_right[node], depth + 1, node)
+        else:
+            k = k + 1
+            if tree_.value[node].squeeze().argmax() == target_class:
+                explanation += f'({pathto[parent]}) | '
+
+    recurse(0, 1, 0)
+    return explanation[:-3]

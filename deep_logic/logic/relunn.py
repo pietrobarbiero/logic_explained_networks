@@ -8,7 +8,7 @@ from sympy import simplify_logic
 from .base import replace_names, test_explanation, simplify_formula
 from .sigmoidnn import _build_truth_table
 from ..utils.base import collect_parameters, to_categorical
-from ..utils.feature_selection import rank_pruning, rank_weights, rank_lime
+from ..utils.selection import rank_pruning, rank_weights, rank_lime
 
 
 def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,

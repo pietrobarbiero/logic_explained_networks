@@ -340,6 +340,7 @@ class TestTemplateObject(unittest.TestCase):
 
         optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
         model.train()
+        need_pruning = True
         for epoch in range(1000):
             # forward pass
             optimizer.zero_grad()
@@ -357,8 +358,13 @@ class TestTemplateObject(unittest.TestCase):
                 print(f'Epoch {epoch}: train accuracy: {accuracy:.4f}')
 
             # pruning
-            if epoch > 500:
+            if epoch > 500 and need_pruning:
                 model = prune_equal_fanin(model, 2)
+                need_pruning = False
+
+        for module in model.children():
+            if isinstance(module, torch.nn.Linear):
+                print(module.weight)
 
         # generate explanations
         f = logic.generate_fol_explanations(model)[0]
