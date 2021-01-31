@@ -3,13 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from deep_logic.logic import test_explanation, explain_local, combine_local_explanations, replace_names
-from deep_logic.utils.base import validate_data, validate_network
+from deep_logic.utils.base import validate_data, validate_network, set_seed
 from deep_logic.utils.relunn import get_reduced_model
 
 
 def main():
-    torch.manual_seed(0)
-    np.random.seed(0)
+    set_seed(0)
 
     # XOR problem
     x_train = torch.tensor([
@@ -114,7 +113,7 @@ def main():
                                                           method='lime')
     accuracy, preds = test_explanation(global_explanation, 1, x_train, y_train)
     explanation = replace_names(global_explanation, concept_names=['x1', 'x2'])
-    print(f'Accuracy of when using the formula {explanation}: {accuracy:.4f}')
+    print(f'Accuracy when using the formula {explanation}: {accuracy:.4f}')
 
     return
 

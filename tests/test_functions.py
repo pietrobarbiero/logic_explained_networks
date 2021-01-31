@@ -370,7 +370,7 @@ class TestTemplateObject(unittest.TestCase):
         f = logic.generate_fol_explanations(model)[0]
         print(f'Explanation: {f}')
 
-        assert f == '((f1 & ~f2) | (f2 & ~f1))'
+        assert f == '((feature0000000000 & ~feature0000000001) | (feature0000000001 & ~feature0000000000))'
         return
 
     def test_pruning(self):

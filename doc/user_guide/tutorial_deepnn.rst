@@ -1,6 +1,7 @@
 FOL explanations of deep networks
 =======================================
 
+
 First of all we need to import some useful libraries:
 
 .. code:: python
@@ -14,19 +15,18 @@ reproducibility:
 
 .. code:: python
 
-    torch.manual_seed(0)
-    np.random.seed(0)
+    set_seed(0)
 
 For this simple experiment, let's set up a simple toy problem
-as the XOR problem:
+as the XOR problem (plus 2 dummy features):
 
 .. code:: python
 
     x_train = torch.tensor([
-        [0, 0],
-        [0, 1],
-        [1, 0],
-        [1, 1],
+        [0, 0, 0, 1],
+        [0, 1, 0, 1],
+        [1, 0, 0, 1],
+        [1, 1, 0, 1],
     ], dtype=torch.float)
     y_train = torch.tensor([0, 1, 1, 0], dtype=torch.float).unsqueeze(1)
     xnp = x_train.detach().numpy()
@@ -59,6 +59,7 @@ We can now train the network:
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     model.train()
+    need_pruning = True
     for epoch in range(1000):
         # forward pass
         optimizer.zero_grad()
@@ -66,6 +67,16 @@ We can now train the network:
 
         # Compute Loss
         loss = torch.nn.functional.binary_crossentropy_loss(y_pred, y_train)
+        # A bit of L1 regularization will encourage sparsity
+        for module in model.children():
+            if isinstance(module, torch.nn.Linear):
+                loss += 0.001 * torch.norm(module.weight, 1)
+
+        # We can use sparsity to prune dummy features
+        if epoch > 500 and need_pruning:
+            dl.utils.relunn.prune_features(model, n_classes)
+            need_pruning = False
+
 
         # backward pass
         loss.backward()
@@ -84,60 +95,31 @@ at the reduced model:
 
 .. code:: python
 
-    explanation = dl.fol.explain_local(model, x_train, y_train, x_sample=x[1],
-                                       target_class=1, concept_names=['x1', 'x2'])
+    explanation = dl.logic.explain_local(model, x_train, y_train, x_sample=x[1],
+                                         method='pruning', target_class=1,
+                                         concept_names=['f1', 'f2', 'f3', 'f4'])
     print(explanation)
 
 The local explanation will be a given in terms of conjunctions
-of input features which are locally relevant.
+of input features which are locally relevant (the dummy features
+will be discarded thanks to pruning).
 For this specific input, the explanation would be
-``~f0 AND f1``.
-
-We can also compare the decision boundaries of the full model wrt
-the reduced model to check that they are `locally` similar:
-
-.. code:: python
-
-    plt.figure(figsize=[8, 4])
-    plt.subplot(121)
-    plt.title('True decision boundary')
-    plot_decision_bundaries(model, x_train, h=0.01)
-    plt.scatter(xin[0], xin[1], c='k', marker='x', s=100)
-    c = plt.Circle((xin[0], xin[1]), radius=0.2, edgecolor='k', fill=False, linestyle='--')
-    plt.gca().add_artist(c)
-    plt.scatter(xnp[:, 0], xnp[:, 1], c=ynp, cmap='BrBG')
-    plt.xlim([-0.5, 1.5])
-    plt.ylim([-0.5, 1.5])
-    plt.subplot(122)
-    plt.title(f'IN={xin.detach().numpy()} - OUT={output.detach().numpy()}\nExplanation: {explanation}')
-    plot_decision_bundaries(model_reduced, x_train)
-    plt.scatter(xin[0], xin[1], c='k', marker='x', s=100)
-    c = plt.Circle((xin[0], xin[1]), radius=0.2, edgecolor='k', fill=False, linestyle='--')
-    plt.gca().add_artist(c)
-    plt.scatter(xnp[:, 0], xnp[:, 1], c=ynp, cmap='BrBG')
-    plt.xlim([-0.5, 1.5])
-    plt.ylim([-0.5, 1.5])
-    plt.savefig('decision_boundaries.png')
-    plt.show()
-
-
-.. image:: decision_boundaries.png
-   :width: 200px
-   :height: 100px
-   :scale: 300 %
-   :alt: decision boundaries
-   :align: center
-
+``~f1 AND f2``.
 
 Finally the ``fol`` package can be used to generate global
 explanations of the predictions for a specific class:
 
 .. code:: python
 
-    global_explanation = explain_global(model, n_classes=2, target_class=1)
-    accuracy, predictions = test_explanation(global_explanation, target_class=1, x_train, y_train)
-    global_explanation = replace_names(global_explanation, concept_names=['f1', 'f2'])
-    print(f'Accuracy of when using the formula {global_explanation}: {accuracy:.4f}')
+
+    global_explanation, _, _ = dl.logic.relunn.combine_local_explanations(model, x_train,
+                                                                          y_train.squeeze(),
+                                                                          target_class=1,
+                                                                          method='pruning')
+    accuracy, _ = dl.logic.base.test_explanation(global_explanation, target_class=1, x_train, y_train)
+    explanation = dl.logic.base.replace_names(global_explanation, concept_names=['f1', 'f2', 'f3', 'f4'])
+    print(f'Accuracy when using the formula {explanation}: {accuracy:.4f}')
+
 
 The global explanation is given in a disjunctive normal form
 for a specified class.

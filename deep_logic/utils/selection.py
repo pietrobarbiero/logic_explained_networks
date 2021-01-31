@@ -6,7 +6,17 @@ from .base import collect_parameters, to_categorical
 from .relunn import get_reduced_model
 
 
-def rank_pruning(model, x_sample, y, device):
+def rank_pruning(model: torch.nn.Module, x_sample: torch.Tensor, y: torch.Tensor,
+                 device: torch.device = torch.device('cpu')) -> np.ndarray:
+    """
+    Feature ranking by pruning.
+
+    :param model: torch model
+    :param x_sample: input sample
+    :param y: input label
+    :param device: cpu or cuda device
+    :return: best features
+    """
     # get the model prediction on the individual sample
     y_pred_sample = model(x_sample)
     pred_class = to_categorical(y_pred_sample)
@@ -28,20 +38,40 @@ def rank_pruning(model, x_sample, y, device):
     return feature_used
 
 
-def rank_weights(model, x_sample, device):
+def rank_weights(model: torch.nn.Module, x_sample: torch.Tensor,
+                 device: torch.device = torch.device('cpu')) -> np.ndarray:
+    """
+    Feature ranking by looking at the weights with the highest absolute value.
+
+    :param model: torch model
+    :param x_sample: input sample
+    :param device: cpu or cuda device
+    :return: best features
+    """
     reduced_model = get_reduced_model(model, x_sample.squeeze())
     w, b = collect_parameters(reduced_model, device)
     w_abs = torch.norm(torch.FloatTensor(w[0]), dim=0)
     w_max = torch.max(w_abs)
     w_bool = ((w_abs / w_max) > 0.5).cpu().detach().numpy().squeeze()
     if sum(w_bool) == 0:
-        return ''
+        return np.arange(len(w_bool))
 
     feature_used = np.sort(np.nonzero(w_bool)[0])
     return feature_used
 
 
-def rank_lime(model, x_train, x_sample, num_features, device):
+def rank_lime(model: torch.nn.Module, x_train: torch.Tensor, x_sample: torch.Tensor, num_features: int,
+              device: torch.device = torch.device('cpu')) -> np.ndarray:
+    """
+    Feature ranking using LIME.
+
+    :param model: torch model
+    :param x_train: train samples
+    :param x_sample: input sample
+    :param num_features: number of features to be ranked by LIME
+    :param device: cpu or cuda device
+    :return: best features
+    """
     def _torch_predict(x):
         model.eval()
         preds = model(torch.FloatTensor(x).to(device)).cpu().detach().numpy()
