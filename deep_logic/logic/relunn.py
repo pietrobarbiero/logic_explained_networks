@@ -118,7 +118,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
         return '', np.array, collections.Counter()
 
     # predictions based on FOL formula
-    accuracy, predictions = test_explanation(global_explanation_simplified, target_class,
+    accuracy, predictions = test_explanation(global_explanation_simplified_str, target_class,
                                              x_validation, y_validation)
 
     # replace concept names
