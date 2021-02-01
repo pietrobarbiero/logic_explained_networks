@@ -38,7 +38,7 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
     # if len(y.squeeze().shape) > 1:
     #     predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).cpu().detach().numpy()
     # else:
-    predictions = torch.stack(local_predictions, dim=0).sum(dim=0).eq(target_class).cpu().detach().numpy()
+    predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).eq(target_class).cpu().detach().numpy()
 
     accuracy = accuracy_score(y, predictions)
     return accuracy, predictions
