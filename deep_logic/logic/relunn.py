@@ -47,7 +47,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     x_reduced_opposite = x[y != target_class][idx]
     y_reduced_opposite = y[y != target_class][idx]
     preds_opposite = model(x_reduced_opposite)
-    if len(preds_opposite.squeeze().shape) > 1:
+    if len(preds_opposite.squeeze(-1).shape) > 1:
         preds_opposite = torch.argmax(preds_opposite, dim=1)
     else:
         preds_opposite = (preds_opposite > 0.5).squeeze()
