@@ -22,9 +22,9 @@ install:
   # create the testing environment
   - conda create -n testenv --yes python=$PYTHON_VERSION pip
   - source activate testenv
-  - conda install --yes numpy==$NUMPY_VERSION sympy pandas scikit-learn tqdm lime cython nose pytest pytest-cov
+  - conda install --yes numpy==$NUMPY_VERSION sympy pandas scikit-learn tqdm cython nose pytest pytest-cov
   - conda install --yes pytorch torchvision torchaudio cpuonly -c pytorch
-  - pip install codecov
+  - pip install codecov lime
   - pip install .
 
 #script:
