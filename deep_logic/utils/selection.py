@@ -6,8 +6,11 @@ from .base import collect_parameters, to_categorical
 from .relunn import get_reduced_model
 
 
-def rank_pruning(model: torch.nn.Module, x_sample: torch.Tensor, y: torch.Tensor,
-                 device: torch.device = torch.device('cpu')) -> np.ndarray:
+def rank_pruning(model: torch.nn.Module,
+                 x_sample: torch.Tensor,
+                 y: torch.Tensor,
+                 device: torch.device = torch.device('cpu'),
+                 num_classes: int = None) -> np.ndarray:
     """
     Feature ranking by pruning.
 
@@ -15,6 +18,7 @@ def rank_pruning(model: torch.nn.Module, x_sample: torch.Tensor, y: torch.Tensor
     :param x_sample: input sample
     :param y: input label
     :param device: cpu or cuda device
+    :param num_classes: override the number of classes
     :return: best features
     """
     # get the model prediction on the individual sample
@@ -26,7 +30,7 @@ def rank_pruning(model: torch.nn.Module, x_sample: torch.Tensor, y: torch.Tensor
     w, b = collect_parameters(model, device)
     feature_weights = w[0]
 
-    n_classes = len(torch.unique(y))
+    n_classes = len(torch.unique(y)) if num_classes is None else num_classes
     if n_classes == 2:
         feature_used_bool = np.sum(np.abs(feature_weights), axis=0) > 0
 

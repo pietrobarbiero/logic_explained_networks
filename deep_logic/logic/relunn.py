@@ -14,7 +14,7 @@ from ..utils.selection import rank_pruning, rank_weights, rank_lime
 def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
                                target_class: int, method: str, simplify: bool = True,
                                topk_explanations: int = 2, concept_names: List = None,
-                               device: torch.device = torch.device('cpu')) -> Tuple[str, np.array, collections.Counter]:
+                               device: torch.device = torch.device('cpu'), num_classes: int = None) -> Tuple[str, np.array, collections.Counter]:
     """
     Generate a global explanation combining local explanations.
 
@@ -27,9 +27,11 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     :param topk_explanations: number of most common local explanations to combine in a global explanation (it controls the complexity of the global explanation)
     :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
+    :param num_classes: override the number of classes
     :return: Global explanation, predictions, and ranking of local explanations
     """
     y = to_categorical(y)
+    assert (y == target_class).any(), "Cannot get explanation if target class is not amongst target labels"
     x_target = x[y == target_class]
     y_target = y[y == target_class]
 
@@ -71,7 +73,8 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
         local_explanation_raw = explain_local(model, x_validation, y_validation,
                                               xi.to(torch.float), target_class,
                                               method=method, simplify=False,
-                                              concept_names=None, device=device)
+                                              concept_names=None, device=device,
+                                              num_classes=num_classes)
 
         if local_explanation_raw in ['', 'False', 'True']:
             continue
@@ -130,7 +133,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
 def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
                   target_class: int, method: str, simplify: bool = True, concept_names: List = None,
-                  device: torch.device = torch.device('cpu')) -> str:
+                  device: torch.device = torch.device('cpu'), num_classes: int = None) -> str:
     """
     Generate a local explanation for a single sample.
 
@@ -143,12 +146,13 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
     :param simplify: simplify local explanation
     :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
+    :param num_classes: override the number of classes
     :return: Local explanation
     """
     x_sample = x_sample.unsqueeze(0)
 
     if method == 'pruning':
-        feature_used = rank_pruning(model, x_sample, y, device)
+        feature_used = rank_pruning(model, x_sample, y, device, num_classes=num_classes)
 
     elif method == 'weights':
         feature_used = rank_weights(model, x_sample, device)

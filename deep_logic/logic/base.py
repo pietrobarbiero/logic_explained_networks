@@ -8,7 +8,7 @@ from sklearn.metrics import accuracy_score
 from ..utils.base import to_categorical
 
 
-def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor) -> Tuple[float, np.ndarray]:
+def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor, give_local: bool = False) -> Tuple[float, np.ndarray]:
     """
     Test explanation
 
@@ -16,6 +16,7 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
     :param target_class: class ID
     :param x: input data
     :param y: input labels
+    :param give_local: if true will return local predictions
     :return: Accuracy of the explanation and predictions
     """
     minterms = str(explanation).split(' | ')
@@ -41,7 +42,7 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
     predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).eq(target_class).cpu().detach().numpy()
 
     accuracy = accuracy_score(y, predictions)
-    return accuracy, predictions
+    return accuracy, torch.stack(local_predictions, dim=0).sum(dim=0) > 0 if give_local else predictions
 
 
 def replace_names(explanation: str, concept_names: List[str]) -> str:
