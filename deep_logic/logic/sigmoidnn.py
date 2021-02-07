@@ -27,7 +27,7 @@ def generate_fol_explanations(model: torch.nn.Module, device: torch.device = tor
     # create fancy feature names
     feature_names = list()
     for k in range(n_features):
-        feature_names.append("f" + str(k + 1))
+        feature_names.append(f'feature{k:010}')
 
     # count the number of hidden neurons for each layer
     neuron_list = _count_neurons(weights)

@@ -4,3 +4,4 @@ sympy
 pandas
 scikit-learn
 tqdm
+lime

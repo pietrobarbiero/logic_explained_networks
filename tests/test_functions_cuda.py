@@ -7,7 +7,7 @@ class TestTemplateObject(unittest.TestCase):
         import numpy as np
         from deep_logic.utils.relunn import get_reduced_model
         from deep_logic.utils.base import validate_network, validate_data
-        from deep_logic.fol import explain_local, explain_global
+        from deep_logic.logic import explain_local, explain_global
         import deep_logic as dl
 
         torch.manual_seed(10)
@@ -65,7 +65,8 @@ class TestTemplateObject(unittest.TestCase):
                                      device=device)
         print(explanation)
 
-        explanation = explain_local(model, x, y, x[1], y[1].item(), concept_names=['f1', 'f2', 'f3', 'f4'], device=device)
+        explanation = explain_local(model, x, y, x[1], y[1].item(), method='pruning',
+                                    concept_names=['f1', 'f2', 'f3', 'f4'], device=device)
         print(explanation)
 
         for target_class in range(n_classes):
@@ -82,7 +83,7 @@ class TestTemplateObject(unittest.TestCase):
         import numpy as np
         from deep_logic.utils.base import validate_network
         from deep_logic.utils.sigmoidnn import prune_equal_fanin
-        from deep_logic import fol
+        from deep_logic import logic
 
         torch.manual_seed(0)
         np.random.seed(0)
@@ -126,10 +127,10 @@ class TestTemplateObject(unittest.TestCase):
                 need_pruning = False
 
         # generate explanations
-        f = fol.generate_fol_explanations(model, device)[0]
+        f = logic.generate_fol_explanations(model, device)[0]
         print(f'Explanation: {f}')
 
-        assert f == '((f1 & ~f2) | (f2 & ~f1))'
+        assert f == '((feature0000000000 & ~feature0000000001) | (feature0000000001 & ~feature0000000000))'
         return
 
     def test_pruning(self):

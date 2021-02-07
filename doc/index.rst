@@ -39,12 +39,13 @@ The source code and minimal working examples can be found on
     :caption: API Reference
     :maxdepth: 2
 
-    modules/fol/relunn
-    modules/fol/sigmoidnn
+    modules/logic/relunn
+    modules/logic/sigmoidnn
     modules/nn/linear
     modules/utils/base
     modules/utils/relunn
     modules/utils/sigmoidnn
+    modules/utils/selection
 
 
 .. toctree::
