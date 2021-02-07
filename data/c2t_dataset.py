@@ -1,6 +1,7 @@
 import json
 import os
 import numpy as np
+import torch
 from torchvision.datasets import ImageFolder
 
 
@@ -11,9 +12,17 @@ class ConceptToTaskDataset(ImageFolder):
 
     :param root: path to the main folder of the dataset
     """
-    def __init__(self, root: str, dataset_name: str = "CUB200", denoised: bool = False):
+    def __init__(self, root: str, dataset_name: str = "CUB200", predictions: bool = True, denoised: bool = False):
         super().__init__(root)
-        if denoised:
+
+        assert not predictions or not denoised, "Using predictions as input does not allow using denoised attributes"
+        if predictions:
+            try:
+                self.attributes = np.load(os.path.join(root, dataset_name + "_predictions.npy"))
+            except IOError:
+                print("Predictions need to be first created before loading")
+
+        elif denoised:
             self.attributes = np.load(os.path.join(root, "very_denoised_attributes.npy"))
         else:
             self.attributes = np.load(os.path.join(root, "attributes.npy"))

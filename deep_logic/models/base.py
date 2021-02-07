@@ -211,6 +211,7 @@ class BaseClassifier(torch.nn.Module):
         :param device: device on which to perform the training
         :return: a tuple containing the outputs computed on the dataset and the labels
         """
+        self.to(device)
         outputs, labels = [], []
         loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=num_workers, pin_memory=True)
         for i, data in enumerate(loader):

@@ -46,7 +46,7 @@ class TestConceptExtractor(unittest.TestCase):
                                     name="test_concept_extractor2", cnn_model=RESNET18)
         # It takes a few minutes
         # model.load(device)
-        # results = model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, n_workers=4)
+        # results = model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, num_workers=4)
         # results.to_csv("results_test_concept_extractor2.csv")
         model.load(device)
         accuracy = model.evaluate(test_data)
@@ -58,7 +58,7 @@ class TestConceptExtractor(unittest.TestCase):
         model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.CrossEntropyLoss(),
                                     name="test_concept_extractor_pretrained2", cnn_model=RESNET18, pretrained=True)
         # It takes a few minutes
-        results = model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, n_workers=4)
+        results = model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, num_workers=4)
         results.to_csv("results_test_concept_extractor_pretrained2.csv")
         accuracy = model.evaluate(test_data)
         assert accuracy > 75.
@@ -69,7 +69,7 @@ class TestConceptExtractor(unittest.TestCase):
         model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.CrossEntropyLoss(),
                                     name="test_concept_extractor_big2", cnn_model=RESNET101)
         # It takes a few minutes
-        results = model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, n_workers=4)
+        results = model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, num_workers=4)
         results.to_csv("results_test_concept_extractor_big2.csv")
         accuracy = model.evaluate(test_data)
         assert accuracy > 75.
@@ -80,7 +80,7 @@ class TestConceptExtractor(unittest.TestCase):
         model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.CrossEntropyLoss(),
                                     name="test_concept_extractor_big_pretrained2", cnn_model=RESNET101, pretrained=True)
         # It takes a few minutes
-        results = model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, n_workers=4)
+        results = model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, num_workers=4)
         results.to_csv("results_test_concept_extractor_big_pretrained2.csv")
         accuracy = model.evaluate(test_data)
         assert accuracy > 75.
@@ -93,7 +93,7 @@ class TestConceptExtractor(unittest.TestCase):
 
         # It takes a few minutes
         results = model.fit(train_set=train_data_inception, val_set=test_data_inception, epochs=epochs, device=device,
-                            n_workers=4)
+                            num_workers=4)
         results.to_csv("results_test_concept_extractor_inception2.csv")
         accuracy = model.evaluate(test_data_inception)
         assert accuracy > 75.
@@ -107,7 +107,7 @@ class TestConceptExtractor(unittest.TestCase):
 
         # It takes a few minutes
         results = model.fit(train_set=train_data_inception, val_set=test_data_inception, epochs=epochs, device=device,
-                            n_workers=4)
+                            num_workers=4)
         results.to_csv("results_test_concept_extractor_inception_pretrained2.csv")
         accuracy = model.evaluate(test_data_inception)
         assert accuracy > 75.

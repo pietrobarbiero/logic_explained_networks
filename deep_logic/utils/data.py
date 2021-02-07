@@ -80,7 +80,7 @@ def get_splits_train_val_test(dataset: ImageToConceptDataset, val_split: float =
     return train_dataset, val_dataset, test_dataset
 
 
-def get_splits_for_fsc(dataset: ImageToConceptDataset, train_split: float = 0.5,
+def get_splits_for_fsc(dataset: ImageToConceptDataset, train_split: float = 0.5, load=False,
                        test_transform: transforms.Compose = None) -> Tuple[Subset, Subset]:
     train_json  = os.path.join(os.path.dirname(dataset.root), f"samples_{dataset.dataset_name}_training.json")
     ft_json     = os.path.join(os.path.dirname(dataset.root), f"samples_{dataset.dataset_name}_fine_tuning.json")
@@ -93,7 +93,7 @@ def get_splits_for_fsc(dataset: ImageToConceptDataset, train_split: float = 0.5,
         dataset_copy = dataset
 
     # Creating dataset for Fine-tuning by splitting the classes of the dataset
-    if os.path.isfile(train_json):
+    if os.path.isfile(train_json) and load:
         with open(os.path.join(train_json), "r") as f:
             train_file = json.load(f)
             train_samples = train_file["samples"]
@@ -102,14 +102,14 @@ def get_splits_for_fsc(dataset: ImageToConceptDataset, train_split: float = 0.5,
         train_len_split = int(len(dataset.classes) * train_split)
         train_classes = sorted(random.sample(dataset.classes, train_len_split))
         train_samples = [i for i in range(len(dataset)) if dataset.classes[dataset.targets[i]] in train_classes]
-        assert abs(len(train_samples) / len(dataset) - train_split) < 0.001, "Error while splitting the dataset"
+        assert abs(len(train_samples) / len(dataset) - train_split) < 0.01, "Error while splitting the dataset"
         with open(os.path.join(train_json), "w") as f:
             train_file = {"samples": train_samples, "classes": train_classes}
             json.dump(train_file, f)
     train_dataset = Subset(dataset, train_samples)
 
     # Creating dataset for Training with the all the classes
-    if os.path.isfile(ft_json):
+    if os.path.isfile(ft_json) and load:
         with open(os.path.join(ft_json), "r") as f:
             ft_file = json.load(f)
             ft_samples = ft_file["samples"]
@@ -120,7 +120,7 @@ def get_splits_for_fsc(dataset: ImageToConceptDataset, train_split: float = 0.5,
         with open(os.path.join(ft_json), "w") as f:
             ft_file = {"samples": ft_samples, "classes": ft_classes}
             json.dump(ft_file, f)
-    assert abs(len(ft_classes) - len(dataset.classes) * (1 - train_split)) < 0.001, "Error while splitting dataset"
+    assert abs(len(ft_classes) - len(dataset.classes) * (1 - train_split)) < 0.01, "Error while splitting dataset"
     ft_dataset = Subset(dataset_copy, ft_samples)
 
     return train_dataset, ft_dataset
@@ -134,7 +134,6 @@ def show_batch(dataset, labels_names, batch_size=8, save=False):
     fig = plt.figure()
     plt.rcParams.update({'font.size': 6})
     for j, sample in enumerate(batch_images):
-        ax = plt.subplot(batch_size/2, 2, j + 1)
         if isinstance(sample, torch.Tensor):
             sample = sample.numpy()
         elif isinstance(sample, np.ndarray):
@@ -143,10 +142,18 @@ def show_batch(dataset, labels_names, batch_size=8, save=False):
             sample = np.asarray(sample)
         else:
             raise NotImplementedError
+
         if sample.shape[0] == 3:
             sample = np.rollaxis(sample, 0, 3)
+
+        mean = np.asarray([0.485, 0.456, 0.406])
+        std = np.asarray([0.229, 0.224, 0.225])
+        sample *= std
+        sample += mean
         if np.max(sample) < 200 or np.min(sample) < 0:
             sample = (sample * 255).astype(np.uint8)
+
+        ax = plt.subplot(batch_size/2, 2, j + 1)
         plt.imshow(sample)
         title = ""
         label = batch_labels[j]
