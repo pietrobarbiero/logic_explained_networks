@@ -32,8 +32,19 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     """
     y = to_categorical(y)
     assert (y == target_class).any(), "Cannot get explanation if target class is not amongst target labels"
-    x_target = x[y == target_class]
-    y_target = y[y == target_class]
+
+    # # collapse samples having the same boolean values and class label different from the target class
+    # w, b = collect_parameters(model, device)
+    # feature_weights = w[0]
+    # feature_used_bool = np.sum(np.abs(feature_weights), axis=0) > 0
+    # feature_used = np.sort(np.nonzero(feature_used_bool)[0])
+    # _, idx = np.unique((x[:, feature_used][y == target_class] >= 0.5).cpu().detach().numpy(), axis=0, return_index=True)
+    _, idx = np.unique((x[y == target_class] >= 0.5).cpu().detach().numpy(), axis=0, return_index=True)
+    x_target = x[y == target_class][idx]
+    y_target = y[y == target_class][idx]
+    # x_target = x[y == target_class]
+    # y_target = y[y == target_class]
+    print(len(y_target))
 
     # get model's predictions
     preds = model(x_target)

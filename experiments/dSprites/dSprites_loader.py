@@ -1,4 +1,4 @@
-from dSprites_data_loader import load_dsprites
+from .dSprites_data_loader import load_dsprites
 
 
 def concept_filters(schema):
