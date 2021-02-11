@@ -11,25 +11,30 @@ from deep_logic.concept_extractor.concept_extractor import CNNConceptExtractor
 transform = transforms.Compose([
     transforms.CenterCrop(size=224),
     transforms.Resize(size=224),
+    transforms.Grayscale(3),
     transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+])
+# transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
 transform_inception = transforms.Compose([
     transforms.CenterCrop(size=299),
     transforms.Resize(size=299),
+    transforms.Grayscale(3),
     transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+])
+# transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-train_data = torchvision.datasets.MNIST(root='../data', train=True,
+device = torch.device("cuda:1") if torch.cuda.is_available() else torch.device("cpu")
+train_data = torchvision.datasets.MNIST(root='../data', train=False,
                                         download=True, transform=transform)
 test_data = torchvision.datasets.MNIST(root='../data', train=False,
                                        download=True, transform=transform)
 
-train_data_inception = torchvision.datasets.CIFAR10(root='../data', train=False,
-                                                    download=True, transform=transform_inception)
-test_data_inception = torchvision.datasets.CIFAR10(root='../data', train=True,
-                                                   download=True, transform=transform_inception)
-classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+train_data_inception = torchvision.datasets.MNIST(root='../data', train=False,
+                                                  download=True, transform=transform_inception)
+test_data_inception = torchvision.datasets.MNIST(root='../data', train=False,
+                                                 download=True, transform=transform_inception)
+classes = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
 epochs = 1
 
 if __name__ == '__main__':

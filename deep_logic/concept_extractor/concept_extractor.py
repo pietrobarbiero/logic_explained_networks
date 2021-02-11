@@ -7,7 +7,7 @@ import pandas as pd
 
 from deep_logic.utils.metrics import Metric, TopkAccuracy
 from deep_logic.models.base import BaseClassifier
-from concept_extractor.cnn_models import RESNET10, get_model, CNN_MODELS, INCEPTION
+from deep_logic.concept_extractor.cnn_models import RESNET10, get_model, CNN_MODELS, INCEPTION
 
 
 class CNNConceptExtractor(BaseClassifier):
@@ -55,7 +55,7 @@ class CNNConceptExtractor(BaseClassifier):
         """
         if isinstance(self.loss, torch.nn.NLLLoss):
             targets = targets.to(torch.long)
-            if len(targets.squeeze()) > 1:
+            if len(targets.squeeze().shape) > 1:
                 targets = targets.argmax(dim=1)
             outputs = torch.log(outputs)
             loss = self.loss(outputs.squeeze(), targets.squeeze())
@@ -134,6 +134,7 @@ class CNNConceptExtractor(BaseClassifier):
             tot_losses_i = []
             train_outputs, train_labels = [], []
             for i, data in enumerate(train_loader):
+                # print("{i}/{len(train_loader}")
                 # Load batch (dataset, labels) on the correct device
                 batch_data, batch_labels = data[0].to(device), data[1].to(device)
                 optimizer.zero_grad()
