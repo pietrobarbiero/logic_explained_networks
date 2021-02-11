@@ -40,7 +40,7 @@ def logic_learning(i2c_net, dataloader, device, optimizer, criterion, epoch, n_e
 
 def load_and_predict(i2c_net, train_dataloader, val_dataloader, test_dataloader,
                      optimizer, criterion, device, args):
-    i2c_net.load_state_dict(torch.load(os.path.join(args.models_dir, f'resnet_{args.model_style}_i2c_{args.seed}.pt')))
+    i2c_net.load_state_dict(torch.load(os.path.join(args['models_dir'], f'resnet_{args["model_style"]}_i2c_{args["seed"]}.pt')))
     i2c_net.eval()
 
     _, _, _, c_predictions_train = logic_learning(i2c_net, train_dataloader,
@@ -74,11 +74,11 @@ def i2c_style(train_dataloader, val_dataloader, test_dataloader, device, args):
     i2c_net.to(device)
 
     criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(i2c_net.parameters(), lr=0.0001)
+    optimizer = torch.optim.AdamW(i2c_net.parameters(), lr=0.0001)
 
-    if os.path.isfile(os.path.join(args.models_dir, f'resnet_{args.model_style}_i2c_{args.seed}.pt')):
+    if os.path.isfile(os.path.join(args['models_dir'], f'resnet_{args["model_style"]}_i2c_{args["seed"]}.pt')):
         i2c_net.load_state_dict(
-            torch.load(os.path.join(args.models_dir, f'resnet_{args.model_style}_i2c_{args.seed}.pt')))
+            torch.load(os.path.join(args['models_dir'], f'resnet_{args["model_style"]}_i2c_{args["seed"]}.pt')))
         c_predictions_train, c_predictions_val, c_predictions_test = load_and_predict(i2c_net, train_dataloader,
                                                                                       val_dataloader, test_dataloader,
                                                                                       optimizer, criterion, device,
@@ -116,7 +116,7 @@ def i2c_style(train_dataloader, val_dataloader, test_dataloader, device, args):
             if loss < valid_loss_min:
                 valid_loss_min = loss
                 torch.save(i2c_net.state_dict(),
-                           os.path.join(args.models_dir, f'resnet_{args.model_style}_i2c_{args.seed}.pt'))
+                           os.path.join(args['models_dir'], f'resnet_{args["model_style"]}_i2c_{args["seed"]}.pt'))
                 print('Improvement-Detected, save-model')
 
             i2c_net, c_accuracy, loss, _ = logic_learning(i2c_net, test_dataloader,
@@ -141,9 +141,9 @@ def i2c_style(train_dataloader, val_dataloader, test_dataloader, device, args):
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
 
-    results.to_csv(os.path.join(results_dir, f'results_{args.model_style}_i2c_{args.seed}.csv'))
+    results.to_csv(os.path.join(results_dir, f'results_{args["model_style"]}_i2c_{args["seed"]}.csv'))
 
-    # i2c_net.load_state_dict(torch.load(os.path.join(args.models_dir, f'resnet_{args.model_style}_i2c_{args.seed}.pt')))
+    # i2c_net.load_state_dict(torch.load(os.path.join(args['models_dir'], f'resnet_{args["model_style"]}_i2c_{args["seed"]}.pt')))
     c_predictions_train, c_predictions_val, c_predictions_test = load_and_predict(i2c_net, train_dataloader,
                                                                                   val_dataloader, test_dataloader,
                                                                                   optimizer, criterion, device, args)

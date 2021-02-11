@@ -3,9 +3,12 @@ from typing import Tuple, List
 
 import torch
 import numpy as np
+from sklearn.metrics import accuracy_score
+
+from ..utils.base import to_categorical
 
 
-def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor) -> Tuple[float, np.ndarray]:
+def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor, give_local: bool = False) -> Tuple[float, np.ndarray]:
     """
     Test explanation
 
@@ -13,28 +16,33 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
     :param target_class: class ID
     :param x: input data
     :param y: input labels
+    :param give_local: if true will return local predictions
     :return: Accuracy of the explanation and predictions
     """
     minterms = str(explanation).split(' | ')
-    x_bool = x.cpu().detach().numpy() > 0.5
-    predictions = np.zeros(x.shape[0], dtype=bool)
+    x = x > 0.5
+    local_predictions = []
     for minterm in minterms:
         minterm = minterm.replace('(', '').replace(')', '').split(' & ')
-        local_predictions = np.ones(x.shape[0], dtype=bool)
+        features = []
         for terms in minterm:
             terms = terms.split('feature')
             if terms[0] == '~':
-                local_predictions *= ~x_bool[:, int(terms[1])]
+                features.append(~x[:, int(terms[1])])
             else:
-                local_predictions *= x_bool[:, int(terms[1])]
+                features.append(x[:, int(terms[1])])
 
-        predictions += local_predictions
+        local_prediction = torch.stack(features, dim=0).prod(dim=0)
+        local_predictions.append(local_prediction)
 
-    if len(y.squeeze().shape) > 1:
-        y = torch.argmax(y, dim=1) == target_class
+    y = to_categorical(y).cpu().detach().numpy()
+    # if len(y.squeeze().shape) > 1:
+    #     predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).cpu().detach().numpy()
+    # else:
+    predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).eq(target_class).cpu().detach().numpy()
 
-    accuracy = sum(predictions == y.cpu().detach().numpy().squeeze()) / len(predictions)
-    return accuracy, predictions
+    accuracy = accuracy_score(y, predictions)
+    return accuracy, torch.stack(local_predictions, dim=0).sum(dim=0) > 0 if give_local else predictions
 
 
 def replace_names(explanation: str, concept_names: List[str]) -> str:
@@ -65,14 +73,23 @@ def simplify_formula(explanation: str, model: torch.nn.Module,
     :param explanation: local formula to be simplified.
     :param model: torch model.
     :param x: input data.
-    :param y: target labels.
+    :param y: target labels (1D).
     :param x_sample: sample associated to the local formula.
     :param target_class: target class
     :return: Simplified formula
     """
-    y_pred_sample = (model((x_sample > 0.5).to(torch.float)) > 0.5).to(torch.float)
-    if y_pred_sample != target_class:
+    y = to_categorical(y)
+    if len(x_sample.shape) == 1:
+        x_sample = x_sample.unsqueeze(0)
+
+    y_pred_sample = model((x_sample > 0.5).to(torch.float))
+    y_pred_sample = to_categorical(y_pred_sample)
+
+    if not y_pred_sample.eq(target_class):
         return ''
+
+    if len(x_sample.shape) == 1:
+        x_sample = x_sample.unsqueeze(0)
 
     mask = (y != y_pred_sample).squeeze()
     x_validation = torch.cat([x[mask], x_sample]).to(torch.bool)
