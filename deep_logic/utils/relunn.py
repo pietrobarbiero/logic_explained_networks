@@ -39,12 +39,8 @@ def prune_features(model: torch.nn.Module, n_classes: int,
     return model
 
 
-<<<<<<< HEAD
-def get_reduced_model(model: torch.nn.Module, x_sample: torch.Tensor, bias: bool = True) -> torch.nn.Module:
-=======
 def get_reduced_model(model: torch.nn.Module, x_sample: torch.Tensor,
                       bias: bool = True, activation: bool = True) -> torch.nn.Module:
->>>>>>> master
     """
     Get 1-layer model corresponding to the firing path of the model for a specific sample.
 
@@ -52,10 +48,7 @@ def get_reduced_model(model: torch.nn.Module, x_sample: torch.Tensor,
     :param x_sample: input sample
     :param device: cpu or cuda device
     :param bias: True if model has bias
-<<<<<<< HEAD
-=======
     :param activation: True if you want to add a sigmoid activation on top
->>>>>>> master
     :return: reduced model
     """
     x_sample_copy = deepcopy(x_sample)
@@ -110,13 +103,6 @@ def get_reduced_model(model: torch.nn.Module, x_sample: torch.Tensor,
     if bias:
         state_dict['bias'].copy_(bias_reduced.clone().detach())
 
-<<<<<<< HEAD
-    model_reduced = torch.nn.Sequential(*[
-        linear,
-        torch.nn.Sigmoid()
-    ])
-    model_reduced.eval()
-=======
     layers = [linear]
     if activation:
         layers.append(torch.nn.Sigmoid())
@@ -124,5 +110,4 @@ def get_reduced_model(model: torch.nn.Module, x_sample: torch.Tensor,
     model_reduced = torch.nn.Sequential(*layers)
     model_reduced.eval()
 
->>>>>>> master
     return model_reduced

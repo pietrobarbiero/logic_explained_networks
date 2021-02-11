@@ -2,7 +2,6 @@ import sys
 import os
 sys.path.append(os.path.join('..', '..'))
 
-from datetime import datetime
 import torch
 import numpy as np
 from torch.utils.data import Subset
@@ -11,8 +10,8 @@ from data.i2c_dataset import ImageToConceptDataset
 from deep_logic.utils import metrics
 from deep_logic.utils.base import set_seed
 from deep_logic.utils.data import get_splits_train_val_test, show_batch, get_splits_for_fsc
-from experiments.image_preprocessing import cnn_models
-from experiments.image_preprocessing.concept_extractor import CNNConceptExtractor
+from concept_extractor import cnn_models
+from concept_extractor.concept_extractor import CNNConceptExtractor
 
 
 if __name__ == '__main__':

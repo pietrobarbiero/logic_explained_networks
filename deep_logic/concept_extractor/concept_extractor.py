@@ -7,7 +7,7 @@ import pandas as pd
 
 from deep_logic.utils.metrics import Metric, TopkAccuracy
 from deep_logic.models.base import BaseClassifier
-from experiments.image_preprocessing.cnn_models import RESNET10, get_model, CNN_MODELS, INCEPTION
+from concept_extractor.cnn_models import RESNET10, get_model, CNN_MODELS, INCEPTION
 
 
 class CNNConceptExtractor(BaseClassifier):

@@ -4,12 +4,12 @@ from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
 from ..utils.sigmoidnn import prune_equal_fanin, validate_network, validate_pruning
-from ..fol.sigmoidnn import generate_fol_explanations
+from ..logic.sigmoidnn import generate_fol_explanations
 from .base import BaseClassifier, BaseXModel
 from ..utils.metrics import Metric, TopkAccuracy, Accuracy
 
 
-class XSigmoidClassifier(BaseClassifier, BaseXModel):
+class PsiNetwork(BaseClassifier, BaseXModel):
     """
         Feed forward Neural Network employing Sigmoid activation function of variable depth but completely interpretable.
         After being trained it provides global explanations.
@@ -69,7 +69,7 @@ class XSigmoidClassifier(BaseClassifier, BaseXModel):
         :param x: input tensor
         :return: output classification
         """
-        super(XSigmoidClassifier, self).forward(x)
+        super(PsiNetwork, self).forward(x)
         output = self.model(x)
         return output
 

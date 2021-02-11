@@ -1,19 +1,14 @@
-import os
 import unittest
 
 import torch
-import torchvision
 from torch.utils.data import TensorDataset
-from torchvision.transforms import transforms
 
-from deep_logic.models.linear import XLogisticRegressionClassifier
-from deep_logic.models.relunn import XReluClassifier
-from deep_logic.models.sigmoidnn import XSigmoidClassifier
+from deep_logic.models.logistic_regression import XLogisticRegressionClassifier
+from deep_logic.models.relu_nn import XReluClassifier
+from deep_logic.models.psi_nn import PsiNetwork
 from deep_logic.models.tree import XDecisionTreeClassifier
 from deep_logic.utils.base import set_seed
-from deep_logic.utils.metrics import Accuracy, TopkAccuracy
-from image_preprocessing.cnn_models import RESNET18, RESNET50, INCEPTION, RESNET101
-from image_preprocessing.concept_extractor import CNNConceptExtractor
+from deep_logic.utils.metrics import Accuracy
 
 
 class TestModels(unittest.TestCase):
@@ -77,7 +72,7 @@ class TestModels(unittest.TestCase):
 
         loss = torch.nn.BCELoss()
         metric = Accuracy()
-        model = XSigmoidClassifier(n_classes=1, n_features=2, hidden_neurons=[5, 3], loss=loss, l1_weight=0.001)
+        model = PsiNetwork(n_classes=1, n_features=2, hidden_neurons=[5, 3], loss=loss, l1_weight=0.001)
 
         results = model.fit(train_data, train_data, batch_size=4, epochs=1000, l_r=0.01, metric=metric)
         assert results.shape == (1000, 4)
@@ -97,7 +92,7 @@ class TestModels(unittest.TestCase):
 
         loss = torch.nn.BCELoss()
         metric = Accuracy()
-        model = XSigmoidClassifier(n_classes=2, n_features=2, hidden_neurons=[20, 10, 3], loss=loss, l1_weight=0)
+        model = PsiNetwork(n_classes=2, n_features=2, hidden_neurons=[20, 10, 3], loss=loss, l1_weight=0)
 
         results = model.fit(train_data, train_data, batch_size=4, epochs=1000, l_r=0.01, metric=metric)
         assert results.shape == (1000, 4)

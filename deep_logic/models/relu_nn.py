@@ -3,7 +3,7 @@ from typing import List
 import torch
 
 from ..utils.relunn import get_reduced_model
-from ..fol.relunn import generate_local_explanations, combine_local_explanations
+from ..logic.relunn import combine_local_explanations
 from .base import BaseClassifier, BaseXModel
 
 
@@ -100,7 +100,9 @@ class XReluClassifier(BaseClassifier, BaseXModel):
         if local:
             # if len(x.shape) == 2:
             #     assert x.shape[0] == 1, 'Local explanation requires 1 single sample.'
-            return generate_local_explanations(self.model, x, y, sample_id, concept_names, device)
+            #
+            raise NotImplementedError()
+
         else:
             # return combine_local_explanations(self.model, x, y, concept_names, device)
             raise NotImplementedError()
