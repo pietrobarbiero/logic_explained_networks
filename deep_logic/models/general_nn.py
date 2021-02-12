@@ -3,12 +3,8 @@ import torch
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
-from logic import combine_local_explanations, explain_local
-from relu_nn import prune_features
-from ..logic.base import replace_names
-from ..utils.base import NotAvailableError
-from ..utils.psi_nn import prune_equal_fanin, validate_network, validate_pruning
-from ..logic.psi_nn import generate_fol_explanations
+from ..logic.relu_nn import combine_local_explanations, explain_local
+from ..utils.relu_nn import prune_features
 from .base import BaseClassifier, BaseXModel
 from ..utils.metrics import Metric, TopkAccuracy, Accuracy
 
@@ -115,9 +111,11 @@ class XGeneralNN(BaseClassifier, BaseXModel):
                                                        simplify=simplify, topk_explanations=topk_explanations,
                                                        concept_names=concept_names, device=self.get_device(),
                                                        num_classes=self.n_classes)
+        return global_expl
+
 
     def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, num_workers: int = 0,
-            l_r: float = 0.1, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),
+            l_r: float = 0.1, metric: Metric = Accuracy(), device: torch.device = torch.device("cpu"),
             verbose: bool = True, fanin: int = 2) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.

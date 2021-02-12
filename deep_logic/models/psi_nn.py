@@ -100,7 +100,7 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         return explanations
 
     def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, num_workers: int = 0,
-            l_r: float = 0.1, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),
+            l_r: float = 0.1, metric: Metric = Accuracy(), device: torch.device = torch.device("cpu"),
             verbose: bool = True, fanin: int = 2) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.

@@ -9,6 +9,8 @@ from deep_logic.models.psi_nn import PsiNetwork
 from deep_logic.models.tree import XDecisionTreeClassifier
 from deep_logic.utils.base import set_seed
 from deep_logic.utils.metrics import Accuracy
+from deep_logic.models.general_nn import XGeneralNN
+
 
 # Create data
 x = torch.tensor([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=torch.float).cpu()
@@ -103,28 +105,42 @@ class TestModels(unittest.TestCase):
 
         return
 
-    def test_3_linear(self):
+    def test_3_general_nn(self):
         set_seed(0)
 
-        model = XLogisticRegressionClassifier(n_classes=1, n_features=n_features, loss=loss)
+        model = XGeneralNN(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
+                           l1_weight=l1_weight)
 
         results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric)
-
-        assert results.shape == (epochs, 4)
-
-        accuracy = model.evaluate(train_data)
-
-        assert accuracy < 100.0
-
-        model = XLogisticRegressionClassifier(n_classes=2, n_features=n_features, loss=loss)
-
-        results = model.fit(train_data_multi, train_data, epochs=epochs, l_r=l_r, metric=metric)
-
         assert results.shape == (epochs, 4)
 
         accuracy = model.evaluate(train_data, metric=metric)
-
         assert accuracy == 100.0
+
+        local_explanation = model.get_local_explanation(x, y, x_sample, target_class=y_sample)
+        assert local_explanation == '~feature0000000000 & feature0000000001'
+
+        global_explanation = model.get_global_explanation(x, y, target_class=y_sample)
+        assert global_explanation == '(feature0000000000 & ~feature0000000001) | ' \
+                                     '(feature0000000001 & ~feature0000000000)'
+
+        # Test with multiple targets
+        model = XReluNN(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
+                        l1_weight=l1_weight)
+
+        results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric)
+        assert results.shape == (epochs, 4)
+
+        accuracy = model.evaluate(train_data_multi, metric=metric)
+        assert accuracy == 100.0
+        print(accuracy)
+
+        local_explanation = model.get_local_explanation(x, y, x_sample, target_class=y_sample)
+        assert local_explanation == '~feature0000000000 & feature0000000001'
+
+        global_explanation = model.get_global_explanation(x, y, target_class=y_sample)
+        assert global_explanation == '(feature0000000000 & ~feature0000000001) | ' \
+                                     '(feature0000000001 & ~feature0000000000)'
 
         return
 
