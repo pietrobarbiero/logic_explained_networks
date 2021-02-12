@@ -9,7 +9,7 @@ def prune_features(model: torch.nn.Module, n_classes: int,
     Prune the inputs of the model.
 
     :param model: pytorch model
-    :param n_classes: number of classes
+    :param n_classes: number of classes to retain
     :param device: cpu or cuda device
     :return: pruned model
     """

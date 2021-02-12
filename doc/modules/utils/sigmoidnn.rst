@@ -1,7 +1,7 @@
 Utils for :math:`\psi`-networks
 ==================================
 
-:mod:`deep_logic.utils.sigmoidnn`
+:mod:`deep_logic.utils.psi_nn`
 
-.. automodule:: deep_logic.utils.sigmoidnn
+.. automodule:: deep_logic.utils.psi_nn
     :members:

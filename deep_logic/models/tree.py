@@ -7,6 +7,7 @@ from sklearn.tree import DecisionTreeClassifier
 from torch.utils.data import Dataset
 
 from .base import BaseClassifier, ClassifierNotTrainedError, BaseXModel
+from ..utils.base import tree_to_formula, NotAvailableError
 from ..utils.metrics import Metric, TopkAccuracy, Accuracy
 
 
@@ -168,20 +169,11 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         except FileNotFoundError:
             raise ClassifierNotTrainedError() from None
 
-    def explain(self, x: torch.Tensor):
-        raise NotImplementedError  # TODO: implement
+    def prune(self, n: int):
+        raise NotAvailableError()
 
-
-class NotAvailableError(Exception):
-    """
-    Error raised when we try to access methods that are not available for a given class.
-    """
-
-    def __init__(self):
-        self.message = "Method not existing for the given class"
-
-    def __str__(self):
-        return self.message
+    def get_local_explanation(self, x: torch.Tensor, concept_names):
+        raise NotAvailableError()
 
 
 if __name__ == "__main__":

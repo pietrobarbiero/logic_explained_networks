@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from sklearn.metrics import accuracy_score
 
-from ..utils.base import to_categorical
+from deep_logic.utils.base import to_categorical
 
 
 def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor, give_local: bool = False) -> Tuple[float, np.ndarray]:

@@ -1,5 +1,6 @@
 import torch
 
+from ..utils.relu_nn import prune_features
 from .base import BaseClassifier, BaseXModel
 
 
@@ -53,8 +54,20 @@ class XLogisticRegressionClassifier(BaseClassifier, BaseXModel):
         output_loss = self.loss(output, target)
         return output_loss
 
-    def explain(self, x: torch.Tensor):
+    def get_local_explanation(self, x: torch.Tensor, concept_names, **kwargs):
         raise NotImplementedError  # TODO: implement
+
+    def get_global_explanation(self, x: torch.Tensor, yclass_to_explain: list, concept_names: list, *args,
+                               **kwargs) -> str:
+        raise NotImplementedError  # TODO: implement
+
+    def prune(self, n_features: int):
+        """
+        Prune the inputs of the model.
+
+        :param n_features: number of input features to retain
+        """
+        self.model = prune_features(self.model, n_features, self.get_device())
 
 
 if __name__ == "__main__":

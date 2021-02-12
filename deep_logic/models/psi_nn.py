@@ -3,8 +3,10 @@ import torch
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
-from ..utils.sigmoidnn import prune_equal_fanin, validate_network, validate_pruning
-from ..logic.sigmoidnn import generate_fol_explanations
+from ..logic.base import replace_names
+from ..utils.base import NotAvailableError
+from ..utils.psi_nn import prune_equal_fanin, validate_network, validate_pruning
+from ..logic.psi_nn import generate_fol_explanations
 from .base import BaseClassifier, BaseXModel
 from ..utils.metrics import Metric, TopkAccuracy, Accuracy
 
@@ -35,7 +37,7 @@ class PsiNetwork(BaseClassifier, BaseXModel):
 
         layers = []
         for i in range(len(hidden_neurons) + 1):
-            input_nodes = hidden_neurons[i-1] if i != 0 else n_features
+            input_nodes = hidden_neurons[i - 1] if i != 0 else n_features
             output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else n_classes
             layers.extend([
                 torch.nn.Linear(input_nodes, output_nodes),
@@ -73,14 +75,29 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         output = self.model(x)
         return output
 
-    def explain(self, device: torch.device = torch.device('cpu')):
+    def get_local_explanation(self, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor, target_class,
+                              simplify: bool = True, concept_names: list = None) -> str:
+        raise NotAvailableError()
+
+    def prune(self, n: int):
+        prune_equal_fanin(self.model, n, validate=True, device=self.get_device())
+
+    def get_global_explanation(self, target_class: int, concept_names: list = None, **kwargs):
         """
         Generate explanations.
 
-        :param device: cpu or cuda device
+        :param target_class:
+        :param concept_names:
         :return: Explanation
         """
-        return generate_fol_explanations(self.model, device)
+        explanations = generate_fol_explanations(self.model, self.get_device())
+        if len(explanations) > 1:
+            explanations = explanations[target_class]
+        else:
+            explanations = explanations[0]
+        if concept_names is not None:
+            explanations = replace_names(explanations, concept_names)
+        return explanations
 
     def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, num_workers: int = 0,
             l_r: float = 0.1, metric: Metric = TopkAccuracy(), device: torch.device = torch.device("cpu"),
@@ -113,18 +130,10 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         best_acc, best_epoch = 0.0, 0
         train_accs, val_accs, tot_losses = [], [], []
         train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True)
-        # train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True)
         pbar = tqdm(range(epochs), ncols=100, position=0, leave=True) if verbose else None
         torch.autograd.set_detect_anomaly(True)
         need_pruning = True
         for epoch in range(epochs):
-            if verbose:
-                pbar.set_postfix({"Epoch": f"{epoch + 1}/{epochs}"})
-
-            if epoch >= epochs//2 and need_pruning:
-                self.model = prune_equal_fanin(self.model, k=fanin, validate=True, device=device)
-                need_pruning = False
-
             tot_losses_i = []
             train_outputs, train_labels = [], []
             for data in train_loader:
@@ -162,8 +171,13 @@ class PsiNetwork(BaseClassifier, BaseXModel):
                                   "best_epoch": best_epoch})
                 pbar.update()
 
+            # Prune network
+            if epoch >= epochs // 2 and need_pruning:
+                self.prune(fanin)
+                need_pruning = False
+
             # Save best model
-            if val_acc >= best_acc and epoch >= epochs / 2 or epochs == 1:
+            if val_acc >= best_acc and epoch > epochs // 2 or epochs == 1:
                 best_acc = val_acc
                 best_epoch = epoch + 1
                 self.save()

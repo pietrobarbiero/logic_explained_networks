@@ -15,12 +15,41 @@ class BaseXModel:
     """Base class for all models in XDL."""
 
     @abstractmethod
-    def explain(self, x: torch.Tensor):
+    def get_local_explanation(self, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
+                              target_class, simplify: bool = True, concept_names: list = None) -> str:
+        """
+        Get explanation of model decision taken on the input x_sample.
+
+        :param x: input samples
+        :param y: target labels
+        :param x_sample: input for which the explanation is required
+        :param target_class: class ID
+        :param simplify: simplify local explanation
+        :param concept_names: list containing the names of the input concepts
+
+        :return: Local Explanation
+        """
+        pass
+
+    @abstractmethod
+    def get_global_explanation(self, x: torch.Tensor, y, class_to_explain: list, concept_names: list,
+                               *args, **kwargs) -> str:
         """
         Get explanation of model decision taken on the input x.
 
         :param x: input tensor
-        :return: Explanation.
+        :param concept_names: list of concept names which compose the explanation
+        :param class_to_explain: class for which the explanation is given
+        :return: The explanation
+        """
+        pass
+
+    @abstractmethod
+    def prune(self, n: int):
+        """
+        prune allows to delete the least important weights of the network such that the model is interpretable
+
+        n: number of input features to retain
         """
         pass
 

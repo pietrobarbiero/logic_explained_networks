@@ -6,7 +6,7 @@ import numpy as np
 from sympy import simplify_logic
 
 from .base import replace_names, test_explanation, simplify_formula
-from .sigmoidnn import _build_truth_table
+from .psi_nn import _build_truth_table
 from ..utils.base import collect_parameters, to_categorical
 from ..utils.selection import rank_pruning, rank_weights, rank_lime
 
@@ -195,7 +195,7 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
 
 
 def explain_global(model: torch.nn.Module, n_classes: int,
-                   target_class: int, concept_names: List = None,
+                   target_class: int, concept_names: list = None,
                    device: torch.device = torch.device('cpu')) -> str:
     """
     Explain the behavior of the model for a whole class.
@@ -211,7 +211,7 @@ def explain_global(model: torch.nn.Module, n_classes: int,
     w, b = collect_parameters(model, device)
     feature_weights = w[0]
     block_size = feature_weights.shape[0] // n_classes
-    feature_used_bool = np.sum(np.abs(feature_weights[target_class * block_size:(target_class + 1) * block_size]),
+    feature_used_bool = np.sum(np.abs(feature_weights[target_class * block_size : (target_class + 1) * block_size]),
                                axis=0) > 0
     feature_used = np.nonzero(feature_used_bool)[0]
 

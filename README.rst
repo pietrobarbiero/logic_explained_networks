@@ -161,7 +161,7 @@ We can now train the network:
 
         # We can use sparsity to prune dummy features
         if epoch > 500 and need_pruning:
-            dl.utils.relunn.prune_features(model, n_classes)
+            dl.utils.relu_nn.prune_features(model, n_classes)
             need_pruning = False
 
 
@@ -199,7 +199,7 @@ explanations of the predictions for a specific class:
 .. code:: python
 
 
-    global_explanation, _, _ = dl.logic.relunn.combine_local_explanations(model, x_train,
+    global_explanation, _, _ = dl.logic.relu_nn.combine_local_explanations(model, x_train,
                                                                           y_train.squeeze(),
                                                                           target_class=1,
                                                                           method='pruning')

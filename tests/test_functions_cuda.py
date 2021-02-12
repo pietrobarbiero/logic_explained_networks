@@ -5,7 +5,7 @@ import torch
 class TestTemplateObject(unittest.TestCase):
     def test_relunets_pruning(self):
         import numpy as np
-        from deep_logic.utils.relunn import get_reduced_model
+        from deep_logic.utils.relu_nn import get_reduced_model
         from deep_logic.utils.base import validate_network, validate_data
         from deep_logic.logic import explain_local, explain_global
         import deep_logic as dl
@@ -51,7 +51,7 @@ class TestTemplateObject(unittest.TestCase):
             optimizer.step()
 
             if epoch > 500 and need_pruning:
-                dl.utils.relunn.prune_features(model, n_classes, device)
+                dl.utils.relu_nn.prune_features(model, n_classes, device)
                 need_pruning = False
 
             # compute accuracy
@@ -82,7 +82,7 @@ class TestTemplateObject(unittest.TestCase):
         import torch
         import numpy as np
         from deep_logic.utils.base import validate_network
-        from deep_logic.utils.sigmoidnn import prune_equal_fanin
+        from deep_logic.utils.psi_nn import prune_equal_fanin
         from deep_logic import logic
 
         torch.manual_seed(0)
@@ -134,7 +134,7 @@ class TestTemplateObject(unittest.TestCase):
         return
 
     def test_pruning(self):
-        from deep_logic.utils.sigmoidnn import prune_equal_fanin, validate_pruning
+        from deep_logic.utils.psi_nn import prune_equal_fanin, validate_pruning
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 

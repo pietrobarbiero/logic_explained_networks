@@ -1,9 +1,7 @@
-from typing import List
-
 import torch
 
-from ..utils.relunn import get_reduced_model
-from ..logic.relunn import combine_local_explanations
+from ..logic.relu_nn import combine_local_explanations, explain_local
+from ..utils.relu_nn import get_reduced_model, prune_features
 from .base import BaseClassifier, BaseXModel
 
 
@@ -34,7 +32,7 @@ class XReluClassifier(BaseClassifier, BaseXModel):
 
         layers = []
         for i in range(len(hidden_neurons) + 1):
-            input_nodes = hidden_neurons[i-1] if i != 0 else n_features
+            input_nodes = hidden_neurons[i - 1] if i != 0 else n_features
             output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else n_classes
             layers.extend([
                 torch.nn.Linear(input_nodes, output_nodes),
@@ -79,33 +77,52 @@ class XReluClassifier(BaseClassifier, BaseXModel):
         :param x_sample: input sample
         :return: reduced model
         """
-        self.reduced_model = get_reduced_model(self.model, x_sample)
-        return self.reduced_model
+        return get_reduced_model(self.model, x_sample)
 
-    def explain(self, x: torch.Tensor, y: torch.Tensor = None, sample_id: int = None, local: bool = True,
-                concept_names: List = None, device: torch.device = torch.device('cpu')):
+    def prune(self, n_features: int):
         """
-        Generate explanations.
+        Prune the inputs of the model.
+
+        :param n_features: number of input features to retain
+        """
+        self.model = prune_features(self.model, n_features, self.get_device())
+
+    def get_local_explanation(self, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
+                              target_class, simplify: bool = True, concept_names: list = None):
+        """
+        Get explanation of model decision taken on the input x_sample.
 
         :param x: input samples
         :param y: target labels
-        :param sample_id: number of the sample to be explained (for local explanation)
-        :param local: require local or global explanations
-        :param concept_names: concept names to use in the explanation
-        :param device: cpu or cuda device
-        :return: Explanation
-        """
-        assert len(x.shape) <= 2, 'Only 1 or 2 dimensional data are allowed.'
-        assert sample_id is not None or not local, "Local explanation requires sample_id to be defined"
-        if local:
-            # if len(x.shape) == 2:
-            #     assert x.shape[0] == 1, 'Local explanation requires 1 single sample.'
-            #
-            raise NotImplementedError()
+        :param x_sample: input for which the explanation is required
+        :param target_class: class ID
+        :param simplify: simplify local explanation
+        :param concept_names: list containing the names of the input concepts
 
-        else:
-            # return combine_local_explanations(self.model, x, y, concept_names, device)
-            raise NotImplementedError()
+        :return: Local Explanation
+        """
+        return explain_local(self.model, x, y, x_sample, target_class, method='weights', simplify=simplify,
+                             concept_names=concept_names, device=self.get_device(), num_classes=self.n_classes)
+
+    def get_global_explanation(self, x, y, target_class: int, topk_explanations: int = 2, simplify: bool = True,
+                               concept_names: list = None):
+        """
+        Generate a global explanation combining local explanations.
+
+        :param x: input samples
+        :param y: target labels
+        :param target_class: class ID
+        :param topk_explanations: number of most common local explanations to combine in a global explanation
+                (it controls the complexity of the global explanation)
+        :param simplify: simplify local explanation
+        :param concept_names: list containing the names of the input concepts
+        """
+        global_expl, _, _ = combine_local_explanations(self.model, x, y, target_class, method="weights",
+                                                       simplify=simplify, topk_explanations=topk_explanations,
+                                                       concept_names=concept_names, device=self.get_device(),
+                                                       num_classes=self.n_classes)
+
+        return global_expl
 
 
 if __name__ == "__main__":

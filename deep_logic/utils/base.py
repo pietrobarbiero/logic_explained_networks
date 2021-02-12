@@ -182,3 +182,16 @@ class IncompatibleClassifierError(Exception):
 
     def __str__(self):
         return self.message
+
+
+class NotAvailableError(Exception):
+    """
+    Error raised when we try to access methods that are not available for a given class.
+    """
+
+    def __init__(self, message: str = "Method not existing for the given class"):
+        self.message = message
+
+    def __str__(self):
+        return self.message
+

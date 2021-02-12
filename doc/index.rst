@@ -39,12 +39,12 @@ The source code and minimal working examples can be found on
     :caption: API Reference
     :maxdepth: 2
 
-    modules/logic/relunn
-    modules/logic/sigmoidnn
+    modules/logic/relu_nn
+    modules/logic/psi_nn
     modules/nn/linear
     modules/utils/base
-    modules/utils/relunn
-    modules/utils/sigmoidnn
+    modules/utils/relu_nn
+    modules/utils/psi_nn
     modules/utils/selection
 
 

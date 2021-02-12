@@ -3,7 +3,7 @@ import numpy as np
 from lime.lime_tabular import LimeTabularExplainer
 
 from .base import collect_parameters, to_categorical
-from .relunn import get_reduced_model
+from .relu_nn import get_reduced_model
 
 
 def rank_pruning(model: torch.nn.Module,

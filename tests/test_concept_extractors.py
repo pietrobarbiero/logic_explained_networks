@@ -16,7 +16,6 @@ transform = transforms.Compose([
     transforms.Grayscale(3),
     transforms.ToTensor(),
 ])
-# transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
 transform_inception = transforms.Compose([
     transforms.CenterCrop(size=299),
@@ -24,7 +23,6 @@ transform_inception = transforms.Compose([
     transforms.Grayscale(3),
     transforms.ToTensor(),
 ])
-# transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
 num_data = 100
 device = torch.device("cuda:1") if torch.cuda.is_available() else torch.device("cpu")
