@@ -75,12 +75,12 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         output = self.model(x)
         return output
 
+    def prune(self, fan_in: int):
+        prune_equal_fanin(self.model, fan_in, validate=True, device=self.get_device())
+
     def get_local_explanation(self, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor, target_class,
                               simplify: bool = True, concept_names: list = None) -> str:
         raise NotAvailableError()
-
-    def prune(self, n: int):
-        prune_equal_fanin(self.model, n, validate=True, device=self.get_device())
 
     def get_global_explanation(self, target_class: int, concept_names: list = None, **kwargs):
         """

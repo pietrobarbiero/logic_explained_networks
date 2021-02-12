@@ -5,7 +5,7 @@ from ..utils.relu_nn import get_reduced_model, prune_features
 from .base import BaseClassifier, BaseXModel
 
 
-class XReluClassifier(BaseClassifier, BaseXModel):
+class XReluNN(BaseClassifier, BaseXModel):
     """
         Feed forward Neural Network employing ReLU activation function of variable depth but completely interpretable.
         After being trained it provides for local explanation for the prediction on a single example and global
@@ -66,7 +66,7 @@ class XReluClassifier(BaseClassifier, BaseXModel):
         :param x: input tensor
         :return: output classification
         """
-        super(XReluClassifier, self).forward(x)
+        super(XReluNN, self).forward(x)
         output = self.model(x)
         return output
 
@@ -79,13 +79,13 @@ class XReluClassifier(BaseClassifier, BaseXModel):
         """
         return get_reduced_model(self.model, x_sample)
 
-    def prune(self, n_features: int):
+    def prune(self, fan_in: int):
         """
         Prune the inputs of the model.
 
-        :param n_features: number of input features to retain
+        :param fan_in: number of input features to retain
         """
-        self.model = prune_features(self.model, n_features, self.get_device())
+        self.model = prune_features(self.model, fan_in, self.get_device())
 
     def get_local_explanation(self, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
                               target_class, simplify: bool = True, concept_names: list = None):

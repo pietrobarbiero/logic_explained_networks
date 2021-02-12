@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import TensorDataset
 
 from deep_logic.models.logistic_regression import XLogisticRegressionClassifier
-from deep_logic.models.relu_nn import XReluClassifier
+from deep_logic.models.relu_nn import XReluNN
 from deep_logic.models.psi_nn import PsiNetwork
 from deep_logic.models.tree import XDecisionTreeClassifier
 from deep_logic.utils.base import set_seed
@@ -38,8 +38,8 @@ class TestModels(unittest.TestCase):
     def test_1_relu_nn(self):
         set_seed(0)
 
-        model = XReluClassifier(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                                l1_weight=l1_weight)
+        model = XReluNN(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
+                        l1_weight=l1_weight)
 
         results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric)
         assert results.shape == (epochs, 4)
@@ -54,8 +54,8 @@ class TestModels(unittest.TestCase):
         assert global_explanation == '~feature0000000000 | ~feature0000000001'
 
         # Test with multiple targets
-        model = XReluClassifier(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                                l1_weight=l1_weight)
+        model = XReluNN(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
+                        l1_weight=l1_weight)
 
         results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric)
         assert results.shape == (epochs, 4)

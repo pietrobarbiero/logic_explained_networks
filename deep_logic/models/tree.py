@@ -169,7 +169,7 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         except FileNotFoundError:
             raise ClassifierNotTrainedError() from None
 
-    def prune(self, n: int):
+    def prune(self, fan_in: int):
         raise NotAvailableError()
 
     def get_local_explanation(self, x: torch.Tensor, concept_names):

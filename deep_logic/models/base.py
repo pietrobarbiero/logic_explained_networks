@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import Tuple
 
 import pandas as pd
@@ -11,7 +11,7 @@ from deep_logic.utils.base import ClassifierNotTrainedError, IncompatibleClassif
 from deep_logic.utils.metrics import Metric, TopkAccuracy, Accuracy
 
 
-class BaseXModel:
+class BaseXModel(ABC):
     """Base class for all models in XDL."""
 
     @abstractmethod
@@ -41,15 +41,6 @@ class BaseXModel:
         :param concept_names: list of concept names which compose the explanation
         :param class_to_explain: class for which the explanation is given
         :return: The explanation
-        """
-        pass
-
-    @abstractmethod
-    def prune(self, n: int):
-        """
-        prune allows to delete the least important weights of the network such that the model is interpretable
-
-        n: number of input features to retain
         """
         pass
 
@@ -95,6 +86,15 @@ class BaseClassifier(torch.nn.Module):
         return [*self.model.parameters()][0].device
 
     @abstractmethod
+    def prune(self, fan_in: int):
+        """
+        prune allows to delete the least important weights of the network such that the model is interpretable
+
+        n: number of input features to retain
+        """
+        pass
+
+    @abstractmethod
     def forward(self, x):
         """
         forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
@@ -132,13 +132,14 @@ class BaseClassifier(torch.nn.Module):
         # Setting loss function and optimizer
         optimizer = torch.optim.AdamW(self.parameters())
         scheduler = ReduceLROnPlateau(optimizer, mode='max', verbose=verbose,
-                                      factor=0.33, min_lr=1e-3*l_r) if lr_scheduler else None
+                                      factor=0.33, min_lr=1e-3 * l_r) if lr_scheduler else None
 
         # Training epochs
         best_acc, best_epoch = 0.0, -1
         train_accs, val_accs, tot_losses = [], [], []
         train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True,
-                                                   num_workers=num_workers, prefetch_factor=4 if num_workers != 0 else 2)
+                                                   num_workers=num_workers,
+                                                   prefetch_factor=4 if num_workers != 0 else 2)
         pbar = tqdm(range(epochs), ncols=100, position=0, leave=True) if verbose else None
         torch.autograd.set_detect_anomaly(True)
         for epoch in range(epochs):
@@ -224,7 +225,7 @@ class BaseClassifier(torch.nn.Module):
         self.eval(), self.to(device)
         with torch.no_grad():
             if outputs is None or labels is None:
-                outputs, labels = self.predict(dataset, batch_size, num_workers,  device)
+                outputs, labels = self.predict(dataset, batch_size, num_workers, device)
             metric_val = metric(outputs, labels)
         self.train()
         return metric_val
