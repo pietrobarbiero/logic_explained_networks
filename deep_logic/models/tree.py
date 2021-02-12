@@ -172,8 +172,15 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
     def prune(self, fan_in: int):
         raise NotAvailableError()
 
-    def get_local_explanation(self, x: torch.Tensor, concept_names):
+    def get_local_explanation(self, **kwargs):
         raise NotAvailableError()
+
+    def get_global_explanation(self, class_to_explain: int, concept_names: list = None, *args,
+                               **kwargs) -> str:
+        if concept_names is None:
+            concept_names = [f"f_{i}" for i in range(self.n_features)]
+        formula = tree_to_formula(self.model, concept_names, class_to_explain)
+        return formula
 
 
 if __name__ == "__main__":

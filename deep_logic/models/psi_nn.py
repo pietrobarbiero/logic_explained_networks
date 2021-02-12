@@ -90,13 +90,11 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         :param concept_names:
         :return: Explanation
         """
-        explanations = generate_fol_explanations(self.model, self.get_device())
+        explanations = generate_fol_explanations(self.model, self.get_device(), concept_names)
         if len(explanations) > 1:
             explanations = explanations[target_class]
         else:
             explanations = explanations[0]
-        if concept_names is not None:
-            explanations = replace_names(explanations, concept_names)
         return explanations
 
     def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, num_workers: int = 0,

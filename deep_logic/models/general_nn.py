@@ -4,9 +4,9 @@ from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
 from ..logic.relu_nn import combine_local_explanations, explain_local
-from ..utils.relu_nn import prune_features
 from .base import BaseClassifier, BaseXModel
-from ..utils.metrics import Metric, TopkAccuracy, Accuracy
+from ..utils.general_nn import prune_features_fanin
+from ..utils.metrics import Metric, Accuracy
 
 
 class XGeneralNN(BaseClassifier, BaseXModel):
@@ -75,7 +75,8 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         return output
 
     def prune(self, fan_in: int):
-        prune_features(self.model, fan_in, device=self.get_device())
+        n_classes = self.n_classes if self.n_classes > 2 else 1
+        prune_features_fanin(self.model, fan_in, n_classes, device=self.get_device())
 
     def get_local_explanation(self, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
                               target_class, simplify: bool = True, concept_names: list = None):
@@ -112,7 +113,6 @@ class XGeneralNN(BaseClassifier, BaseXModel):
                                                        concept_names=concept_names, device=self.get_device(),
                                                        num_classes=self.n_classes)
         return global_expl
-
 
     def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, num_workers: int = 0,
             l_r: float = 0.1, metric: Metric = Accuracy(), device: torch.device = torch.device("cpu"),

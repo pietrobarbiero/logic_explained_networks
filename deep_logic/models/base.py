@@ -32,7 +32,7 @@ class BaseXModel(ABC):
         pass
 
     @abstractmethod
-    def get_global_explanation(self, x: torch.Tensor, y, class_to_explain: list, concept_names: list,
+    def get_global_explanation(self, x: torch.Tensor, y: torch.Tensor, class_to_explain: int, concept_names: list,
                                *args, **kwargs) -> str:
         """
         Get explanation of model decision taken on the input x.

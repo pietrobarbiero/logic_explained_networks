@@ -8,12 +8,14 @@ from sympy.logic import simplify_logic
 from ..utils.base import collect_parameters
 
 
-def generate_fol_explanations(model: torch.nn.Module, device: torch.device = torch.device('cpu')) -> List[str]:
+def generate_fol_explanations(model: torch.nn.Module, device: torch.device = torch.device('cpu'),
+                              concept_names: list = None,) -> List[str]:
     """
     Generate the FOL formulas corresponding to the parameters of a reasoning network.
 
     :param model: pytorch model
     :param device: cpu or cuda device
+    :param concept_names: list of names of the input features
     :return: first-order logic formulas
     """
     weights, bias = collect_parameters(model, device)
@@ -25,9 +27,13 @@ def generate_fol_explanations(model: torch.nn.Module, device: torch.device = tor
     n_features = np.shape(weights[0])[1]
 
     # create fancy feature names
-    feature_names = list()
-    for k in range(n_features):
-        feature_names.append(f'feature{k:010}')
+    if concept_names is not None:
+        assert len(concept_names) == n_features, "Concept names need to be as much as network input nodes"
+        feature_names = concept_names
+    else:
+        feature_names = list()
+        for k in range(n_features):
+            feature_names.append(f'feature{k:010}')
 
     # count the number of hidden neurons for each layer
     neuron_list = _count_neurons(weights)

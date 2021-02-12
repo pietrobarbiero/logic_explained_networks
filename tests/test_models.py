@@ -3,7 +3,7 @@ import unittest
 import torch
 from torch.utils.data import TensorDataset
 
-from deep_logic.models.logistic_regression import XLogisticRegressionClassifier
+# from deep_logic.models.logistic_regression import XLogisticRegressionClassifier
 from deep_logic.models.relu_nn import XReluNN
 from deep_logic.models.psi_nn import PsiNetwork
 from deep_logic.models.tree import XDecisionTreeClassifier
@@ -15,7 +15,7 @@ from deep_logic.models.general_nn import XGeneralNN
 # Create data
 x = torch.tensor([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=torch.float).cpu()
 y = torch.tensor([0, 1, 1, 0], dtype=torch.float).unsqueeze(1).cpu()
-y_multi = torch.tensor([[0, 1], [1, 0], [0, 1], [1, 0]], dtype=torch.float).cpu()
+y_multi = torch.tensor([[0, 1], [1, 0], [1, 0], [0, 1]], dtype=torch.float).cpu()
 train_data = TensorDataset(x, y)
 train_data_multi = TensorDataset(x, y_multi)
 x_sample = x[1]
@@ -66,11 +66,12 @@ class TestModels(unittest.TestCase):
         assert accuracy == 100.0
         print(accuracy)
 
-        local_explanation = model.get_local_explanation(x, y, x_sample, target_class=y_sample_multi)
-        assert local_explanation == 'feature0000000001'
+        local_explanation = model.get_local_explanation(x, y_multi, x_sample, target_class=y_sample_multi)
+        assert local_explanation == '~feature0000000000 & feature0000000001'
 
-        global_explanation = model.get_global_explanation(x, y, target_class=y_sample_multi)
-        assert global_explanation == 'feature0000000001'
+        global_explanation = model.get_global_explanation(x, y_multi, target_class=y_sample_multi)
+        assert global_explanation == '(feature0000000000 & ~feature0000000001) | ' \
+                                     '(feature0000000001 & ~feature0000000000)'
 
         return
 
@@ -101,7 +102,7 @@ class TestModels(unittest.TestCase):
 
         explanation = model.get_global_explanation(target_class=y_sample_multi)
         print(explanation)
-        assert explanation == '(feature0000000001)'
+        assert explanation == '((feature0000000000 & ~feature0000000001) | (feature0000000001 & ~feature0000000000))'
 
         return
 
@@ -125,8 +126,8 @@ class TestModels(unittest.TestCase):
                                      '(feature0000000001 & ~feature0000000000)'
 
         # Test with multiple targets
-        model = XReluNN(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                        l1_weight=l1_weight)
+        model = XGeneralNN(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
+                           l1_weight=l1_weight)
 
         results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric)
         assert results.shape == (epochs, 4)
@@ -135,10 +136,10 @@ class TestModels(unittest.TestCase):
         assert accuracy == 100.0
         print(accuracy)
 
-        local_explanation = model.get_local_explanation(x, y, x_sample, target_class=y_sample)
+        local_explanation = model.get_local_explanation(x, y_multi, x_sample, target_class=y_sample_multi)
         assert local_explanation == '~feature0000000000 & feature0000000001'
 
-        global_explanation = model.get_global_explanation(x, y, target_class=y_sample)
+        global_explanation = model.get_global_explanation(x, y_multi, target_class=y_sample_multi)
         assert global_explanation == '(feature0000000000 & ~feature0000000001) | ' \
                                      '(feature0000000001 & ~feature0000000000)'
 
@@ -157,15 +158,21 @@ class TestModels(unittest.TestCase):
 
         assert accuracy == 100.0
 
+        formula = model.get_global_explanation(class_to_explain=y_sample)
+        print(formula)
+
         model = XDecisionTreeClassifier(n_classes=2, n_features=n_features)
 
         results = model.fit(train_data_multi, train_data, metric=metric)
 
         assert results.shape == (1, 4)
 
-        accuracy = model.evaluate(train_data)
+        accuracy = model.evaluate(train_data_multi)
 
         assert accuracy == 100.0
+
+        formula = model.get_global_explanation(class_to_explain=y_sample_multi)
+        print(formula)
         return
 
 
