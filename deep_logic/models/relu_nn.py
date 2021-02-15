@@ -1,7 +1,8 @@
 import torch
 
+from ..utils.base import NotAvailableError
 from ..logic.relu_nn import combine_local_explanations, explain_local
-from ..utils.relu_nn import get_reduced_model, prune_features
+from ..utils.relu_nn import get_reduced_model
 from .base import BaseClassifier, BaseXModel
 
 
@@ -79,13 +80,12 @@ class XReluNN(BaseClassifier, BaseXModel):
         """
         return get_reduced_model(self.model, x_sample)
 
-    def prune(self, fan_in: int):
+    def prune(self):
         """
         Prune the inputs of the model.
-
-        :param fan_in: number of input features to retain
         """
-        self.model = prune_features(self.model, fan_in, self.get_device())
+        # self.model = prune_features(self.model, self.n_classes, self.get_device())
+        raise NotAvailableError()
 
     def get_local_explanation(self, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
                               target_class, simplify: bool = True, concept_names: list = None):

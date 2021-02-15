@@ -79,7 +79,7 @@ class TestModels(unittest.TestCase):
         set_seed(0)
 
         model = PsiNetwork(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                           l1_weight=l1_weight)
+                           l1_weight=l1_weight, fan_in=2)
 
         results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric)
         assert results.shape == (epochs, 4)

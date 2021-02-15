@@ -61,11 +61,10 @@ class XLogisticRegressionClassifier(BaseClassifier, BaseXModel):
                                **kwargs) -> str:
         raise NotImplementedError  # TODO: implement
 
-    def prune(self, fan_in: int):
+    def prune(self):
         """
         Prune the inputs of the model.
 
-        :param fan_in: number of input features to retain
         """
         self.model = prune_features(self.model, fan_in, self.get_device())
 
