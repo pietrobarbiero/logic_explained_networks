@@ -3,7 +3,6 @@ import unittest
 import torch
 from torch.utils.data import TensorDataset
 
-# from deep_logic.models.logistic_regression import XLogisticRegressionClassifier
 from deep_logic.models.relu_nn import XReluNN
 from deep_logic.models.psi_nn import PsiNetwork
 from deep_logic.models.tree import XDecisionTreeClassifier
@@ -88,7 +87,8 @@ class TestModels(unittest.TestCase):
         assert accuracy == 100.0
 
         explanation = model.get_global_explanation(target_class=y_sample)
-        assert explanation == '((feature0000000000 & ~feature0000000001) | (feature0000000001 & ~feature0000000000))'
+        assert explanation == '((feature0000000000 & ~feature0000000001) | ' \
+                              '(feature0000000001 & ~feature0000000000))'
 
         model = PsiNetwork(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
                            l1_weight=l1_weight)
@@ -102,7 +102,8 @@ class TestModels(unittest.TestCase):
 
         explanation = model.get_global_explanation(target_class=y_sample_multi)
         print(explanation)
-        assert explanation == '((feature0000000000 & ~feature0000000001) | (feature0000000001 & ~feature0000000000))'
+        assert explanation == '((feature0000000000 & ~feature0000000001) | ' \
+                              '(feature0000000001 & ~feature0000000000))'
 
         return
 
@@ -142,7 +143,6 @@ class TestModels(unittest.TestCase):
         global_explanation = model.get_global_explanation(x, y_multi, target_class=y_sample_multi)
         assert global_explanation == '(feature0000000000 & ~feature0000000001) | ' \
                                      '(feature0000000001 & ~feature0000000000)'
-
         return
 
     def test_4_tree(self):
@@ -175,6 +175,6 @@ class TestModels(unittest.TestCase):
         print(formula)
         return
 
-
-if __name__ == '__main__':
-    unittest.main()
+#
+# if __name__ == '__main__':
+#     unittest.main()

@@ -1,5 +1,6 @@
 import torch
 
+from ..nn import XLinear
 from ..utils.base import NotAvailableError
 from ..utils.psi_nn import prune_equal_fanin
 from ..logic.psi_nn import generate_fol_explanations
@@ -34,14 +35,21 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         for i in range(len(hidden_neurons) + 1):
             input_nodes = hidden_neurons[i - 1] if i != 0 else n_features
             output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else n_classes
+            if i == 0:
+                layer = torch.nn.Linear(input_nodes, output_nodes * self.n_classes)
+            elif i != len(hidden_neurons):
+                layer = XLinear(input_nodes, output_nodes, self.n_classes)
+            else:
+                layer = XLinear(input_nodes, 1, self.n_classes)
             layers.extend([
-                torch.nn.Linear(input_nodes, output_nodes),
+                layer,
                 torch.nn.Sigmoid()
             ])
         self.model = torch.nn.Sequential(*layers)
         self.loss = loss
         self.l1_weight = l1_weight
         self.fan_in = fan_in
+        self.need_pruning = True
 
     def get_loss(self, output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """

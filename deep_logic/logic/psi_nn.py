@@ -132,7 +132,6 @@ def _forward(X: np.array, weights: np.array, bias: np.array) -> np.array:
     return y_pred
 
 
-
 def _get_nonpruned_weights(weight_matrix: np.array, fan_in: int) -> np.array:
     """
     Get non-pruned weights.
