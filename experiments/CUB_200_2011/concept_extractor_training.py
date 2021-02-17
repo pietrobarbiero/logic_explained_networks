@@ -5,13 +5,13 @@ sys.path.append(os.path.join('..', '..'))
 import torch
 import numpy as np
 from torch.utils.data import Subset
-from data import data_transforms, CUB200
-from data.i2c_dataset import ImageToConceptDataset
+from data import CUB200
+from deep_logic.utils.datasets import ImageToConceptDataset
 from deep_logic.utils import metrics
 from deep_logic.utils.base import set_seed
-from deep_logic.utils.data import get_splits_train_val_test, show_batch, get_splits_for_fsc
-from concept_extractor import cnn_models
-from concept_extractor.concept_extractor import CNNConceptExtractor
+from deep_logic.utils.data import get_transform, get_splits_train_val_test, get_splits_for_fsc, show_batch
+from deep_logic.concept_extractor import cnn_models
+from deep_logic.concept_extractor.concept_extractor import CNNConceptExtractor
 
 
 if __name__ == '__main__':
@@ -39,9 +39,9 @@ if __name__ == '__main__':
 
     for seed in seeds:
         set_seed(seed)
-        train_transform = data_transforms.get_transform(dataset=CUB200, data_augmentation=data_augmentation,
+        train_transform = get_transform(dataset=CUB200, data_augmentation=data_augmentation,
                                                         inception=cnn_model == cnn_models.INCEPTION)
-        test_transform = data_transforms.get_transform(dataset=CUB200, data_augmentation=False,
+        test_transform = get_transform(dataset=CUB200, data_augmentation=False,
                                                        inception=cnn_model == cnn_models.INCEPTION)
         dataset = ImageToConceptDataset(root, train_transform, dataset_name=CUB200, denoised=denoised)
         if reduced:
@@ -64,9 +64,9 @@ if __name__ == '__main__':
 
         # name = f"model_{cnn_model}_prtr_{pretrained}_trlr_{transfer_learning}_bl_{binary_loss}_fs_{few_shot}_dataset_" \
         #        f"{CUB200}_denoised_{denoised}_reduced_{reduced}_lr_{l_r}_epochs_{epochs}_seed_{seed}_" \
-        #        f"time_{datetime.now().strftime('%d-%m-%y %H:%M:%S')}"
+        #        f"time_{datetime.now().strftime('%d-%m-%y %H:%M:%S')}.pth"
         name = "model_Resnet_18_prtr_True_trlr_False_bl_True_fs_False_dataset_cub200_denoised_True_reduced_False_" \
-               "lr_0.003_epochs_200_seed_0_time_04-02-21 16:20:27"
+               "lr_0.003_epochs_200_seed_0_time_04-02-21 16:20:27.pth"
         print(name)
         model = CNNConceptExtractor(dataset.n_attributes, cnn_model=cnn_model,
                                     loss=loss(), name=name, pretrained=pretrained, transfer_learning=transfer_learning)

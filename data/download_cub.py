@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 
-def download_cub(force=False):
+def download_cub(force=True):
     if os.path.isdir("CUB_200_2011") and not force:
         print("Dataset already downloaded")
         return
@@ -86,14 +86,14 @@ def download_cub(force=False):
     for c in np.unique(classes):
         imgs = classes == c
         # class_attributes = np.mean(attributes[imgs], axis=0)
-        class_attributes = attribute_per_class[c - 1, :] > 49
+        class_attributes = attribute_per_class[c - 1, :] > 50
         very_denoised_attributes[imgs, :] = class_attributes
         attribute_sparsity += class_attributes
     classes_to_filter = attribute_sparsity < 10
     very_denoised_attributes[:, classes_to_filter] = 0
     attributes_filtered = np.sum(1 - classes_to_filter)
-    np.save("very_denoised_attributes.npy", very_denoised_attributes)
     print("Number of attributes remained", attributes_filtered)
+    np.save("very_denoised_attributes.npy", very_denoised_attributes)
     print("Denoised attributes Saved")
 
     for item in os.listdir():
