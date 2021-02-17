@@ -25,9 +25,10 @@ class XGeneralNN(BaseClassifier, BaseXModel):
      """
 
     def __init__(self, n_classes: int, n_features: int, hidden_neurons: list, loss: torch.nn.modules.loss,
-                 l1_weight: float = 1e-4, fan_in: int = None, device: torch.device = torch.device('cpu'), name: str = "net"):
+                 l1_weight: float = 1e-4, fan_in: int = None, device: torch.device = torch.device('cpu'),
+                 name: str = "general_net"):
 
-        super().__init__(name, device)
+        super().__init__(loss, name, device)
         self.n_classes = n_classes
         self.n_features = n_features
 
@@ -43,10 +44,9 @@ class XGeneralNN(BaseClassifier, BaseXModel):
                 layer = XLinear(input_nodes, 1, self.n_classes)
             layers.extend([
                 layer,
-                torch.nn.LeakyReLU() if i != len(hidden_neurons) else torch.nn.Sigmoid()
+                torch.nn.LeakyReLU() if i != len(hidden_neurons) else torch.nn.Identity()
             ])
         self.model = torch.nn.Sequential(*layers)
-        self.loss = loss
         self.l1_weight = l1_weight
         self.fan_in = fan_in
         self.need_pruning = True
@@ -65,19 +65,23 @@ class XGeneralNN(BaseClassifier, BaseXModel):
             if hasattr(layer, "weight"):
                 l1_reg_loss += torch.sum(torch.abs(layer.weight))
                 break
-        output_loss = self.loss(output, target)
+        output_loss = super().get_loss(output, target)
         return output_loss + self.l1_weight * l1_reg_loss
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x, logits=False) -> torch.Tensor:
         """
         forward method extended from Classifier. Here input data goes through the layer of the Sigmoid network.
         A probability value is returned in output after sigmoid activation
 
         :param x: input tensor
+        :param logits: whether to return the logits or the probability value after the activation (default)
         :return: output classification
         """
         super(XGeneralNN, self).forward(x)
         output = self.model(x)
+        if logits:
+            return output
+        output = self.activation(output)
         return output
 
     def prune(self):
@@ -100,7 +104,11 @@ class XGeneralNN(BaseClassifier, BaseXModel):
 
         :return: Local Explanation
         """
-        return explain_local(self.model, x, y, x_sample, target_class, method='pruning', simplify=simplify,
+        if self.fan_in is None:
+            method = "weights"
+        else:
+            method = "pruning"
+        return explain_local(self.model, x, y, x_sample, target_class, method=method, simplify=simplify,
                              concept_names=concept_names, device=self.get_device(), num_classes=self.n_classes)
 
     def get_global_explanation(self, x, y, target_class: int, topk_explanations: int = 2, simplify: bool = True,
@@ -116,7 +124,11 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         :param simplify: simplify local explanation
         :param concept_names: list containing the names of the input concepts
         """
-        global_expl, _, _ = combine_local_explanations(self.model, x, y, target_class, method="pruning",
+        if self.fan_in is None:
+            method = "weights"
+        else:
+            method = "pruning"
+        global_expl, _, _ = combine_local_explanations(self.model, x, y, target_class, method=method,
                                                        simplify=simplify, topk_explanations=topk_explanations,
                                                        concept_names=concept_names, device=self.get_device(),
                                                        num_classes=self.n_classes)

@@ -85,6 +85,7 @@ def validate_network(model: torch.nn.Module, model_type: str = 'relu') -> None:
     Check that the model is a valid deep-logic network.
 
     :param model: pytorch model
+    :param model_type:
     :return:
     """
     if model_type == 'relu':
@@ -99,7 +100,8 @@ def validate_network(model: torch.nn.Module, model_type: str = 'relu') -> None:
 
     if model_type == 'psi':
         for module in model.children():
-            assert isinstance(module, torch.nn.Linear) or isinstance(module, torch.nn.Sigmoid)
+            assert isinstance(module, torch.nn.Linear) or isinstance(module, torch.nn.Sigmoid)\
+                   or isinstance(module, torch.nn.Identity)
 
     return
 

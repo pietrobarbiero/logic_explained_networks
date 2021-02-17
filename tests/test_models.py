@@ -42,7 +42,7 @@ class TestModels(unittest.TestCase):
         model = XReluNN(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
                         l1_weight=l1_weight)
 
-        results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric)
+        results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
 
         accuracy = model.evaluate(train_data, metric=metric)
@@ -58,7 +58,7 @@ class TestModels(unittest.TestCase):
         model = XReluNN(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
                         l1_weight=l1_weight)
 
-        results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric)
+        results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
 
         accuracy = model.evaluate(train_data_multi, metric=metric)
@@ -80,7 +80,7 @@ class TestModels(unittest.TestCase):
         model = PsiNetwork(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
                            l1_weight=l1_weight, fan_in=2)
 
-        results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric)
+        results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
 
         accuracy = model.evaluate(train_data, metric=metric)
@@ -93,7 +93,7 @@ class TestModels(unittest.TestCase):
         model = PsiNetwork(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
                            l1_weight=l1_weight)
 
-        results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric)
+        results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
 
         accuracy = model.evaluate(train_data_multi, metric=metric)
@@ -113,7 +113,7 @@ class TestModels(unittest.TestCase):
         model = XGeneralNN(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
                            l1_weight=l1_weight)
 
-        results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric)
+        results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
 
         accuracy = model.evaluate(train_data, metric=metric)
@@ -130,7 +130,7 @@ class TestModels(unittest.TestCase):
         model = XGeneralNN(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
                            l1_weight=l1_weight)
 
-        results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric)
+        results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
 
         accuracy = model.evaluate(train_data_multi, metric=metric)
@@ -150,7 +150,7 @@ class TestModels(unittest.TestCase):
 
         model = XDecisionTreeClassifier(n_classes=1, n_features=n_features)
 
-        results = model.fit(train_data, train_data, metric=metric)
+        results = model.fit(train_data, train_data, metric=metric, save=False)
 
         assert results.shape == (1, 4)
 
@@ -163,7 +163,7 @@ class TestModels(unittest.TestCase):
 
         model = XDecisionTreeClassifier(n_classes=2, n_features=n_features)
 
-        results = model.fit(train_data_multi, train_data, metric=metric)
+        results = model.fit(train_data_multi, train_data, metric=metric, save=False)
 
         assert results.shape == (1, 4)
 
@@ -175,6 +175,6 @@ class TestModels(unittest.TestCase):
         print(formula)
         return
 
-#
-# if __name__ == '__main__':
-#     unittest.main()
+
+if __name__ == '__main__':
+    unittest.main()

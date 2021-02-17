@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 
 from .base import BaseClassifier, ClassifierNotTrainedError, BaseXModel
 from ..utils.base import tree_to_formula, NotAvailableError
-from ..utils.metrics import Metric, TopkAccuracy, Accuracy
+from ..utils.metrics import Metric, Accuracy
 
 
 class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
@@ -23,10 +23,10 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
             maximum depth for the classifier. The deeper is the tree, the more complex are the explanations provided.
      """
 
-    def __init__(self, n_classes: int, n_features: int, max_depth: int = None, device: torch.device = torch.device('cpu'),
-                 name: str = "net"):
+    def __init__(self, n_classes: int, n_features: int, max_depth: int = None,
+                 device: torch.device = torch.device('cpu'), name: str = "tree"):
 
-        super().__init__(name, device)
+        super().__init__(name=name, device=device)
         assert device == torch.device('cpu'), "Only cpu training is provided with decision tree models."
 
         self.n_classes = n_classes
@@ -34,7 +34,7 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
 
         self.model = DecisionTreeClassifier(max_depth=max_depth)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x, **kwargs) -> torch.Tensor:
         """
         forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
         A probability value is returned in output after sigmoid activation
@@ -42,7 +42,6 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         :param x: input tensor
         :return: output classification
         """
-        super(XDecisionTreeClassifier, self).forward(x)
         x = x.detach().cpu().numpy()
         output = self.model.predict_proba(x)
         return output
@@ -65,8 +64,8 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         """
         return torch.device("cpu")
 
-    def fit(self, train_set: Dataset, val_set: Dataset, metric: Metric = TopkAccuracy(),
-            verbose: bool = True, **kwargs) -> pd.DataFrame:
+    def fit(self, train_set: Dataset, val_set: Dataset, metric: Metric = Accuracy(),
+            verbose: bool = True, save=True, **kwargs) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.
         Adam optimizer is always employed
@@ -75,18 +74,19 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         :param val_set: validation set used for early stopping
         :param metric: metric to evaluate the predictions of the network
         :param verbose: whether to output or not epoch metrics
+        :param save: whether to save the model or not
         :return: pandas dataframe collecting the metrics from each epoch
         """
 
         # Laoding dataset
-        train_loader = torch.utils.data.DataLoader(train_set, 64)#, shuffle=True, pin_memory=True, num_workers=8)
+        train_loader = torch.utils.data.DataLoader(train_set, 1024, num_workers=8)
         train_data, train_labels = [], []
         for data in train_loader:
             train_data.append(data[0]), train_labels.append(data[1])
         train_data, train_labels = torch.cat(train_data).numpy(), torch.cat(train_labels).numpy()
 
         # Fitting decision tree
-        if train_labels.shape[1] > 1:
+        if len(train_labels.squeeze().shape) > 1:
             train_labels = np.argmax(train_labels, axis=1)
         self.model = self.model.fit(X=train_data, y=train_labels)
 
@@ -95,9 +95,10 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         val_acc = self.evaluate(val_set, metric)
 
         if verbose:
-            print({"Train_acc": f"{train_acc:.1f}", "Val_acc": f"{val_acc:.1f}"})
+            print(f"Train_acc: {train_acc:.1f}, Val_acc: {val_acc:.1f}")
 
-        self.save()
+        if save:
+            self.save()
 
         # Performance dictionary
         performance_dict = {
@@ -129,28 +130,23 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         :return: a tuple containing the outputs computed on the dataset and the labels
         """
         outputs, labels = [], []
-        loader = torch.utils.data.DataLoader(dataset, 2)  # , num_workers=8, pin_memory=True)
+        loader = torch.utils.data.DataLoader(dataset, 1024)
         for data in loader:
             batch_data = data[0]
             batch_output = self.forward(batch_data)
-            if data[1].shape[1] == 1:
-                batch_output = batch_output[:, 1].squeeze()
             outputs.append(batch_output)
-            labels.append(data[1].squeeze().cpu().detach().numpy())
-
-        if data[1].shape[1] == 1:
-            return torch.FloatTensor(np.hstack(outputs)), torch.FloatTensor(np.hstack(labels))
-        else:
-            return torch.FloatTensor(np.vstack(outputs)), torch.FloatTensor(np.vstack(labels))
+            labels.append(data[1].numpy())
+        labels = np.concatenate(labels)
+        outputs = np.vstack(outputs)
+        return torch.FloatTensor(outputs), torch.FloatTensor(labels)
 
     def save(self, name=None, **kwargs) -> None:
-        from joblib import dump
-
         """
         Save model on a file named with the name of the model if parameter name is not set.
 
         :param name: Save the model with a name different from the one assigned in the __init__
         """
+        from joblib import dump
         if name is None:
             name = self.name
         dump(self.model, name)

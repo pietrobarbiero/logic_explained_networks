@@ -1,13 +1,13 @@
-
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset
 from tqdm import tqdm
 import pandas as pd
 
-from deep_logic.utils.metrics import Metric, TopkAccuracy
-from deep_logic.models.base import BaseClassifier
-from deep_logic.concept_extractor.cnn_models import RESNET10, get_model, CNN_MODELS, INCEPTION
+from ..utils.metrics import Metric, TopkAccuracy
+from ..models.base import BaseClassifier
+from .cnn_models import RESNET10, get_model, CNN_MODELS, INCEPTION
+from ..utils.base import NotAvailableError
 
 
 class CNNConceptExtractor(BaseClassifier):
@@ -27,20 +27,18 @@ class CNNConceptExtractor(BaseClassifier):
     """
 
     def __init__(self, n_classes: int, cnn_model: str = RESNET10, loss: torch.nn.modules.loss = torch.nn.BCELoss(),
-                 transfer_learning: bool =False, pretrained: bool = False, name: str = "net",
+                 transfer_learning: bool = False, pretrained: bool = False, name: str = "net",
                  device: torch.device = torch.device("cpu")):
-        super().__init__(name, device)
+        super().__init__(loss, name, device)
 
         assert cnn_model in CNN_MODELS, f"Required CNN model is not available, it needs to be among {CNN_MODELS.keys()}"
         assert not transfer_learning or pretrained, "Transfer learning can be applied only when pretrained is True"
-        assert isinstance(loss, torch.nn.NLLLoss) or isinstance(loss, torch.nn.BCELoss), "Only NLLLoss and BCELoss " \
-                                                                                         "are allowed"
+
         self.n_classes = n_classes
         self.cnn_model = cnn_model
         self.model = get_model(cnn_model, n_classes, pretrained=pretrained, transfer_learning=transfer_learning)
         self.pretrained = pretrained
         self.transfer_learning = transfer_learning
-        self.loss = loss
         self._output = None
         self._aux_output = None
 
@@ -53,39 +51,33 @@ class CNNConceptExtractor(BaseClassifier):
         :param targets: label tensor
         :return: loss tensor value
         """
-        if isinstance(self.loss, torch.nn.NLLLoss):
-            targets = targets.to(torch.long)
-            if len(targets.squeeze().shape) > 1:
-                targets = targets.argmax(dim=1)
-            outputs = torch.log(outputs)
-            loss = self.loss(outputs.squeeze(), targets.squeeze())
-        else:
-            targets = targets.to(torch.float)
-            loss = self.loss(outputs.squeeze(), targets.squeeze())
+        loss = super().get_loss(outputs, targets)
         if self.cnn_model == INCEPTION and self._aux_output is not None:
-            loss += 0.1 * self.loss(self._aux_output, targets)
+            loss += 0.1 * super().get_loss(self._aux_output, targets)
         return loss
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x, logits=False) -> torch.Tensor:
         """
         forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
         A probability value is returned in output after sigmoid activation
 
         :param x: input tensor
+        :param logits: whether to return the logits or the probability value after the activation (default)
         :return: output classification
         """
-        super(CNNConceptExtractor, self).forward(x)
         output = self.model(x)
 
         # Inception return 2 logits tensor
         if self.cnn_model == INCEPTION and self.training:
-            self._aux_output = torch.sigmoid(output[1])
+            self._aux_output = output[1]
             output = output[0]
-        if isinstance(self.loss, torch.nn.NLLLoss):
-            output = torch.softmax(output, dim=1)
-        else:
-            output = torch.sigmoid(output)
+        if logits:
+            return output
+        output = self.activation(output)
         return output
+
+    def prune(self):
+        NotAvailableError()
 
     def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, num_workers: int = 0,
             l_r: float = 0.01, lr_scheduler: bool = False, metric: Metric = TopkAccuracy(),

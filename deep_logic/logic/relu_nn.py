@@ -92,10 +92,12 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
         if local_explanation_raw in local_explanations_raw:
             local_explanation = local_explanations_raw[local_explanation_raw]
-        elif simplify and local_explanation_raw not in local_explanations_raw:
+        elif simplify:
             local_explanation = simplify_formula(local_explanation_raw, model,
                                                  x_validation, y_validation,
                                                  xi, target_class)
+        else:
+            local_explanation = local_explanation_raw
 
         if local_explanation in ['']:
             continue
@@ -125,7 +127,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
     # the global explanation is the disjunction of local explanations
     global_explanation = ' | '.join(most_common_explanations)
-    global_explanation_simplified = simplify_logic(global_explanation, 'dnf', force=True)
+    global_explanation_simplified = simplify_logic(global_explanation, 'dnf', force=simplify)
     global_explanation_simplified_str = str(global_explanation_simplified)
 
     if not global_explanation_simplified_str:
@@ -188,7 +190,7 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
         explanation = simplify_formula(explanation, model, x, y, x_sample, target_class)
 
     # replace concept placeholders with concept names
-    if concept_names:
+    if concept_names is not None:
         explanation = replace_names(explanation, concept_names)
 
     return explanation

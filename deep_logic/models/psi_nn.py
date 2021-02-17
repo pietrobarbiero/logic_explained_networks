@@ -25,9 +25,9 @@ class PsiNetwork(BaseClassifier, BaseXModel):
      """
 
     def __init__(self, n_classes: int, n_features: int, hidden_neurons: list, loss: torch.nn.modules.loss,
-                 l1_weight: float = 1e-4, device: torch.device = torch.device('cpu'), name: str = "net", fan_in=2):
+                 l1_weight: float = 1e-4, device: torch.device = torch.device('cpu'), name: str = "psi_net", fan_in=2):
 
-        super().__init__(name, device)
+        super().__init__(loss, name, device)
         self.n_classes = n_classes
         self.n_features = n_features
 
@@ -43,10 +43,9 @@ class PsiNetwork(BaseClassifier, BaseXModel):
                 layer = XLinear(input_nodes, 1, self.n_classes)
             layers.extend([
                 layer,
-                torch.nn.Sigmoid()
+                torch.nn.Sigmoid() if i != len(hidden_neurons) else torch.nn.Identity()
             ])
         self.model = torch.nn.Sequential(*layers)
-        self.loss = loss
         self.l1_weight = l1_weight
         self.fan_in = fan_in
         self.need_pruning = True
@@ -64,20 +63,8 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         for layer in self.model.children():
             if hasattr(layer, "weight"):
                 l1_reg_loss += torch.sum(torch.abs(layer.weight))
-        output_loss = self.loss(output, target)
+        output_loss = super().get_loss(output, target)
         return output_loss + self.l1_weight * l1_reg_loss
-
-    def forward(self, x) -> torch.Tensor:
-        """
-        forward method extended from Classifier. Here input data goes through the layer of the Sigmoid network.
-        A probability value is returned in output after sigmoid activation
-
-        :param x: input tensor
-        :return: output classification
-        """
-        super(PsiNetwork, self).forward(x)
-        output = self.model(x)
-        return output
 
     def prune(self):
         prune_equal_fanin(self.model, self.fan_in, validate=True, device=self.get_device())
@@ -86,15 +73,16 @@ class PsiNetwork(BaseClassifier, BaseXModel):
                               simplify: bool = True, concept_names: list = None) -> str:
         raise NotAvailableError()
 
-    def get_global_explanation(self, target_class: int, concept_names: list = None, **kwargs):
+    def get_global_explanation(self, target_class: int, concept_names: list = None, simplify: bool = True, **kwargs):
         """
         Generate explanations.
 
         :param target_class:
         :param concept_names:
+        :param simplify:
         :return: Explanation
         """
-        explanations = generate_fol_explanations(self.model, self.get_device(), concept_names)
+        explanations = generate_fol_explanations(self.model, self.get_device(), concept_names, simplify=True)
         if len(explanations) > 1:
             explanations = explanations[target_class]
         else:

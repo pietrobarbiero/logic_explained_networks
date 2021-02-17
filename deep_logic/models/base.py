@@ -56,28 +56,44 @@ class BaseClassifier(torch.nn.Module):
         name of the network: used for saving and loading purposes
     :param device: torch.device
         device on which to load the model after instantiating
+    :param loss: torch.nn.Module
+        loss to employ during training. It may be None when using non-gradient based methods
     :var trained: torch.bool
         flag set at the end of the training and saved with the model. Only trained model can be loaded from memory
      """
 
     @abstractmethod
-    def __init__(self, name: str = "net", device: torch.device = torch.device("cpu")):
+    def __init__(self, loss: torch.nn.Module = None, name: str = "net", device: torch.device = torch.device("cpu"),
+                 activation: torch.nn.Module = torch.nn.Sigmoid()):
 
         super(BaseClassifier, self).__init__()
+        if loss is not None:
+            assert isinstance(loss, torch.nn.CrossEntropyLoss) or \
+                   isinstance(loss, torch.nn.BCELoss), "Only CrossEntropyLoss and BCELoss are allowed"
+        self.loss = loss
+        self.activation = activation
         self.name = name
         self.register_buffer("trained", torch.tensor(True))
         self.need_pruning = False
         self.to(device)
 
-    @abstractmethod
-    def get_loss(self, output: torch.Tensor, target: torch.Tensor):
+    def get_loss(self, output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         get_loss method is used by each class to calculate its own loss according to the different training strategy
 
         :param output: output tensor from the forward function
         :param target: label tensor
         """
-        pass
+        if isinstance(self.loss, torch.nn.CrossEntropyLoss):
+            target = target.to(torch.long)
+            if len(target.squeeze().shape) > 1:
+                target = target.argmax(dim=1)
+            loss = self.loss(output.squeeze(), target.squeeze())
+        else:
+            output = torch.sigmoid(output)
+            target = target.to(torch.float)
+            loss = self.loss(output.squeeze(), target.squeeze())
+        return loss
 
     def get_device(self) -> torch.device:
         """
@@ -97,20 +113,26 @@ class BaseClassifier(torch.nn.Module):
         pass
 
     @abstractmethod
-    def forward(self, x):
+    def forward(self, x, logits=False):
         """
         forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
-        A probability value is returned in output after sigmoid activation
+        A probability value is returned in output after activation in case logits
 
         :param x: input tensor
+        :param logits: whether to return the logits or the probability value after the activation (default)
         :return: output classification
         """
         assert not torch.isnan(x).any(), "Input data contain nan values"
         assert not torch.isinf(x).any(), "Input data contain inf values"
+        output = self.model(x)
+        if logits:
+            return output
+        output = self.activation(output)
+        return output
 
     def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, num_workers: int = 0,
             l_r: float = 0.01, lr_scheduler: bool = False, metric: Metric = TopkAccuracy(),
-            device: torch.device = torch.device("cpu"), verbose: bool = True) -> pd.DataFrame:
+            device: torch.device = torch.device("cpu"), verbose: bool = True, save: bool = True) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.
         Adam optimizer is always employed
@@ -125,6 +147,7 @@ class BaseClassifier(torch.nn.Module):
         :param metric: metric to evaluate the predictions of the network
         :param device: device on which to perform the training
         :param verbose: whether to output or not epoch metrics
+        :param save: whether to save the model or not
         :return: pandas dataframe collecting the metrics from each epoch
         """
 
@@ -153,10 +176,11 @@ class BaseClassifier(torch.nn.Module):
                 optimizer.zero_grad()
 
                 # Network outputs on the current batch of dataset
-                batch_outputs = self.forward(batch_data)
+                logit_outputs = self.forward(batch_data, logits=True)
+                batch_outputs = self.activation(logit_outputs)
 
                 # Compute losses and update gradients
-                tot_loss = self.get_loss(batch_outputs, batch_labels)
+                tot_loss = self.get_loss(logit_outputs, batch_labels)
                 tot_loss.backward()
                 optimizer.step()
 
@@ -182,7 +206,7 @@ class BaseClassifier(torch.nn.Module):
             tot_losses.append(tot_losses_i.mean().item())
 
             # Save best model
-            if val_acc > best_acc and epoch > epochs // 2 or epochs == 1:
+            if (val_acc > best_acc and epoch > epochs // 2 or epochs == 1) and save:
                 best_acc = val_acc
                 best_epoch = epoch + 1
                 self.save()
@@ -202,7 +226,8 @@ class BaseClassifier(torch.nn.Module):
             pbar.close()
 
         # Best model is loaded and saved again with buffer "trained" set to true
-        self.load(device, set_trained=True)
+        if save:
+            self.load(device, set_trained=True)
 
         # Performance dictionary
         performance_dict = {
@@ -283,14 +308,12 @@ class BaseClassifier(torch.nn.Module):
         """
         if name is None:
             name = self.name
-        try:
-            incompatible_keys = self.load_state_dict(torch.load(name,
-                                                                map_location=torch.device(device)), strict=False)
-        except FileNotFoundError:
-            raise ClassifierNotTrainedError() from None
-        else:
-            if len(incompatible_keys.missing_keys) > 0 or len(incompatible_keys.unexpected_keys) > 0:
-                raise IncompatibleClassifierError(incompatible_keys.missing_keys, incompatible_keys.unexpected_keys)
+        incompatible_keys = self.load_state_dict(torch.load(name, map_location=torch.device(device)),
+                                                 strict=False)
+        if len(incompatible_keys.missing_keys) > 0 or \
+                len(incompatible_keys.unexpected_keys) > 0:
+            raise IncompatibleClassifierError(incompatible_keys.missing_keys,
+                                              incompatible_keys.unexpected_keys)
         if set_trained:
             self.save(set_trained=True)
         if not self.trained:

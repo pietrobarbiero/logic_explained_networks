@@ -25,9 +25,9 @@ class XReluNN(BaseClassifier, BaseXModel):
      """
 
     def __init__(self, n_classes: int, n_features: int, hidden_neurons: list, loss: torch.nn.modules.loss,
-                 l1_weight: float = 1e-4, device: torch.device = torch.device('cpu'), name: str = "net"):
+                 l1_weight: float = 1e-4, device: torch.device = torch.device('cpu'), name: str = "relu_net"):
 
-        super().__init__(name, device)
+        super().__init__(loss, name, device)
         self.n_classes = n_classes
         self.n_features = n_features
 
@@ -37,10 +37,9 @@ class XReluNN(BaseClassifier, BaseXModel):
             output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else n_classes
             layers.extend([
                 torch.nn.Linear(input_nodes, output_nodes),
-                torch.nn.ReLU() if i != len(hidden_neurons) else torch.nn.Sigmoid()
+                torch.nn.ReLU() if i != len(hidden_neurons) else torch.nn.Identity()
             ])
         self.model = torch.nn.Sequential(*layers)
-        self.loss = loss
         self.l1_weight = l1_weight
 
     def get_loss(self, output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -56,20 +55,8 @@ class XReluNN(BaseClassifier, BaseXModel):
         for layer in self.model.children():
             if hasattr(layer, "weight"):
                 l1_reg_loss += torch.sum(torch.abs(layer.weight))
-        output_loss = self.loss(output, target)
+        output_loss = super().get_loss(output, target)
         return output_loss + self.l1_weight * l1_reg_loss
-
-    def forward(self, x) -> torch.Tensor:
-        """
-        forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
-        A probability value is returned in output after sigmoid activation
-
-        :param x: input tensor
-        :return: output classification
-        """
-        super(XReluNN, self).forward(x)
-        output = self.model(x)
-        return output
 
     def get_reduced_model(self, x_sample: torch.Tensor) -> torch.nn.Module:
         """
