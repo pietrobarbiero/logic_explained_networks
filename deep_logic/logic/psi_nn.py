@@ -9,7 +9,7 @@ from ..utils.base import collect_parameters
 
 
 def generate_fol_explanations(model: torch.nn.Module, device: torch.device = torch.device('cpu'),
-                              concept_names: list = None,) -> List[str]:
+                              concept_names: list = None, simplify=True) -> List[str]:
     """
     Generate the FOL formulas corresponding to the parameters of a reasoning network.
 
@@ -54,7 +54,8 @@ def generate_fol_explanations(model: torch.nn.Module, device: torch.device = tor
     for j in range(n_layers):
         formulas = list()
         for i in range(neuron_list[j]):
-            formula = compute_fol_formula(truth_table, predictions[j][i], feature_names, nonpruned_positions[j][i][0])
+            formula = compute_fol_formula(truth_table, predictions[j][i], feature_names,
+                                          nonpruned_positions[j][i][0], simplify=simplify)
             formulas.append(f'({formula})')
 
         # the new feature names are the formulas we just computed
@@ -63,7 +64,7 @@ def generate_fol_explanations(model: torch.nn.Module, device: torch.device = tor
 
 
 def compute_fol_formula(truth_table: np.array, predictions: np.array, feature_names: List[str],
-                        nonpruned_positions: List[np.array]) -> str:
+                        nonpruned_positions: List[np.array], simplify=True) -> str:
     """
     Compute First Order Logic formulas.
 
@@ -112,7 +113,7 @@ def compute_fol_formula(truth_table: np.array, predictions: np.array, feature_na
     formula = formula.replace('~(False)', 'True')
 
     # simplify formula
-    simplified_formula = simplify_logic(formula, force=True)
+    simplified_formula = simplify_logic(formula, force=simplify)
     return str(simplified_formula)
 
 

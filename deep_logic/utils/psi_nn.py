@@ -33,19 +33,20 @@ def prune_equal_fanin(model: torch.nn.Module, k: int = 2,
 
     if validate:
         validate_network(model, 'psi')
-        validate_pruning(model)
+        validate_pruning(model, fan_in=k)
 
     return model
 
 
-def validate_pruning(model: torch.nn.Module) -> None:
+def validate_pruning(model: torch.nn.Module, fan_in: int = 2) -> None:
     """
     Validate pruned network.
 
     :param model: pytorch model
+    :param fan_in: number of feature retained per node
     :return:
     """
     for module in model.children():
         if isinstance(module, torch.nn.Linear):
-            assert (module.weight != 0).sum(dim=1).sum().item() == 2 * module.weight.size(0)
+            assert (module.weight != 0).sum(dim=1).sum().item() == fan_in * module.weight.size(0)
     return
