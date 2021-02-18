@@ -14,7 +14,8 @@ from ..utils.selection import rank_pruning, rank_weights, rank_lime
 def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
                                target_class: int, method: str, simplify: bool = True,
                                topk_explanations: int = 2, concept_names: List = None,
-                               device: torch.device = torch.device('cpu'), num_classes: int = None) -> Tuple[str, np.array, collections.Counter]:
+                               device: torch.device = torch.device('cpu'), num_classes: int = None) \
+        -> Tuple[str, np.array, collections.Counter]:
     """
     Generate a global explanation combining local explanations.
 
@@ -24,7 +25,8 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     :param target_class: class ID
     :param method: local feature importance method
     :param simplify: simplify local explanation
-    :param topk_explanations: number of most common local explanations to combine in a global explanation (it controls the complexity of the global explanation)
+    :param topk_explanations: number of most common local explanations to combine in a global explanation (it controls
+            the complexity of the global explanation)
     :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
     :param num_classes: override the number of classes
@@ -44,7 +46,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     y_target = y[y == target_class][idx]
     # x_target = x[y == target_class]
     # y_target = y[y == target_class]
-    print(len(y_target))
+    # print(len(y_target))
 
     # get model's predictions
     preds = model(x_target)
@@ -106,7 +108,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
         local_explanations.append(local_explanation)
 
         # get explanations using original concept names (if any)
-        if concept_names:
+        if concept_names is not None:
             local_explanation_translated = replace_names(local_explanation, concept_names)
         else:
             local_explanation_translated = local_explanation
@@ -138,7 +140,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
                                              x_validation, y_validation)
 
     # replace concept names
-    if concept_names:
+    if concept_names is not None:
         global_explanation_simplified_str = replace_names(global_explanation_simplified_str, concept_names)
 
     return global_explanation_simplified_str, predictions, counter_translated
@@ -279,7 +281,7 @@ def explain_global(model: torch.nn.Module, n_classes: int,
     simplified_formula = str(simplified_formula)
 
     # replace concept names
-    if concept_names:
+    if concept_names is not None:
         simplified_formula = replace_names(str(simplified_formula), concept_names)
 
     return simplified_formula

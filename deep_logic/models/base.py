@@ -63,7 +63,7 @@ class BaseClassifier(torch.nn.Module):
      """
 
     @abstractmethod
-    def __init__(self, loss: torch.nn.Module = None, name: str = "net", device: torch.device = torch.device("cpu"),
+    def __init__(self, loss: torch.nn.Module = None, name: str = "net.pth", device: torch.device = torch.device("cpu"),
                  activation: torch.nn.Module = torch.nn.Sigmoid()):
 
         super(BaseClassifier, self).__init__()
@@ -76,6 +76,23 @@ class BaseClassifier(torch.nn.Module):
         self.register_buffer("trained", torch.tensor(True))
         self.need_pruning = False
         self.to(device)
+
+    def forward(self, x, logits=False):
+        """
+        forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
+        A probability value is returned in output after activation in case logits
+
+        :param x: input tensor
+        :param logits: whether to return the logits or the probability value after the activation (default)
+        :return: output classification
+        """
+        assert not torch.isnan(x).any(), "Input data contain nan values"
+        assert not torch.isinf(x).any(), "Input data contain inf values"
+        output = self.model(x)
+        if logits:
+            return output
+        output = self.activation(output)
+        return output
 
     def get_loss(self, output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -112,25 +129,7 @@ class BaseClassifier(torch.nn.Module):
         """
         pass
 
-    @abstractmethod
-    def forward(self, x, logits=False):
-        """
-        forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
-        A probability value is returned in output after activation in case logits
-
-        :param x: input tensor
-        :param logits: whether to return the logits or the probability value after the activation (default)
-        :return: output classification
-        """
-        assert not torch.isnan(x).any(), "Input data contain nan values"
-        assert not torch.isinf(x).any(), "Input data contain inf values"
-        output = self.model(x)
-        if logits:
-            return output
-        output = self.activation(output)
-        return output
-
-    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, num_workers: int = 0,
+    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 64, epochs: int = 10, num_workers: int = 0,
             l_r: float = 0.01, lr_scheduler: bool = False, metric: Metric = TopkAccuracy(),
             device: torch.device = torch.device("cpu"), verbose: bool = True, save: bool = True) -> pd.DataFrame:
         """
@@ -165,7 +164,7 @@ class BaseClassifier(torch.nn.Module):
         train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True,
                                                    num_workers=num_workers,
                                                    prefetch_factor=4 if num_workers != 0 else 2)
-        pbar = tqdm(range(epochs), ncols=100, position=0, leave=True) if verbose else None
+
         torch.autograd.set_detect_anomaly(True)
         for epoch in range(epochs):
             tot_losses_i = []
@@ -205,25 +204,20 @@ class BaseClassifier(torch.nn.Module):
             val_accs.append(val_acc)
             tot_losses.append(tot_losses_i.mean().item())
 
+            # Prune network
+            if (epoch + 1) == epochs // 2 and self.need_pruning:
+                self.prune()
+                self.need_pruning = False
+
             # Save best model
             if (val_acc > best_acc and epoch > epochs // 2 or epochs == 1) and save:
                 best_acc = val_acc
                 best_epoch = epoch + 1
                 self.save()
 
-            # Prune network
-            if epoch == epochs // 2 and self.need_pruning:
-                self.prune()
-                self.need_pruning = False
-
             if verbose:
-                pbar.set_postfix({"Tr_acc": f"{train_acc:.1f}", "Val_acc": f"{val_acc:.1f}",
-                                  "Loss": f"{tot_losses[-1]:.3f}", "best_e": best_epoch})
-                pbar.update()
-                print(" ")
-
-        if verbose:
-            pbar.close()
+                print(f"Epoch: {epoch + 1}/{epochs}, Loss: {tot_losses[-1]:.3f}, "
+                      f"Tr_acc: {train_acc:.1f}, Val_acc: {val_acc:.1f}, best_e: {best_epoch}")
 
         # Best model is loaded and saved again with buffer "trained" set to true
         if save:

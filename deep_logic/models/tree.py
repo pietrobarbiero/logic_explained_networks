@@ -24,7 +24,7 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
      """
 
     def __init__(self, n_classes: int, n_features: int, max_depth: int = None,
-                 device: torch.device = torch.device('cpu'), name: str = "tree"):
+                 device: torch.device = torch.device('cpu'), name: str = "tree.pth"):
 
         super().__init__(name=name, device=device)
         assert device == torch.device('cpu'), "Only cpu training is provided with decision tree models."

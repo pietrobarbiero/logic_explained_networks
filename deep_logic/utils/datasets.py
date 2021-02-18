@@ -7,8 +7,6 @@ import numpy as np
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms
 
-from .data import clean_names
-
 
 class ConceptDataset(ImageFolder, ABC):
     """
@@ -24,6 +22,7 @@ class ConceptDataset(ImageFolder, ABC):
     def __init__(self, root: str, transform: Callable = None, dataset_name: str = "CUB200",
                  predictions: bool = False, denoised: bool = False):
         super().__init__(root, transform)
+        from .data import clean_names
         assert not predictions or not denoised, "Using predictions as attributes " \
                                                 "does not allow using denoised attributes"
 

@@ -26,7 +26,7 @@ class XGeneralNN(BaseClassifier, BaseXModel):
 
     def __init__(self, n_classes: int, n_features: int, hidden_neurons: list, loss: torch.nn.modules.loss,
                  l1_weight: float = 1e-4, fan_in: int = None, device: torch.device = torch.device('cpu'),
-                 name: str = "general_net"):
+                 name: str = "general_net.pth"):
 
         super().__init__(loss, name, device)
         self.n_classes = n_classes

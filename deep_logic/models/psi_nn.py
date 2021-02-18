@@ -25,7 +25,8 @@ class PsiNetwork(BaseClassifier, BaseXModel):
      """
 
     def __init__(self, n_classes: int, n_features: int, hidden_neurons: list, loss: torch.nn.modules.loss,
-                 l1_weight: float = 1e-4, device: torch.device = torch.device('cpu'), name: str = "psi_net", fan_in=2):
+                 l1_weight: float = 1e-4, device: torch.device = torch.device('cpu'), name: str = "psi_net.pth",
+                 fan_in=2):
 
         super().__init__(loss, name, device)
         self.n_classes = n_classes

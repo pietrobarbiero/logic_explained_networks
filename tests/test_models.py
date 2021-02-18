@@ -27,12 +27,12 @@ metric = Accuracy()
 
 # Define epochs and learning rate
 epochs = 1000
-l_r = 0.01
-l1_weight = 1e-5
+l_r = 0.1
+l1_weight = 1e-6
 
 # Network structures
 n_features = 2
-hidden_neurons = [4]
+hidden_neurons = [10, 4]
 
 
 class TestModels(unittest.TestCase):
@@ -49,9 +49,11 @@ class TestModels(unittest.TestCase):
         assert accuracy == 100.0
 
         local_explanation = model.get_local_explanation(x, y, x_sample, target_class=y_sample)
+        print(local_explanation)
         assert local_explanation == '~feature0000000000'
 
         global_explanation = model.get_global_explanation(x, y, target_class=y_sample)
+        print(global_explanation)
         assert global_explanation == '~feature0000000000 | ~feature0000000001'
 
         # Test with multiple targets
@@ -66,9 +68,11 @@ class TestModels(unittest.TestCase):
         print(accuracy)
 
         local_explanation = model.get_local_explanation(x, y_multi, x_sample, target_class=y_sample_multi)
+        print(local_explanation)
         assert local_explanation == '~feature0000000000 & feature0000000001'
 
         global_explanation = model.get_global_explanation(x, y_multi, target_class=y_sample_multi)
+        print(global_explanation)
         assert global_explanation == '(feature0000000000 & ~feature0000000001) | ' \
                                      '(feature0000000001 & ~feature0000000000)'
 
@@ -87,6 +91,7 @@ class TestModels(unittest.TestCase):
         assert accuracy == 100.0
 
         explanation = model.get_global_explanation(target_class=y_sample)
+        print(explanation)
         assert explanation == '((feature0000000000 & ~feature0000000001) | ' \
                               '(feature0000000001 & ~feature0000000000))'
 
@@ -120,9 +125,11 @@ class TestModels(unittest.TestCase):
         assert accuracy == 100.0
 
         local_explanation = model.get_local_explanation(x, y, x_sample, target_class=y_sample)
+        print(local_explanation)
         assert local_explanation == '~feature0000000000 & feature0000000001'
 
         global_explanation = model.get_global_explanation(x, y, target_class=y_sample)
+        print(global_explanation)
         assert global_explanation == '(feature0000000000 & ~feature0000000001) | ' \
                                      '(feature0000000001 & ~feature0000000000)'
 
@@ -138,9 +145,11 @@ class TestModels(unittest.TestCase):
         print(accuracy)
 
         local_explanation = model.get_local_explanation(x, y_multi, x_sample, target_class=y_sample_multi)
+        print(local_explanation)
         assert local_explanation == '~feature0000000000 & feature0000000001'
 
         global_explanation = model.get_global_explanation(x, y_multi, target_class=y_sample_multi)
+        print(global_explanation)
         assert global_explanation == '(feature0000000000 & ~feature0000000001) | ' \
                                      '(feature0000000001 & ~feature0000000000)'
         return
