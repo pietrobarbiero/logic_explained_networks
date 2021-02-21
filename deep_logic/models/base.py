@@ -1,3 +1,4 @@
+import os
 from abc import abstractmethod, ABC
 from typing import Tuple
 
@@ -154,9 +155,9 @@ class BaseClassifier(torch.nn.Module):
         self.to(device), self.train()
 
         # Setting loss function and optimizer
-        optimizer = torch.optim.AdamW(self.parameters(), lr=l_r)
+        optimizer = torch.optim.Adam(self.parameters(), lr=l_r)
         scheduler = ReduceLROnPlateau(optimizer, mode='max', verbose=verbose,
-                                      factor=0.33, min_lr=1e-3 * l_r) if lr_scheduler else None
+                                      factor=0.33, min_lr=1e-2 * l_r) if lr_scheduler else None
 
         # Training epochs
         best_acc, best_epoch = 0.0, -1
@@ -208,9 +209,12 @@ class BaseClassifier(torch.nn.Module):
             if (epoch + 1) == epochs // 2 and self.need_pruning:
                 self.prune()
                 self.need_pruning = False
+                optimizer = torch.optim.AdamW(self.parameters(), lr=l_r)
+                scheduler = ReduceLROnPlateau(optimizer, mode='max', verbose=verbose,
+                                              factor=0.33, min_lr=1e-3 * l_r) if lr_scheduler else None
 
             # Save best model
-            if (val_acc > best_acc and epoch > epochs // 2 or epochs == 1) and save:
+            if val_acc > best_acc and epoch > epochs // 2 or epochs == 1:
                 best_acc = val_acc
                 best_epoch = epoch + 1
                 self.save()
@@ -220,8 +224,9 @@ class BaseClassifier(torch.nn.Module):
                       f"Tr_acc: {train_acc:.1f}, Val_acc: {val_acc:.1f}, best_e: {best_epoch}")
 
         # Best model is loaded and saved again with buffer "trained" set to true
-        if save:
-            self.load(device, set_trained=True)
+        self.load(device, set_trained=True)
+        if not save:
+            os.remove(self.name)
 
         # Performance dictionary
         performance_dict = {

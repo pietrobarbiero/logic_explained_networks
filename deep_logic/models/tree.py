@@ -1,3 +1,5 @@
+import os
+import time
 from typing import Tuple
 
 import numpy as np
@@ -172,10 +174,13 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         raise NotAvailableError()
 
     def get_global_explanation(self, class_to_explain: int, concept_names: list = None, *args,
-                               **kwargs) -> str:
+                               return_time: bool = False, **kwargs):
         if concept_names is None:
             concept_names = [f"f_{i}" for i in range(self.n_features)]
+        start_time = time.time()
         formula = tree_to_formula(self.model, concept_names, class_to_explain)
+        if return_time:
+            return formula, time.time() - start_time
         return formula
 
 

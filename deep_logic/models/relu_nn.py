@@ -1,3 +1,5 @@
+import time
+
 import torch
 
 from ..utils.base import NotAvailableError
@@ -91,8 +93,8 @@ class XReluNN(BaseClassifier, BaseXModel):
         return explain_local(self.model, x, y, x_sample, target_class, method='weights', simplify=simplify,
                              concept_names=concept_names, device=self.get_device(), num_classes=self.n_classes)
 
-    def get_global_explanation(self, x, y, target_class: int, topk_explanations: int = 2, simplify: bool = True,
-                               concept_names: list = None):
+    def get_global_explanation(self, x, y, target_class: int, topk_explanations: int = 2,
+                               concept_names: list = None, return_time=False, simplify: bool = True):
         """
         Generate a global explanation combining local explanations.
 
@@ -101,14 +103,18 @@ class XReluNN(BaseClassifier, BaseXModel):
         :param target_class: class ID
         :param topk_explanations: number of most common local explanations to combine in a global explanation
                 (it controls the complexity of the global explanation)
+        :param return_time:
         :param simplify: simplify local explanation
         :param concept_names: list containing the names of the input concepts
         """
+        start_time = time.time()
         global_expl, _, _ = combine_local_explanations(self.model, x, y, target_class, method="weights",
                                                        simplify=simplify, topk_explanations=topk_explanations,
                                                        concept_names=concept_names, device=self.get_device(),
                                                        num_classes=self.n_classes)
-
+        elapsed_time = time.time() - start_time
+        if return_time:
+            return global_expl, elapsed_time
         return global_expl
 
 

@@ -1,3 +1,5 @@
+import time
+
 import torch
 
 from ..nn import XLinear
@@ -35,13 +37,11 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         layers = []
         for i in range(len(hidden_neurons) + 1):
             input_nodes = hidden_neurons[i - 1] if i != 0 else n_features
-            output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else n_classes
+            output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else 1
             if i == 0:
                 layer = torch.nn.Linear(input_nodes, output_nodes * self.n_classes)
-            elif i != len(hidden_neurons):
-                layer = XLinear(input_nodes, output_nodes, self.n_classes)
             else:
-                layer = XLinear(input_nodes, 1, self.n_classes)
+                layer = XLinear(input_nodes, output_nodes, self.n_classes)
             layers.extend([
                 layer,
                 torch.nn.LeakyReLU() if i != len(hidden_neurons) else torch.nn.Identity()
@@ -61,10 +61,8 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         :return: loss tensor value
         """
         l1_reg_loss = .0
-        for layer in self.model.children():
-            if hasattr(layer, "weight"):
-                l1_reg_loss += torch.sum(torch.abs(layer.weight))
-                break
+        if self.need_pruning:
+            l1_reg_loss += torch.sum(torch.abs(self.model[0].weight))
         output_loss = super().get_loss(output, target)
         return output_loss + self.l1_weight * l1_reg_loss
 
@@ -111,8 +109,8 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         return explain_local(self.model, x, y, x_sample, target_class, method=method, simplify=simplify,
                              concept_names=concept_names, device=self.get_device(), num_classes=self.n_classes)
 
-    def get_global_explanation(self, x, y, target_class: int, topk_explanations: int = 2, simplify: bool = True,
-                               concept_names: list = None):
+    def get_global_explanation(self, x, y, target_class: int, topk_explanations: int = 2,
+                               concept_names: list = None, return_time=False, simplify: bool = True):
         """
         Generate a global explanation combining local explanations.
 
@@ -123,15 +121,20 @@ class XGeneralNN(BaseClassifier, BaseXModel):
                 (it controls the complexity of the global explanation)
         :param simplify: simplify local explanation
         :param concept_names: list containing the names of the input concepts
+        :param return_time:
         """
         if self.fan_in is None:
             method = "weights"
         else:
             method = "pruning"
+        start_time = time.time()
         global_expl, _, _ = combine_local_explanations(self.model, x, y, target_class, method=method,
                                                        simplify=simplify, topk_explanations=topk_explanations,
                                                        concept_names=concept_names, device=self.get_device(),
                                                        num_classes=self.n_classes)
+        elapsed_time = time.time() - start_time
+        if return_time:
+            return global_expl, elapsed_time
         return global_expl
 
 

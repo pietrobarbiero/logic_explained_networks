@@ -1,3 +1,5 @@
+import time
+
 import torch
 
 from ..nn import XLinear
@@ -50,6 +52,7 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         self.l1_weight = l1_weight
         self.fan_in = fan_in
         self.need_pruning = True
+        self._explanations = None
 
     def get_loss(self, output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -61,9 +64,10 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         :return: loss tensor value
         """
         l1_reg_loss = .0
-        for layer in self.model.children():
-            if hasattr(layer, "weight"):
-                l1_reg_loss += torch.sum(torch.abs(layer.weight))
+        if self.need_pruning:
+            for layer in self.model.children():
+                if hasattr(layer, "weight"):
+                    l1_reg_loss += torch.sum(torch.abs(layer.weight))
         output_loss = super().get_loss(output, target)
         return output_loss + self.l1_weight * l1_reg_loss
 
@@ -74,20 +78,30 @@ class PsiNetwork(BaseClassifier, BaseXModel):
                               simplify: bool = True, concept_names: list = None) -> str:
         raise NotAvailableError()
 
-    def get_global_explanation(self, target_class: int, concept_names: list = None, simplify: bool = True, **kwargs):
+    def get_global_explanation(self, target_class: int, concept_names: list = None, simplify: bool = True,
+                               return_time: bool = False, **kwargs):
         """
         Generate explanations.
 
         :param target_class:
         :param concept_names:
         :param simplify:
+        :param return_time:
         :return: Explanation
         """
-        explanations = generate_fol_explanations(self.model, self.get_device(), concept_names, simplify=True)
+        start_time = time.time()
+        if self._explanations is None:
+            explanations = generate_fol_explanations(self.model, self.get_device(), concept_names, simplify=True)
+            self._explanations = explanations
+        else:
+            explanations = self._explanations
+
         if len(explanations) > 1:
             explanations = explanations[target_class]
         else:
             explanations = explanations[0]
+        if return_time:
+            return explanations, time.time() - start_time
         return explanations
 
 
