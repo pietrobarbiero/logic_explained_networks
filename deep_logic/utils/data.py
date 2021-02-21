@@ -44,7 +44,7 @@ def get_transform(dataset, data_augmentation=False, inception=False) -> transfor
 
 
 def get_splits_train_val_test(dataset: ConceptDataset, val_split: float = 0.1, test_split: float = 0.1,
-                              test_transform: transforms.Compose = None) \
+                              load=False, test_transform: transforms.Compose = None) \
         -> Tuple[Subset, Subset, Subset]:
     train_json = os.path.join(os.path.dirname(dataset.root), f"train_samples_{dataset.dataset_name}.json")
     val_json = os.path.join(os.path.dirname(dataset.root), f"val_samples_{dataset.dataset_name}.json")
@@ -58,7 +58,7 @@ def get_splits_train_val_test(dataset: ConceptDataset, val_split: float = 0.1, t
         dataset_copy = dataset
 
     # Creating dataset for Validation by splitting the samples in the dataset
-    if os.path.isfile(val_json):
+    if os.path.isfile(val_json) and load:
         with open(os.path.join(val_json), "r") as f:
             val_file = json.load(f)
             val_samples = val_file["samples"]
@@ -76,7 +76,7 @@ def get_splits_train_val_test(dataset: ConceptDataset, val_split: float = 0.1, t
     val_dataset = Subset(dataset_copy, np.asarray(val_samples))
 
     # Creating dataset for Validation by splitting the samples in the dataset
-    if os.path.isfile(test_json):
+    if os.path.isfile(test_json) and load:
         with open(os.path.join(test_json), "r") as f:
             test_file = json.load(f)
             test_samples = test_file["samples"]
@@ -95,7 +95,7 @@ def get_splits_train_val_test(dataset: ConceptDataset, val_split: float = 0.1, t
     test_dataset = Subset(dataset_copy, np.asarray(test_samples))
 
     # Creating dataset for Training with the remaining samples
-    if os.path.isfile(train_json):
+    if os.path.isfile(train_json) and load:
         with open(os.path.join(train_json), "r") as f:
             train_file = json.load(f)
             train_samples = train_file["samples"]

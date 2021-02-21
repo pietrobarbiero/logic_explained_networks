@@ -28,7 +28,9 @@ def to_categorical(y: torch.Tensor) -> torch.Tensor:
     if len(y.shape) == 2 and y.shape[1] > 1:
         # one hot encoding to categorical
         yc = torch.argmax(y, dim=1)
-
+    elif torch.max(y) > 1:
+        # already argmax passed
+        yc = y
     else:
         # binary/probabilities to categorical
         yc = y.squeeze() > 0.5

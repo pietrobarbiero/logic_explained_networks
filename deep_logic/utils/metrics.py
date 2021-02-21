@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 import torch
+import numpy as np
 from sklearn.metrics import f1_score
 
 
@@ -26,6 +27,8 @@ class Accuracy(Metric):
     """
 
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
+        outputs = outputs if isinstance(outputs, torch.Tensor) else torch.tensor(outputs)
+        targets = targets if isinstance(targets, torch.Tensor) else torch.tensor(targets)
         outputs, targets = outputs.squeeze(), targets.squeeze()
         if len(outputs.shape) > 1:
             # Multi-Label classification
@@ -57,6 +60,8 @@ class TopkAccuracy(Metric):
         self.k = k
 
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
+        outputs = outputs if isinstance(outputs, torch.Tensor) else torch.tensor(outputs)
+        targets = targets if isinstance(targets, torch.Tensor) else torch.tensor(targets)
         assert len(outputs.squeeze().shape) > 1, "TopkAccuracy requires a multi-dimensional outputs"
         assert len(targets.squeeze().shape) == 1, "TopkAccuracy requires a single-dimension targets"
         n_samples = targets.shape[0]
@@ -70,9 +75,17 @@ class F1Score(Metric):
     F1 score computed on the predictions of a model and the actual labels. Useful for Multi-label classification.
     """
 
-    def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
-        assert outputs.shape == targets.shape, "F1 needs outputs and targets to have same shape"
-        discrete_output = outputs.cpu().numpy() > 0.5
+    def __call__(self, outputs: torch.Tensor, targets: torch.Tensor, average='macro') -> float:
+        outputs = outputs if isinstance(outputs, torch.Tensor) else torch.tensor(outputs)
+        targets = targets if isinstance(targets, torch.Tensor) else torch.tensor(targets)
+        assert len(outputs.squeeze().shape) != 1 or len(targets.squeeze().shape) == 1, \
+            "Target tensor needs to be (N,1) tensor if output is such."
+        # Multi-class
+        if len(outputs.squeeze().shape) > 1 and len(targets.squeeze().shape) == 1:
+            discrete_output = outputs.argmax(dim=1)
+        # Multi-label or Binary classification
+        else:
+            discrete_output = outputs.cpu().numpy() > 0.5
         targets = targets.cpu().numpy()
-        f1_val = f1_score(discrete_output, targets, average='macro', zero_division=0) * 100
+        f1_val = f1_score(discrete_output, targets, average=average, zero_division=0) * 100
         return f1_val
