@@ -3,12 +3,22 @@ from typing import Tuple, List
 
 import torch
 import numpy as np
-from sklearn.metrics import accuracy_score
 
-from deep_logic.utils.base import to_categorical
+from ..utils.base import to_categorical
+from ..utils.metrics import Metric, Accuracy
 
 
-def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor, give_local: bool = False) -> Tuple[float, np.ndarray]:
+def test_multi_class_explanation(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor,
+                                 give_local: bool = False, metric: Metric = Accuracy(), concept_names: list = None) \
+        -> Tuple[float, np.ndarray]:
+    y_single_class = y.eq(target_class)
+    return test_explanation(explanation, target_class=1, x=x, y=y_single_class,
+                            give_local=give_local, metric=metric, concept_names=concept_names)
+
+
+def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor,
+                     give_local: bool = False, metric: Metric = Accuracy(), concept_names: list = None) \
+        -> Tuple[float, np.ndarray]:
     """
     Test explanation
 
@@ -19,29 +29,43 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
     :param give_local: if true will return local predictions
     :return: Accuracy of the explanation and predictions
     """
-    minterms = str(explanation).split(' | ')
-    x = x > 0.5
-    local_predictions = []
-    for minterm in minterms:
-        minterm = minterm.replace('(', '').replace(')', '').split(' & ')
-        features = []
-        for terms in minterm:
-            terms = terms.split('feature')
-            if terms[0] == '~':
-                features.append(~x[:, int(terms[1])])
-            else:
-                features.append(x[:, int(terms[1])])
 
-        local_prediction = torch.stack(features, dim=0).prod(dim=0)
-        local_predictions.append(local_prediction)
+    assert concept_names is not None or "feature" in explanation or explanation == "", \
+        "Concept names must be given when present in the formula"
+    if concept_names is not None:
+        for i, concept_name in enumerate(concept_names):
+            explanation = explanation.replace(concept_name, f"feature{i:010}")
+
+    if explanation == "(True)" or explanation == "True":
+        local_predictions = [torch.tensor(np.ones_like(y))]
+        predictions = torch.cat(local_predictions).eq(target_class).cpu().detach().numpy()
+    elif explanation == "(False)" or explanation == "False":
+        local_predictions = [torch.tensor(np.zeros_like(y))]
+        predictions = torch.cat(local_predictions).eq(target_class).cpu().detach().numpy()
+    else:
+        minterms = str(explanation).split(' | ')
+        x = x > 0.5
+        local_predictions = []
+        for minterm in minterms:
+            minterm = minterm.replace('(', '').replace(')', '').split(' & ')
+            features = []
+            for terms in minterm:
+                terms = terms.split('feature')
+                if terms[0] == '~':
+                    features.append(~x[:, int(terms[1])])
+                else:
+                    features.append(x[:, int(terms[1])])
+
+            local_prediction = torch.stack(features, dim=0).prod(dim=0)
+            local_predictions.append(local_prediction)
+        predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).eq(target_class).cpu().detach().numpy()
 
     y = to_categorical(y).cpu().detach().numpy()
     # if len(y.squeeze().shape) > 1:
     #     predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).cpu().detach().numpy()
     # else:
-    predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).eq(target_class).cpu().detach().numpy()
 
-    accuracy = accuracy_score(y, predictions)
+    accuracy = metric(y, predictions)
     return accuracy, torch.stack(local_predictions, dim=0).sum(dim=0) > 0 if give_local else predictions
 
 

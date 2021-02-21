@@ -80,3 +80,4 @@ experiments/MNIST/net
 data/samples_cub200_fine_tuning.json
 data/samples_cub200_training.json
 *.tgz
+experiments/results/

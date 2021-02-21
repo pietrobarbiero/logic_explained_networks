@@ -3,6 +3,7 @@ from typing import List
 
 import torch
 import numpy as np
+from sympy import sympify
 from sympy.logic import simplify_logic
 
 from ..utils.base import collect_parameters
@@ -109,12 +110,17 @@ def compute_fol_formula(truth_table: np.array, predictions: np.array, feature_na
         formula = formula[:-1] + ')'
 
     # replace "not True" with "False" and vice versa
-    formula = formula.replace('~(True)', 'False')
-    formula = formula.replace('~(False)', 'True')
+    formula = formula.replace('~(True)', '(False)')
+    formula = formula.replace('~(False)', '(True)')
 
     # simplify formula
-    simplified_formula = simplify_logic(formula, force=simplify)
-    return str(simplified_formula)
+    try:
+        if eval(formula) == True or eval(formula) == False:
+            formula = str(eval(formula))
+            assert not formula == "-1" and not formula == "-2", "Error in evaluating formulas"
+    except:
+        formula = simplify_logic(formula, force=simplify)
+    return str(formula)
 
 
 def _forward(X: np.array, weights: np.array, bias: np.array) -> np.array:
