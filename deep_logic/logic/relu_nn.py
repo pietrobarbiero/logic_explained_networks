@@ -82,7 +82,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     local_explanations = []
     local_explanations_raw = {}
     local_explanations_translated = []
-    for sample_id, (xi, yi) in enumerate(zip(x_target, y_target)):
+    for sample_id, (xi, yi) in enumerate(zip(x_target_correct, y_target_correct)):
         local_explanation_raw = explain_local(model, x_validation, y_validation,
                                               xi.to(torch.float), target_class,
                                               method=method, simplify=False,
@@ -165,15 +165,19 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
     :return: Local explanation
     """
     x_sample = x_sample.unsqueeze(0)
+    if hasattr(model, 'model'):
+        model_to_rank = model.model
+    else:
+        model_to_rank = model
 
     if method == 'pruning':
-        feature_used = rank_pruning(model, x_sample, y, device, num_classes=num_classes)
+        feature_used = rank_pruning(model_to_rank, x_sample, y, device, num_classes=num_classes)
 
     elif method == 'weights':
-        feature_used = rank_weights(model, x_sample, device)
+        feature_used = rank_weights(model_to_rank, x_sample, device)
 
     elif method == 'lime':
-        feature_used = rank_lime(model, x, x_sample, 4, device)
+        feature_used = rank_lime(model_to_rank, x, x_sample, 4, device)
 
     # elif method == 'shap':
     #     pass

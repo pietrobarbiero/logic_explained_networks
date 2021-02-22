@@ -28,7 +28,6 @@ metric = Accuracy()
 # Define epochs and learning rate
 epochs = 1000
 l_r = 0.1
-l1_weight = 1e-6
 
 # Network structures
 n_features = 2
@@ -38,9 +37,10 @@ hidden_neurons = [10, 4]
 class TestModels(unittest.TestCase):
     def test_1_relu_nn(self):
         set_seed(0)
+        l1_weight_relu = 1e-3
 
         model = XReluNN(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                        l1_weight=l1_weight)
+                        l1_weight=l1_weight_relu)
 
         results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
@@ -50,15 +50,16 @@ class TestModels(unittest.TestCase):
 
         local_explanation = model.get_local_explanation(x, y, x_sample, target_class=y_sample)
         print(local_explanation)
-        assert local_explanation == '~feature0000000000'
+        assert local_explanation == '~feature0000000000 & feature0000000001'
 
         global_explanation = model.get_global_explanation(x, y, target_class=y_sample)
         print(global_explanation)
-        assert global_explanation == '~feature0000000000 | ~feature0000000001'
+        assert global_explanation == '(feature0000000000 & ~feature0000000001) | ' \
+                                     '(feature0000000001 & ~feature0000000000)'
 
         # Test with multiple targets
         model = XReluNN(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                        l1_weight=l1_weight)
+                        l1_weight=l1_weight_relu)
 
         results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
@@ -80,9 +81,10 @@ class TestModels(unittest.TestCase):
 
     def test_2_psi_nn(self):
         set_seed(0)
+        l1_weight_psi = 1e-6
 
         model = PsiNetwork(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                           l1_weight=l1_weight, fan_in=2)
+                           l1_weight=l1_weight_psi, fan_in=2)
 
         results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
@@ -92,11 +94,11 @@ class TestModels(unittest.TestCase):
 
         explanation = model.get_global_explanation(target_class=y_sample)
         print(explanation)
-        assert explanation == '((feature0000000000 & ~feature0000000001) | ' \
-                              '(feature0000000001 & ~feature0000000000))'
+        assert explanation == '(feature0000000000 | feature0000000001)'
 
+        l1_weight_psi = 1e-6
         model = PsiNetwork(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                           l1_weight=l1_weight)
+                           l1_weight=l1_weight_psi)
 
         results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
@@ -107,16 +109,16 @@ class TestModels(unittest.TestCase):
 
         explanation = model.get_global_explanation(target_class=y_sample_multi)
         print(explanation)
-        assert explanation == '((feature0000000000 & ~feature0000000001) | ' \
-                              '(feature0000000001 & ~feature0000000000))'
+        assert explanation == '(feature0000000001 & ~feature0000000000)'
 
         return
 
     def test_3_general_nn(self):
         set_seed(0)
+        l1_weight_general = 1e-3
 
         model = XGeneralNN(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                           l1_weight=l1_weight)
+                           l1_weight=l1_weight_general)
 
         results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
@@ -135,7 +137,7 @@ class TestModels(unittest.TestCase):
 
         # Test with multiple targets
         model = XGeneralNN(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                           l1_weight=l1_weight)
+                           l1_weight=l1_weight_general)
 
         results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
