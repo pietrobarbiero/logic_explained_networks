@@ -102,6 +102,10 @@ def simplify_formula(explanation: str, model: torch.nn.Module,
     :param target_class: target class
     :return: Simplified formula
     """
+    # # Check if multi class labels
+    # if len(y.squeeze().shape) > 1:
+    #     y = y.argmax()
+
     y = to_categorical(y)
     if len(x_sample.shape) == 1:
         x_sample = x_sample.unsqueeze(0)

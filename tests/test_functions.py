@@ -174,7 +174,7 @@ class TestTemplateObject(unittest.TestCase):
         simplified_formula = simplify_formula(explanation, model, x, y.squeeze(), x[1], y[1])
         simplified_formula = replace_names(simplified_formula, concept_names=['x1', 'x2', 'x3', 'x4'])
         print(simplified_formula)
-        assert simplified_formula == 'x2'
+        assert simplified_formula == '~x1 & x2'
 
         for target_class in range(n_classes):
             global_explanation = explain_global(model, n_classes,

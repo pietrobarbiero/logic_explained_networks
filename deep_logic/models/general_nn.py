@@ -106,7 +106,7 @@ class XGeneralNN(BaseClassifier, BaseXModel):
             method = "weights"
         else:
             method = "pruning"
-        return explain_local(self.model, x, y, x_sample, target_class, method=method, simplify=simplify,
+        return explain_local(self, x, y, x_sample, target_class, method=method, simplify=simplify,
                              concept_names=concept_names, device=self.get_device(), num_classes=self.n_classes)
 
     def get_global_explanation(self, x, y, target_class: int, topk_explanations: int = 2,
@@ -128,7 +128,7 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         else:
             method = "pruning"
         start_time = time.time()
-        global_expl, _, _ = combine_local_explanations(self.model, x, y, target_class, method=method,
+        global_expl, _, _ = combine_local_explanations(self, x, y, target_class, method=method,
                                                        simplify=simplify, topk_explanations=topk_explanations,
                                                        concept_names=concept_names, device=self.get_device(),
                                                        num_classes=self.n_classes)

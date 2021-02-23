@@ -6,7 +6,6 @@ import pandas as pd
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset
-from tqdm.auto import tqdm
 
 from deep_logic.utils.base import ClassifierNotTrainedError, IncompatibleClassifierError
 from deep_logic.utils.metrics import Metric, TopkAccuracy, Accuracy
@@ -131,7 +130,7 @@ class BaseClassifier(torch.nn.Module):
         pass
 
     def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 64, epochs: int = 10, num_workers: int = 0,
-            l_r: float = 0.01, lr_scheduler: bool = False, metric: Metric = TopkAccuracy(),
+            l_r: float = 0.01, lr_scheduler: bool = False, metric: Metric = TopkAccuracy(), early_stopping: bool = True,
             device: torch.device = torch.device("cpu"), verbose: bool = True, save: bool = True) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.
@@ -145,6 +144,7 @@ class BaseClassifier(torch.nn.Module):
         :param l_r: learning rate parameter of the Adam optimizer
         :param lr_scheduler: whether to use learning rate scheduler (ReduceLROnPleteau)
         :param metric: metric to evaluate the predictions of the network
+        :param early_stopping: whether to perform early stopping (returning best model on val set) or not
         :param device: device on which to perform the training
         :param verbose: whether to output or not epoch metrics
         :param save: whether to save the model or not
@@ -156,7 +156,7 @@ class BaseClassifier(torch.nn.Module):
 
         # Setting loss function and optimizer
         optimizer = torch.optim.Adam(self.parameters(), lr=l_r)
-        scheduler = ReduceLROnPlateau(optimizer, mode='max', verbose=verbose,
+        scheduler = ReduceLROnPlateau(optimizer, verbose=verbose,
                                       factor=0.33, min_lr=1e-2 * l_r) if lr_scheduler else None
 
         # Training epochs
@@ -190,31 +190,31 @@ class BaseClassifier(torch.nn.Module):
                 train_outputs.append(batch_outputs), train_labels.append(batch_labels), tot_losses_i.append(tot_loss)
 
             train_outputs, train_labels = torch.cat(train_outputs), torch.cat(train_labels)
-            tot_losses_i = torch.stack(tot_losses_i)
+            tot_losses_i = torch.stack(tot_losses_i).mean().item()
 
             # Compute accuracy, f1 and constraint_loss on the whole train, validation dataset
             train_acc = self.evaluate(train_set, batch_size, metric, num_workers, device, train_outputs, train_labels)
             val_acc = self.evaluate(val_set, batch_size, metric, num_workers, device)
 
-            # Step learning rate scheduler
-            if lr_scheduler:
-                scheduler.step(train_acc)
-
             # Save epoch results
             train_accs.append(train_acc)
             val_accs.append(val_acc)
-            tot_losses.append(tot_losses_i.mean().item())
+            tot_losses.append(tot_losses_i)
+
+            # Step learning rate scheduler
+            if lr_scheduler:
+                scheduler.step(tot_losses_i)
 
             # Prune network
             if (epoch + 1) == epochs // 2 and self.need_pruning:
                 self.prune()
                 self.need_pruning = False
                 optimizer = torch.optim.AdamW(self.parameters(), lr=l_r)
-                scheduler = ReduceLROnPlateau(optimizer, mode='max', verbose=verbose,
+                scheduler = ReduceLROnPlateau(optimizer, verbose=verbose,
                                               factor=0.33, min_lr=1e-3 * l_r) if lr_scheduler else None
 
-            # Save best model
-            if val_acc > best_acc and epoch > epochs // 2 or epochs == 1:
+            # Save best model if early_stopping is True
+            if (val_acc > best_acc and epoch > epochs // 2 or epochs == 1) and early_stopping:
                 best_acc = val_acc
                 best_epoch = epoch + 1
                 self.save()
@@ -224,9 +224,12 @@ class BaseClassifier(torch.nn.Module):
                       f"Tr_acc: {train_acc:.1f}, Val_acc: {val_acc:.1f}, best_e: {best_epoch}")
 
         # Best model is loaded and saved again with buffer "trained" set to true
-        self.load(device, set_trained=True)
-        if not save:
-            os.remove(self.name)
+        if early_stopping:
+            self.load(device, set_trained=True)
+            if not save:
+                os.remove(self.name)
+        elif save:
+            self.save()
 
         # Performance dictionary
         performance_dict = {
