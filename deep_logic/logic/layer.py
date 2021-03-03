@@ -77,7 +77,7 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
     model.eval()
     model(x_validation)
 
-    concept_names = [f'feature{j:010}' for j in range(x.size(1))]
+    feature_names = [f'feature{j:010}' for j in range(x.size(1))]
 
     class_explanation = ''
     class_explanations = {}
@@ -97,13 +97,13 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
                         # explanation is the conjunction of non-pruned features
                         explanation_raw = ''
                         for j in torch.nonzero(prev_module.weight.sum(axis=0)):
-                            if concept_names[j[0]] not in ['()', '']:
+                            if feature_names[j[0]] not in ['()', '']:
                                 if explanation_raw:
                                     explanation_raw += ' & '
                                 if prev_module.symbols[i, j[0]] > 0.5:
-                                    explanation_raw += concept_names[j[0]]
+                                    explanation_raw += feature_names[j[0]]
                                 else:
-                                    explanation_raw += f'~{concept_names[j[0]]}'
+                                    explanation_raw += f'~{feature_names[j[0]]}'
 
                         # # replace "not True" with "False" and vice versa
                         # explanation = explanation_raw.replace('~(True)', '(False)')
@@ -150,7 +150,13 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
                     class_explanations[f'layer_{layer_id}-neuron_{neuron}'] = str(neuron_explanation_simplified)
 
                 prev_module = module
-                concept_names = explanations
+                feature_names = explanations
                 class_explanation = str(neuron_explanation_simplified)
+
+    # replace concept names
+    if concept_names is not None:
+        class_explanation = replace_names(class_explanation, concept_names)
+        for k, explanation in class_explanations.items():
+            class_explanations[k] = replace_names(explanation, concept_names)
 
     return class_explanation, class_explanations
