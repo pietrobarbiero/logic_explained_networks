@@ -1,4 +1,3 @@
-import os
 import time
 from typing import Tuple
 
@@ -9,11 +8,12 @@ from sklearn.tree import DecisionTreeClassifier
 from torch.utils.data import Dataset
 
 from .base import BaseClassifier, ClassifierNotTrainedError, BaseXModel
+from .ext_models.brl.RuleListClassifier import RuleListClassifier
 from ..utils.base import tree_to_formula, NotAvailableError
 from ..utils.metrics import Metric, Accuracy
 
 
-class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
+class XBRLClassifier(BaseClassifier, BaseXModel):
     """
         Decision Tree class module. It does provides for explanations.
 
@@ -21,12 +21,11 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
             number of classes to classify - dimension of the output layer of the network
         :param n_features: int
             number of features - dimension of the input space
-        :param max_depth: int
-            maximum depth for the classifier. The deeper is the tree, the more complex are the explanations provided.
      """
 
     def __init__(self, n_classes: int, n_features: int, max_depth: int = None,
-                 device: torch.device = torch.device('cpu'), name: str = "tree.pth"):
+                 device: torch.device = torch.device('cpu'), name: str = "brl.pth", features_names=None,
+                 class_names=None):
 
         super().__init__(name=name, device=device)
         assert device == torch.device('cpu'), "Only cpu training is provided with decision tree models."
@@ -34,7 +33,18 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         self.n_classes = n_classes
         self.n_features = n_features
 
-        self.model = DecisionTreeClassifier(max_depth=max_depth)
+        self.model = []
+        self.class_names = []
+        for i in range(self.n_classes):
+            class_name = class_names[i] if class_names is not None else f"class_{i}"
+            model = RuleListClassifier(max_iter=10000, class1label=class_name, verbose=False)
+            self.model.append(model)
+            self.class_names.append(class_name)
+
+        if features_names is not None:
+            self.features_names = features_names
+        else:
+            self.features_names = [f"f{i}" for i in range(n_features)]
 
     def forward(self, x, **kwargs) -> torch.Tensor:
         """
@@ -45,8 +55,14 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         :return: output classification
         """
         x = x.detach().cpu().numpy()
-        output = self.model.predict_proba(x)
-        return output
+        outputs = []
+        for i in range(self.n_classes):
+            output = self.model[i].predict_proba(x)
+            output = np.argmax(output, axis=1)
+            outputs.append(torch.tensor(output))
+        outputs = torch.stack(outputs, dim=1)
+
+        return outputs
 
     def get_loss(self, output: torch.Tensor, target: torch.Tensor, **kwargs) -> None:
         """
@@ -67,7 +83,7 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         """
         return torch.device("cpu")
 
-    def fit(self, train_set: Dataset, val_set: Dataset, metric: Metric = Accuracy(),
+    def fit(self, train_set: Dataset, val_set: Dataset, metric: Metric = Accuracy(), discretize: bool = True,
             verbose: bool = True, save=True, **kwargs) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.
@@ -76,6 +92,7 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         :param train_set: training set on which to train
         :param val_set: validation set used for early stopping
         :param metric: metric to evaluate the predictions of the network
+        :param discretize: whether to discretize data or not
         :param verbose: whether to output or not epoch metrics
         :param save: whether to save the model or not
         :return: pandas dataframe collecting the metrics from each epoch
@@ -86,12 +103,25 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         train_data, train_labels = [], []
         for data in train_loader:
             train_data.append(data[0]), train_labels.append(data[1])
-        train_data, train_labels = torch.cat(train_data).numpy(), torch.cat(train_labels).numpy()
+        train_data = torch.cat(train_data).numpy()
+        # train_data = np.concatenate((train_data, train_data, train_data))
+        # train_data = train_data.astype(str)
+        train_labels = torch.cat(train_labels).numpy()
+        # train_labels = np.concatenate((train_labels, train_labels, train_labels))
 
-        # Fitting decision tree
-        if len(train_labels.squeeze().shape) > 1:
-            train_labels = np.argmax(train_labels, axis=1)
-        self.model = self.model.fit(X=train_data, y=train_labels)
+        if len(train_labels.shape) == 1:
+            train_labels = np.expand_dims(train_labels, axis=1)
+
+        if discretize:
+            features = []
+        else:
+            features = self.features_names
+
+        # Fitting a BRL classifier for each class
+        for i in range(self.n_classes):
+            self.model[i].verbose = verbose
+            self.model[i].fit(X=train_data, y=train_labels[:, i], feature_labels=self.features_names,
+                              undiscretized_features=features)
 
         # Compute accuracy, f1 and constraint_loss on the whole train, validation dataset
         train_acc = self.evaluate(train_set, metric)
@@ -176,12 +206,10 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
 
     def get_global_explanation(self, class_to_explain: int, concept_names: list = None, *args,
                                return_time: bool = False, **kwargs):
-        if concept_names is None:
-            concept_names = [f"f_{i}" for i in range(self.n_features)]
-        start_time = time.time()
-        formula = tree_to_formula(self.model, concept_names, class_to_explain)
-        if return_time:
-            return formula, time.time() - start_time
+        formula = str(self.model[class_to_explain])
+        if concept_names is not None:
+            for i, name in enumerate(concept_names):
+                formula = formula.replace(f"ft{i}", name)
         return formula
 
 
