@@ -36,6 +36,11 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
         for i, concept_name in enumerate(concept_names):
             explanation = explanation.replace(concept_name, f"feature{i:010}")
 
+    if explanation == '':
+        local_predictions = [torch.tensor(np.empty_like(y))]
+        predictions = torch.cat(local_predictions).eq(target_class).cpu().detach().numpy()
+        accuracy = 0.0
+        return accuracy, torch.stack(local_predictions, dim=0).sum(dim=0) > 0 if give_local else predictions
     if explanation == "(True)" or explanation == "True":
         local_predictions = [torch.tensor(np.ones_like(y))]
         predictions = torch.cat(local_predictions).eq(target_class).cpu().detach().numpy()

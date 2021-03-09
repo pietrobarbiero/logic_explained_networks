@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 import collections
 
 import torch
@@ -14,8 +14,8 @@ from ..utils.selection import rank_pruning, rank_weights, rank_lime
 def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
                                target_class: int, method: str, simplify: bool = True,
                                topk_explanations: int = 2, concept_names: List = None,
-                               device: torch.device = torch.device('cpu'), num_classes: int = None) \
-        -> Tuple[str, np.array, collections.Counter]:
+                               device: torch.device = torch.device('cpu'), num_classes: int = None,
+                               return_accuracy: bool = False):
     """
     Generate a global explanation combining local explanations.
 
@@ -30,6 +30,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
     :param num_classes: override the number of classes
+    :param return_accuracy: whether to return also the accuracy of the explanations or not
     :return: Global explanation, predictions, and ranking of local explanations
     """
     y = to_categorical(y)
@@ -41,11 +42,11 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     # feature_used_bool = np.sum(np.abs(feature_weights), axis=0) > 0
     # feature_used = np.sort(np.nonzero(feature_used_bool)[0])
     # _, idx = np.unique((x[:, feature_used][y == target_class] >= 0.5).cpu().detach().numpy(), axis=0, return_index=True)
-    _, idx = np.unique((x[y == target_class] >= 0.5).cpu().detach().numpy(), axis=0, return_index=True)
-    x_target = x[y == target_class][idx]
-    y_target = y[y == target_class][idx]
-    # x_target = x[y == target_class]
-    # y_target = y[y == target_class]
+    # _, idx = np.unique((x[y == target_class] >= 0.5).cpu().detach().numpy(), axis=0, return_index=True)
+    # x_target = x[y == target_class][idx]
+    # y_target = y[y == target_class][idx]
+    x_target = x[y == target_class]
+    y_target = y[y == target_class]
     # print(len(y_target))
 
     # get model's predictions
@@ -58,9 +59,11 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     y_target_correct = y_target[correct_mask]
 
     # collapse samples having the same boolean values and class label different from the target class
-    _, idx = np.unique((x[y != target_class] > 0.5).cpu().detach().numpy(), axis=0, return_index=True)
-    x_reduced_opposite = x[y != target_class][idx]
-    y_reduced_opposite = y[y != target_class][idx]
+    # _, idx = np.unique((x[y != target_class] > 0.5).cpu().detach().numpy(), axis=0, return_index=True)
+    # x_reduced_opposite = x[y != target_class][idx]
+    # y_reduced_opposite = y[y != target_class][idx]
+    x_reduced_opposite = x[y != target_class]
+    y_reduced_opposite = y[y != target_class]
     preds_opposite = model(x_reduced_opposite)
     if len(preds_opposite.squeeze(-1).shape) > 1:
         preds_opposite = torch.argmax(preds_opposite, dim=1)
@@ -115,7 +118,10 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
         local_explanations_translated.append(local_explanation_translated)
 
     if len(local_explanations) == 0:
-        return '', np.array, collections.Counter()
+        if not return_accuracy:
+            return '', np.array, collections.Counter()
+        else:
+            return '', np.array, collections.Counter(), 0.
 
     # get most frequent local explanations
     counter = collections.Counter(local_explanations)
@@ -133,7 +139,10 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     global_explanation_simplified_str = str(global_explanation_simplified)
 
     if not global_explanation_simplified_str:
-        return '', np.array, collections.Counter()
+        if not return_accuracy:
+            return '', np.array, collections.Counter()
+        else:
+            return '', np.array, collections.Counter(), 0.
 
     # predictions based on FOL formula
     accuracy, predictions = test_explanation(global_explanation_simplified_str, target_class,
@@ -143,7 +152,10 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     if concept_names is not None:
         global_explanation_simplified_str = replace_names(global_explanation_simplified_str, concept_names)
 
-    return global_explanation_simplified_str, predictions, counter_translated
+    if not return_accuracy:
+        return global_explanation_simplified_str, predictions, counter_translated
+    else:
+        return global_explanation_simplified_str, predictions, counter_translated, accuracy
 
 
 def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
