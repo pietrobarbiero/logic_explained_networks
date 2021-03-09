@@ -48,12 +48,13 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         output = self.model.predict_proba(x)
         return output
 
-    def get_loss(self, output: torch.Tensor, target: torch.Tensor) -> None:
+    def get_loss(self, output: torch.Tensor, target: torch.Tensor, **kwargs) -> None:
         """
         Loss is not used in the decision tree as it is not a gradient based algorithm. Therefore, if this function
         is called an error is thrown.
         :param output: output tensor from the forward function
         :param target: label tensor
+        :param kwargs:
         :raise: NotAvailableError
         """
         raise NotAvailableError()

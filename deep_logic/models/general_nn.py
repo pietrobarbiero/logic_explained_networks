@@ -51,20 +51,27 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         self.fan_in = fan_in
         self.need_pruning = True
 
-    def get_loss(self, output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def get_loss(self, output: torch.Tensor, target: torch.Tensor, epoch: int = None, epochs: int = None)\
+            -> torch.Tensor:
         """
-        get_loss method extended from Classifier. The loss passed in the __init__ function of the InterpretableReLU is
-        employed. An L1 weight regularization is also always applied
+        get_loss method extended from Classifier. The loss passed in the __init__ function of the is employed.
+        An L1 weight regularization is also always applied
 
         :param output: output tensor from the forward function
         :param target: label tensor
+        :param epochs:
+        :param epoch:
         :return: loss tensor value
         """
+        if epoch is None or epochs is None or epoch > epochs / 4:
+            l1_weight = self.l1_weight
+        else:
+            l1_weight = self.l1_weight * 4 * epoch / epochs
         l1_reg_loss = .0
         if self.need_pruning:
             l1_reg_loss += torch.sum(torch.abs(self.model[0].weight))
         output_loss = super().get_loss(output, target)
-        return output_loss + self.l1_weight * l1_reg_loss
+        return output_loss + l1_weight * l1_reg_loss
 
     def forward(self, x, logits=False) -> torch.Tensor:
         """

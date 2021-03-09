@@ -92,14 +92,18 @@ class BaseClassifier(torch.nn.Module):
         if logits:
             return output
         output = self.activation(output)
+        if len(output.shape) == 1:
+            output = output.unsqueeze(dim=0)
         return output
 
-    def get_loss(self, output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def get_loss(self, output: torch.Tensor, target: torch.Tensor, epoch: int = None, epochs: int = None) -> torch.Tensor:
         """
         get_loss method is used by each class to calculate its own loss according to the different training strategy
 
         :param output: output tensor from the forward function
         :param target: label tensor
+        :param epochs:
+        :param epoch:
         """
         if isinstance(self.loss, torch.nn.CrossEntropyLoss):
             target = target.to(torch.long)
@@ -156,7 +160,7 @@ class BaseClassifier(torch.nn.Module):
 
         # Setting loss function and optimizer
         optimizer = torch.optim.Adam(self.parameters(), lr=l_r)
-        scheduler = ReduceLROnPlateau(optimizer, verbose=verbose,
+        scheduler = ReduceLROnPlateau(optimizer, verbose=verbose, mode='max',
                                       factor=0.33, min_lr=1e-2 * l_r) if lr_scheduler else None
 
         # Training epochs
@@ -180,7 +184,7 @@ class BaseClassifier(torch.nn.Module):
                 batch_outputs = self.activation(logit_outputs)
 
                 # Compute losses and update gradients
-                tot_loss = self.get_loss(logit_outputs, batch_labels)
+                tot_loss = self.get_loss(logit_outputs, batch_labels, epoch, epochs)
                 tot_loss.backward()
                 optimizer.step()
 
@@ -203,14 +207,14 @@ class BaseClassifier(torch.nn.Module):
 
             # Step learning rate scheduler
             if lr_scheduler:
-                scheduler.step(tot_losses_i)
+                scheduler.step(train_acc)
 
             # Prune network
             if (epoch + 1) == epochs // 2 and self.need_pruning:
                 self.prune()
                 self.need_pruning = False
                 optimizer = torch.optim.AdamW(self.parameters(), lr=l_r)
-                scheduler = ReduceLROnPlateau(optimizer, verbose=verbose,
+                scheduler = ReduceLROnPlateau(optimizer, verbose=verbose, mode='max',
                                               factor=0.33, min_lr=1e-3 * l_r) if lr_scheduler else None
 
             # Save best model if early_stopping is True

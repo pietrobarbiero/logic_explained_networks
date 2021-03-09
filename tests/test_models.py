@@ -81,7 +81,7 @@ class TestModels(unittest.TestCase):
 
     def test_2_psi_nn(self):
         set_seed(0)
-        l1_weight_psi = 1e-6
+        l1_weight_psi = 1e-4
 
         model = PsiNetwork(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
                            l1_weight=l1_weight_psi, fan_in=2)
@@ -94,13 +94,15 @@ class TestModels(unittest.TestCase):
 
         explanation = model.get_global_explanation(target_class=y_sample)
         print(explanation)
-        assert explanation == '(feature0000000000 | feature0000000001)'
+        assert explanation == '((feature0000000000 & ~feature0000000001) | ' \
+                              '(feature0000000001 & ~feature0000000000))'
 
-        l1_weight_psi = 1e-6
+        set_seed(0)
         model = PsiNetwork(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
                            l1_weight=l1_weight_psi)
 
-        results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric, save=False)
+        results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric,
+                            save=False)
         assert results.shape == (epochs, 4)
 
         accuracy = model.evaluate(train_data_multi, metric=metric)
@@ -109,8 +111,8 @@ class TestModels(unittest.TestCase):
 
         explanation = model.get_global_explanation(target_class=y_sample_multi)
         print(explanation)
-        assert explanation == '(feature0000000001 & ~feature0000000000)'
-
+        assert explanation == '((feature0000000000 & ~feature0000000001) | ' \
+                              '(feature0000000001 & ~feature0000000000))'
         return
 
     def test_3_general_nn(self):
@@ -120,7 +122,8 @@ class TestModels(unittest.TestCase):
         model = XGeneralNN(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
                            l1_weight=l1_weight_general)
 
-        results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric, save=False)
+        results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric, save=False,
+                            early_stopping=False)
         assert results.shape == (epochs, 4)
 
         accuracy = model.evaluate(train_data, metric=metric)
@@ -136,6 +139,7 @@ class TestModels(unittest.TestCase):
                                      '(feature0000000001 & ~feature0000000000)'
 
         # Test with multiple targets
+        set_seed(0)
         model = XGeneralNN(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
                            l1_weight=l1_weight_general)
 
