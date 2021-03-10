@@ -23,13 +23,14 @@ class XLogic(Linear):
             self.h = F.linear(input, self.weight, self.bias)
             self.output = torch.sigmoid(self.h)
             self.symbols = self.output
+            return self.h
         else:
             if self.first:
                 self.symbols = input
             else:
                 self.symbols = torch.sigmoid(input)
             self.output = F.linear(self.symbols, self.weight, self.bias)
-        return self.output
+            return self.output
 
     def extra_repr(self) -> str:
         return 'in_features={}, out_features={}, bias={}'.format(
