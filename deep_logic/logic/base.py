@@ -141,3 +141,34 @@ def simplify_formula(explanation: str, model: torch.nn.Module,
                 explanation = copy.deepcopy(explanation_simplified)
 
     return explanation
+
+
+def simplify_formula2(explanation: str, x: torch.Tensor, y: torch.Tensor, target_class: int) -> str:
+    """
+    Simplify formula to a simpler one that is still coherent.
+
+    :param explanation: local formula to be simplified.
+    :param model: torch model.
+    :param x: input data.
+    :param y: target labels (1D).
+    :param target_class: target class
+    :return: Simplified formula
+    """
+    # # Check if multi class labels
+    # if len(y.squeeze().shape) > 1:
+    #     y = y.argmax()
+
+    for term in explanation.split(' & '):
+        explanation_simplified = copy.deepcopy(explanation)
+
+        if explanation_simplified.endswith(f'{term}'):
+            explanation_simplified = explanation_simplified.replace(f' & {term}', '')
+        else:
+            explanation_simplified = explanation_simplified.replace(f'{term} & ', '')
+
+        if explanation_simplified:
+            accuracy, _ = test_explanation(explanation_simplified, target_class, x, y)
+            if accuracy == 1:
+                explanation = copy.deepcopy(explanation_simplified)
+
+    return explanation
