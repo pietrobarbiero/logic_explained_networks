@@ -36,7 +36,7 @@ def prune_logic_layers(model: torch.nn.Module, fan_in: int = None,
                 # prune
                 torch.nn.utils.prune.custom_from_mask(module, name="weight", mask=mask.to(device))
 
-        # break
+        break
 
     model.train()
     return model

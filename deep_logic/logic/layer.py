@@ -77,22 +77,31 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
     model.eval()
     model(x_validation)
 
-    feature_names = [f'feature{j:010}' for j in range(x.size(1))]
-
     class_explanation = ''
     class_explanations = {}
+    is_first = True
     for layer_id, module in enumerate(model.children()):
         # prune only Linear layers
         if isinstance(module, XLogic):
-            if module.first:
+            if module.activation_name == 'sigmoid':
+                threshold = 0.5
+            elif module.activation_name == 'relu':
+                threshold = 0
+            elif module.activation_name == 'leaky_relu':
+                threshold = 0
+
+            if module.first or is_first:
                 prev_module = module
+                is_first = False
+                feature_names = [f'feature{j:010}' for j in range(prev_module.symbols.size(1))]
+                c_validation = prev_module.symbols
 
             else:
                 explanations = []
                 for neuron in range(module.symbols.size(1)):
                     neuron_explanations = []
                     neuron_explanations_raw = {}
-                    for i in torch.nonzero(module.symbols[:, neuron] > 0.5):
+                    for i in torch.nonzero(module.symbols[:, neuron] > threshold):
 
                         # explanation is the conjunction of non-pruned features
                         explanation_raw = ''
@@ -100,7 +109,7 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
                             if feature_names[j[0]] not in ['()', '']:
                                 if explanation_raw:
                                     explanation_raw += ' & '
-                                if prev_module.symbols[i, j[0]] > 0.5:
+                                if prev_module.symbols[i, j[0]] > threshold:
                                     explanation_raw += feature_names[j[0]]
                                 else:
                                     explanation_raw += f'~{feature_names[j[0]]}'
@@ -109,7 +118,8 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
                         # explanation = explanation_raw.replace('~(True)', '(False)')
                         # explanation = explanation_raw.replace('~(False)', '(True)')
 
-                        explanation_raw = simplify_logic(explanation_raw, 'dnf', force=True)
+                        if explanation_raw:
+                            explanation_raw = simplify_logic(explanation_raw, 'dnf', force=True)
                         explanation_raw = str(explanation_raw)
                         if explanation_raw in ['', 'False', 'True', '(False)', '(True)']:
                             continue
@@ -117,7 +127,7 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
                         if explanation_raw in neuron_explanations_raw:
                             explanation = neuron_explanations_raw[explanation_raw]
                         elif simplify:
-                            explanation = simplify_formula2(explanation_raw, x_validation, y_validation, target_class)
+                            explanation = simplify_formula2(explanation_raw, c_validation, y_validation, target_class)
                         else:
                             explanation = explanation_raw
 
