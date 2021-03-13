@@ -7,12 +7,13 @@ from sympy import simplify_logic
 
 from .base import replace_names, test_explanation, simplify_formula2
 from .psi_nn import _build_truth_table
-from ..nn import XLogic
+from ..nn import XLogic, XLogicConv2d
 from ..utils.base import collect_parameters, to_categorical
 from ..utils.selection import rank_pruning, rank_weights, rank_lime
 
 
-def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
+def explain_class(model: torch.nn.Module, x: torch.Tensor, concepts_in: torch.Tensor,
+                  y: torch.Tensor,
                   target_class: int, simplify: bool = True, topk_explanations: int = 3,
                   concept_names: List = None) -> str:
     """
@@ -39,7 +40,8 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
     # feature_used_bool = np.sum(np.abs(feature_weights), axis=0) > 0
     # feature_used = np.sort(np.nonzero(feature_used_bool)[0])
     # _, idx = np.unique((x[:, feature_used][y == target_class] >= 0.5).cpu().detach().numpy(), axis=0, return_index=True)
-    _, idx = np.unique((x[y == target_class] >= 0.5).cpu().detach().numpy(), axis=0, return_index=True)
+    threshold = 0.
+    _, idx = np.unique((concepts_in[y == target_class] >= threshold).cpu().detach().numpy(), axis=0, return_index=True)
     x_target = x[y == target_class][idx]
     y_target = y[y == target_class][idx]
     # x_target = x[y == target_class]
@@ -56,7 +58,7 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
     y_target_correct = y_target[correct_mask]
 
     # collapse samples having the same boolean values and class label different from the target class
-    _, idx = np.unique((x[y != target_class] > 0.5).cpu().detach().numpy(), axis=0, return_index=True)
+    _, idx = np.unique((concepts_in[y != target_class] > threshold).cpu().detach().numpy(), axis=0, return_index=True)
     x_reduced_opposite = x[y != target_class][idx]
     y_reduced_opposite = y[y != target_class][idx]
     preds_opposite = model(x_reduced_opposite)
@@ -74,7 +76,7 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
     x_validation = torch.cat([x_reduced_opposite_correct, x_target_correct], dim=0)
     y_validation = torch.cat([y_reduced_opposite_correct, y_target_correct], dim=0)
 
-    model.eval()
+    model.train()
     model(x_validation)
 
     class_explanation = ''
@@ -82,37 +84,35 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
     is_first = True
     for layer_id, module in enumerate(model.children()):
         # prune only Linear layers
-        if isinstance(module, XLogic):
-            if module.activation_name == 'sigmoid':
-                threshold = 0.5
-            elif module.activation_name == 'relu':
-                threshold = 0
-            elif module.activation_name == 'leaky_relu':
-                threshold = 0
+        if isinstance(module, XLogic) or isinstance(module, XLogicConv2d):
 
-            if module.first or is_first:
+            if is_first:
                 prev_module = module
                 is_first = False
-                feature_names = [f'feature{j:010}' for j in range(prev_module.symbols.size(1))]
-                c_validation = prev_module.symbols
+                feature_names = [f'feature{j:010}' for j in range(prev_module.conceptizator.concepts.size(1))]
+                c_validation = prev_module.conceptizator.concepts
 
             else:
                 explanations = []
-                for neuron in range(module.symbols.size(1)):
+                for neuron in range(module.conceptizator.concepts.size(1)):
                     neuron_explanations = []
                     neuron_explanations_raw = {}
-                    for i in torch.nonzero(module.symbols[:, neuron] > threshold):
+                    for i in torch.nonzero(module.conceptizator.concepts[:, neuron] > module.conceptizator.threshold):
 
                         # explanation is the conjunction of non-pruned features
                         explanation_raw = ''
-                        for j in torch.nonzero(prev_module.weight.sum(axis=0)):
+                        for j in torch.nonzero(prev_module.weight.sum(axis=1)):
                             if feature_names[j[0]] not in ['()', '']:
-                                if explanation_raw:
+                                if explanation_raw and prev_module.conceptizator.concepts[i, j[0]] > module.conceptizator.threshold:
                                     explanation_raw += ' & '
-                                if prev_module.symbols[i, j[0]] > threshold:
+                                if prev_module.conceptizator.concepts[i, j[0]] > module.conceptizator.threshold:
                                     explanation_raw += feature_names[j[0]]
-                                else:
-                                    explanation_raw += f'~{feature_names[j[0]]}'
+                                # if explanation_raw:
+                                #     explanation_raw += ' & '
+                                # if prev_module.conceptizator.concepts[i, j[0]] > module.conceptizator.threshold:
+                                #     explanation_raw += feature_names[j[0]]
+                                # else:
+                                #     explanation_raw += f'~{feature_names[j[0]]}'
 
                         # # replace "not True" with "False" and vice versa
                         # explanation = explanation_raw.replace('~(True)', '(False)')
@@ -141,23 +141,24 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
                         explanations.append('')
                         class_explanations[f'layer_{layer_id}-neuron_{neuron}'] = ''
 
-                    # get most frequent local explanations
-                    counter = collections.Counter(neuron_explanations)
-                    topk = topk_explanations
-                    if len(counter) < topk_explanations:
-                        topk = len(counter)
-                    most_common_explanations = []
-                    for explanation, _ in counter.most_common(topk):
-                        most_common_explanations.append(explanation)
-
-                    # aggregate example-level explanations
-                    if neuron_explanations:
-                        neuron_explanation = ' | '.join(most_common_explanations)
-                        neuron_explanation_simplified = simplify_logic(neuron_explanation, 'dnf', force=False)
                     else:
-                        neuron_explanation_simplified = ''
-                    explanations.append(f'({neuron_explanation_simplified})')
-                    class_explanations[f'layer_{layer_id}-neuron_{neuron}'] = str(neuron_explanation_simplified)
+                        # get most frequent local explanations
+                        counter = collections.Counter(neuron_explanations)
+                        topk = topk_explanations
+                        if len(counter) < topk_explanations:
+                            topk = len(counter)
+                        most_common_explanations = []
+                        for explanation, _ in counter.most_common(topk):
+                            most_common_explanations.append(f'({explanation})')
+
+                        # aggregate example-level explanations
+                        if neuron_explanations:
+                            neuron_explanation = ' | '.join(most_common_explanations)
+                            neuron_explanation_simplified = simplify_logic(neuron_explanation, 'dnf', force=False)
+                        else:
+                            neuron_explanation_simplified = ''
+                        explanations.append(f'({neuron_explanation_simplified})')
+                        class_explanations[f'layer_{layer_id}-neuron_{neuron}'] = str(neuron_explanation_simplified)
 
                 prev_module = module
                 feature_names = explanations
