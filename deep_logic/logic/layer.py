@@ -1,15 +1,13 @@
-from typing import Tuple, List
+from typing import List
 import collections
 
 import torch
 import numpy as np
 from sympy import simplify_logic
 
-from .base import replace_names, test_explanation, simplify_formula2, simplify_formula
-from .psi_nn import _build_truth_table
+from .base import replace_names, simplify_formula
 from ..nn import XLogic#, XLogicConv2d
-from ..utils.base import collect_parameters, to_categorical
-from ..utils.selection import rank_pruning, rank_weights, rank_lime
+from ..utils.base import to_categorical
 
 
 def explain_class(model: torch.nn.Module, x: torch.Tensor, concepts_in: torch.Tensor,
