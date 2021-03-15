@@ -260,7 +260,7 @@ class RuleListClassifier(BaseEstimator):
             order, as they appear in the attribute `classes_`.
         """
 
-        if self.discretizer != None:
+        if self.discretizer is not None:
             self.discretizer._data = pd.DataFrame(X, columns=self.feature_labels)
             self.discretizer.apply_cutpoints()
             D = self._prepend_feature_labels(np.array(self.discretizer._data)[:, :-1])

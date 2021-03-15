@@ -82,7 +82,7 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         """
 
         # Loading dataset
-        train_loader = torch.utils.data.DataLoader(train_set, 1024, num_workers=8)
+        train_loader = torch.utils.data.DataLoader(train_set, 1024)
         train_data, train_labels = [], []
         for data in train_loader:
             train_data.append(data[0]), train_labels.append(data[1])
