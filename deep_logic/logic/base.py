@@ -63,9 +63,10 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
 
             local_prediction = torch.stack(features, dim=0).prod(dim=0)
             local_predictions.append(local_prediction)
-        predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).eq(target_class).cpu().detach().numpy()
+        # predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).eq(target_class).cpu().detach().numpy()
+        predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).cpu().detach().numpy()
 
-    y = to_categorical(y).cpu().detach().numpy()
+    y = to_categorical(y).eq(target_class).cpu().detach().numpy()
     # if len(y.squeeze().shape) > 1:
     #     predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).cpu().detach().numpy()
     # else:
