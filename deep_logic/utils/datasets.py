@@ -85,6 +85,6 @@ class ImageToConceptDataset(ConceptDataset):
         Instead of returning image, class it returns image, attributes
 
         """
-        sample, _ = super().__getitem__(idx)
+        sample, _ = ImageFolder.__getitem__(self, idx)
         attribute = self.attributes[idx]
         return sample, attribute
