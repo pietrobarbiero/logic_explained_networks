@@ -3,6 +3,7 @@ from typing import Tuple, List
 
 import torch
 import numpy as np
+from sklearn.metrics import accuracy_score
 
 from ..utils.base import to_categorical
 from ..utils.metrics import Metric, Accuracy
@@ -25,7 +26,7 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
     :param explanation: formula
     :param target_class: class ID
     :param x: input data
-    :param y: input labels
+    :param y: input labels (categorical, NOT one-hot encoded)
     :param give_local: if true will return local predictions
     :return: Accuracy of the explanation and predictions
     """
@@ -63,13 +64,9 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
 
             local_prediction = torch.stack(features, dim=0).prod(dim=0)
             local_predictions.append(local_prediction)
-        # predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).eq(target_class).cpu().detach().numpy()
         predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).cpu().detach().numpy()
 
     y = to_categorical(y).eq(target_class).cpu().detach().numpy()
-    # if len(y.squeeze().shape) > 1:
-    #     predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).cpu().detach().numpy()
-    # else:
 
     accuracy = metric(y, predictions)
     return accuracy, torch.stack(local_predictions, dim=0).sum(dim=0) > 0 if give_local else predictions
@@ -94,40 +91,18 @@ def replace_names(explanation: str, concept_names: List[str]) -> str:
     return explanation
 
 
-def simplify_formula(explanation: str, model: torch.nn.Module,
-                     x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
-                     target_class: int) -> str:
+def simplify_formula(explanation: str, x: torch.Tensor, y: torch.Tensor, target_class: int) -> str:
     """
     Simplify formula to a simpler one that is still coherent.
 
     :param explanation: local formula to be simplified.
-    :param model: torch model.
     :param x: input data.
-    :param y: target labels (1D).
-    :param x_sample: sample associated to the local formula.
+    :param y: target labels (1D, categorical NOT one-hot encoded).
     :param target_class: target class
     :return: Simplified formula
     """
-    # # Check if multi class labels
-    # if len(y.squeeze().shape) > 1:
-    #     y = y.argmax()
 
-    y = to_categorical(y)
-    if len(x_sample.shape) == 1:
-        x_sample = x_sample.unsqueeze(0)
-
-    y_pred_sample = model((x_sample > 0.5).to(torch.float))
-    y_pred_sample = to_categorical(y_pred_sample)
-
-    if not y_pred_sample.eq(target_class):
-        return ''
-
-    if len(x_sample.shape) == 1:
-        x_sample = x_sample.unsqueeze(0)
-
-    mask = (y != y_pred_sample).squeeze()
-    x_validation = torch.cat([x[mask], x_sample]).to(torch.bool)
-    y_validation = torch.cat([y[mask], y_pred_sample]).squeeze()
+    base_accuracy, _ = test_explanation(explanation, target_class, x, y, metric=accuracy_score)
     for term in explanation.split(' & '):
         explanation_simplified = copy.deepcopy(explanation)
 
@@ -137,39 +112,8 @@ def simplify_formula(explanation: str, model: torch.nn.Module,
             explanation_simplified = explanation_simplified.replace(f'{term} & ', '')
 
         if explanation_simplified:
-            accuracy, _ = test_explanation(explanation_simplified, target_class, x_validation, y_validation)
-            if accuracy == 1:
-                explanation = copy.deepcopy(explanation_simplified)
-
-    return explanation
-
-
-def simplify_formula2(explanation: str, x: torch.Tensor, y: torch.Tensor, target_class: int) -> str:
-    """
-    Simplify formula to a simpler one that is still coherent.
-
-    :param explanation: local formula to be simplified.
-    :param model: torch model.
-    :param x: input data.
-    :param y: target labels (1D).
-    :param target_class: target class
-    :return: Simplified formula
-    """
-    # # Check if multi class labels
-    # if len(y.squeeze().shape) > 1:
-    #     y = y.argmax()
-
-    for term in explanation.split(' & '):
-        explanation_simplified = copy.deepcopy(explanation)
-
-        if explanation_simplified.endswith(f'{term}'):
-            explanation_simplified = explanation_simplified.replace(f' & {term}', '')
-        else:
-            explanation_simplified = explanation_simplified.replace(f'{term} & ', '')
-
-        if explanation_simplified:
-            accuracy, _ = test_explanation(explanation_simplified, target_class, x, y)
-            if accuracy == 1:
+            accuracy, preds = test_explanation(explanation_simplified, target_class, x, y, metric=accuracy_score)
+            if accuracy == base_accuracy:
                 explanation = copy.deepcopy(explanation_simplified)
 
     return explanation
