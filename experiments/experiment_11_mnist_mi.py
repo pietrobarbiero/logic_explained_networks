@@ -3,8 +3,6 @@ if __name__ == "__main__":
     #%%
 
     import sys
-    from data.download_mnist import download_mnist
-    from experiments.MNIST.concept_extractor_mnist import concept_extractor_mnist
 
     sys.path.append('..')
     import os
@@ -14,11 +12,15 @@ if __name__ == "__main__":
     from deep_logic.models.relu_nn import XReluNN
     from deep_logic.models.psi_nn import PsiNetwork
     from deep_logic.utils.base import set_seed
-    from deep_logic.utils.metrics import F1Score
+    from deep_logic.utils.metrics import F1Score, UnsupervisedMetric
     from deep_logic.models.general_nn import XGeneralNN
     from deep_logic.utils.datasets import ConceptToTaskDataset
     from deep_logic.utils.data import get_splits_train_val_test
     from deep_logic.logic.base import test_multi_class_explanation
+    from deep_logic.utils.loss import mutual_information, MutualInformationLoss
+    from data import MNIST
+    from data.download_mnist import download_mnist
+    from experiments.MNIST.concept_extractor_mnist import concept_extractor_mnist
 
     results_dir = 'results/mnist'
     if not os.path.isdir(results_dir):
@@ -30,7 +32,7 @@ if __name__ == "__main__":
 
     #%%
 
-    dataset_root = "../data/MNIST/"
+    dataset_root = f"../data/MNIST/"
     if not os.path.isdir(dataset_root):
         download_mnist(dataset_root)
     else:
@@ -42,12 +44,12 @@ if __name__ == "__main__":
 
     #%%
 
-    if not os.path.isfile(os.path.join(dataset_root, "MNIST_predictions.npy")):
+    if not os.path.isfile(os.path.join(dataset_root, f"{MNIST}_predictions.npy")):
         concept_extractor_mnist(dataset_root)
     else:
         print("Concepts already extracted")
-    dataset = ConceptToTaskDataset(dataset_root)
-    concept_names = dataset.attribute_names
+    dataset = ConceptToTaskDataset(dataset_root, MNIST)
+    concept_names = ["C1", "C2"]
     print("Concept names", concept_names)
     n_features = dataset.n_attributes
     print("Number of features", n_features)
@@ -58,7 +60,7 @@ if __name__ == "__main__":
 
     #%%
 
-    epochs = 200
+    epochs = 2
     l_r = 0.001
     lr_scheduler = True
     top_k_explanations = 1
@@ -72,8 +74,8 @@ if __name__ == "__main__":
 
     #%%
 
-    loss = torch.nn.CrossEntropyLoss()
-    metric = F1Score()
+    loss = MutualInformationLoss()
+    metric = UnsupervisedMetric()
 
     methods = []
     splits = []

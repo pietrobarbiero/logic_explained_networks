@@ -9,6 +9,7 @@ from torch.utils.data import Dataset
 
 from deep_logic.utils.base import ClassifierNotTrainedError, IncompatibleClassifierError
 from deep_logic.utils.metrics import Metric, TopkAccuracy, Accuracy
+from deep_logic.utils.loss import MutualInformationLoss
 
 
 class BaseXModel(ABC):
@@ -69,7 +70,9 @@ class BaseClassifier(torch.nn.Module):
         super(BaseClassifier, self).__init__()
         if loss is not None:
             assert isinstance(loss, torch.nn.CrossEntropyLoss) or \
-                   isinstance(loss, torch.nn.BCELoss), "Only CrossEntropyLoss and BCELoss are allowed"
+                   isinstance(loss, torch.nn.BCELoss) or \
+                   isinstance(loss, MutualInformationLoss), \
+                   "Only CrossEntropyLoss, BCELoss or MutualInformationLoss are available."
         self.loss = loss
         self.activation = activation
         self.name = name
@@ -96,7 +99,8 @@ class BaseClassifier(torch.nn.Module):
             output = output.unsqueeze(dim=0)
         return output
 
-    def get_loss(self, output: torch.Tensor, target: torch.Tensor, epoch: int = None, epochs: int = None) -> torch.Tensor:
+    def get_loss(self, output: torch.Tensor, target: torch.Tensor, epoch: int = None,
+                 epochs: int = None) -> torch.Tensor:
         """
         get_loss method is used by each class to calculate its own loss according to the different training strategy
 
@@ -218,7 +222,7 @@ class BaseClassifier(torch.nn.Module):
                                               factor=0.33, min_lr=1e-3 * l_r) if lr_scheduler else None
 
             # Save best model if early_stopping is True
-            if (val_acc > best_acc and epoch > epochs // 2 or epochs == 1) and early_stopping:
+            if (val_acc > best_acc and epoch > epochs // 2 or epochs <= 2) and early_stopping:
                 best_acc = val_acc
                 best_epoch = epoch + 1
                 self.save()

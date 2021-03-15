@@ -94,6 +94,6 @@ class F1Score(Metric):
 
 class UnsupervisedMetric(Metric):
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
-        mi = mutual_information(outputs)
+        mi = mutual_information(outputs) * 100
 
         return mi
