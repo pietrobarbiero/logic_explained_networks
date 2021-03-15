@@ -70,9 +70,9 @@ class BaseClassifier(torch.nn.Module):
         super(BaseClassifier, self).__init__()
         if loss is not None:
             assert isinstance(loss, torch.nn.CrossEntropyLoss) or \
-                   isinstance(loss, torch.nn.BCELoss) or \
+                   isinstance(loss, torch.nn.BCEWithLogitsLoss) or \
                    isinstance(loss, MutualInformationLoss), \
-                   "Only CrossEntropyLoss, BCELoss or MutualInformationLoss are available."
+                   "Only CrossEntropyLoss, BCEWithLogitsLoss or MutualInformationLoss are available."
         self.loss = loss
         self.activation = activation
         self.name = name
@@ -115,7 +115,6 @@ class BaseClassifier(torch.nn.Module):
                 target = target.argmax(dim=1)
             loss = self.loss(output.squeeze(), target.squeeze())
         else:
-            output = torch.sigmoid(output)
             target = target.to(torch.float)
             loss = self.loss(output.squeeze(), target.squeeze())
         return loss

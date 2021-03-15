@@ -26,7 +26,7 @@ y_sample = y[1]
 y_sample_multi = y_multi[1].argmax()
 
 # Define loss and metrics
-loss = torch.nn.BCELoss()
+loss = torch.nn.BCEWithLogitsLoss()
 metric = Accuracy()
 
 # Define epochs and learning rate

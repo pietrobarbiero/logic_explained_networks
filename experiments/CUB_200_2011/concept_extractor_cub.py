@@ -24,9 +24,9 @@ def concept_extractor_cub(dataset_root="..//..//data//CUB_200_2011", epochs=200,
     if seeds is None:
         seeds = [0]
     if binary_loss:
-        loss = torch.nn.BCELoss
+        loss = torch.nn.BCEWithLogitsLoss
     else:
-        loss = torch.nn.NLLLoss
+        loss = torch.nn.CrossEntropyLoss
 
     for seed in seeds:
         set_seed(seed)

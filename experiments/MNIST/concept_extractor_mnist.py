@@ -24,10 +24,12 @@ def concept_extractor_mnist(dataset_root=f"..//..//data//MNIST", epochs=20, seed
                             ):
     if seeds is None:
         seeds = [0]
-    if binary_loss:
-        loss = torch.nn.BCELoss
+    if multi_label:
+        loss = MultiLabelLoss()
+    elif binary_loss:
+        loss = torch.nn.BCEWithLogitsLoss()
     else:
-        loss = torch.nn.CrossEntropyLoss
+        loss = torch.nn.CrossEntropyLoss()
 
     for seed in seeds:
         set_seed(seed)

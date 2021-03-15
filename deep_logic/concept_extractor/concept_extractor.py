@@ -26,7 +26,7 @@ class CNNConceptExtractor(BaseClassifier):
             whether to instantiate the model with the weights trained on ImageNet or randomly
     """
 
-    def __init__(self, n_classes: int, cnn_model: str = RESNET10, loss: torch.nn.modules.loss = torch.nn.BCELoss(),
+    def __init__(self, n_classes: int, cnn_model: str = RESNET10, loss = torch.nn.BCEWithLogitsLoss(),
                  transfer_learning: bool = False, pretrained: bool = False, name: str = "net",
                  device: torch.device = torch.device("cpu")):
         super().__init__(loss, name, device)
