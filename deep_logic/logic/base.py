@@ -91,18 +91,40 @@ def replace_names(explanation: str, concept_names: List[str]) -> str:
     return explanation
 
 
-def simplify_formula(explanation: str, x: torch.Tensor, y: torch.Tensor, target_class: int) -> str:
+def simplify_formula(explanation: str, model: torch.nn.Module,
+                     x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
+                     target_class: int) -> str:
     """
     Simplify formula to a simpler one that is still coherent.
 
     :param explanation: local formula to be simplified.
+    :param model: torch model.
     :param x: input data.
-    :param y: target labels (1D, categorical NOT one-hot encoded).
+    :param y: target labels (1D).
+    :param x_sample: sample associated to the local formula.
     :param target_class: target class
     :return: Simplified formula
     """
+    # # Check if multi class labels
+    # if len(y.squeeze().shape) > 1:
+    #     y = y.argmax()
 
-    base_accuracy, _ = test_explanation(explanation, target_class, x, y, metric=accuracy_score)
+    y = to_categorical(y)
+    if len(x_sample.shape) == 1:
+        x_sample = x_sample.unsqueeze(0)
+
+    y_pred_sample = model((x_sample > 0.5).to(torch.float))
+    y_pred_sample = to_categorical(y_pred_sample)
+
+    if not y_pred_sample.eq(target_class):
+        return ''
+
+    if len(x_sample.shape) == 1:
+        x_sample = x_sample.unsqueeze(0)
+
+    mask = (y != y_pred_sample).squeeze()
+    x_validation = torch.cat([x[mask], x_sample]).to(torch.bool)
+    y_validation = torch.cat([y[mask], y_pred_sample]).squeeze()
     for term in explanation.split(' & '):
         explanation_simplified = copy.deepcopy(explanation)
 
@@ -112,8 +134,8 @@ def simplify_formula(explanation: str, x: torch.Tensor, y: torch.Tensor, target_
             explanation_simplified = explanation_simplified.replace(f'{term} & ', '')
 
         if explanation_simplified:
-            accuracy, preds = test_explanation(explanation_simplified, target_class, x, y, metric=accuracy_score)
-            if accuracy == base_accuracy:
+            accuracy, _ = test_explanation(explanation_simplified, target_class, x_validation, y_validation)
+            if accuracy == 1:
                 explanation = copy.deepcopy(explanation_simplified)
 
     return explanation
