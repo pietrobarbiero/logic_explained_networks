@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 
 import torch
-import numpy as np
 from sklearn.metrics import f1_score
+
+from .loss import mutual_information
 
 
 class Metric(ABC):
@@ -89,3 +90,10 @@ class F1Score(Metric):
         targets = targets.cpu().numpy()
         f1_val = f1_score(discrete_output, targets, average=average, zero_division=0) * 100
         return f1_val
+
+
+class UnsupervisedMetric(Metric):
+    def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
+        mi = mutual_information(outputs)
+
+        return mi
