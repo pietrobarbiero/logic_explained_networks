@@ -58,7 +58,14 @@ class XConceptizator(Module):
         if self.activation_name == 'leaky_relu':
             self.activation = torch.nn.functional.leaky_relu
             self.threshold = 0.
+        if self.activation_name == 'identity':
+            self.activation = identity
+            self.threshold = 0.5
 
     def forward(self, input: Tensor) -> Tensor:
         self.concepts = self.activation(input)
         return self.concepts
+
+
+def identity(x):
+    return x

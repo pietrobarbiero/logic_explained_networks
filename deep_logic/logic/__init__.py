@@ -1,11 +1,12 @@
 from .relu_nn import combine_local_explanations, explain_local, explain_global
 from .psi_nn import generate_fol_explanations
 from .base import replace_names, test_explanation
-from .layer import explain_class
+from .layer import explain_multi_class, explain_class_binary
 from .metrics import concept_consistency, formula_consistency, predictions, fidelity, complexity
 
 __all__ = [
-    'explain_class',
+    'explain_multi_class',
+    'explain_class_binary',
     'explain_global',
     'explain_local',
     'test_explanation',
