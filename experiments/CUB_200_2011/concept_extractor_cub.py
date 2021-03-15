@@ -1,5 +1,6 @@
 import sys
 import os
+from datetime import datetime
 
 sys.path.append(os.path.join('..', '..'))
 
@@ -19,7 +20,7 @@ def concept_extractor_cub(dataset_root="..//..//data//CUB_200_2011", epochs=200,
                           device=torch.device("cuda:1") if torch.cuda.is_available() else torch.device("cpu"),
                           metric=metrics.F1Score, cnn_model=cnn_models.RESNET18, pretrained=True,
                           transfer_learning=False, show_image=True, data_augmentation=True, few_shot=False,
-                          denoised=True, reduced=False, l_r=0.003, batch_size=64, binary_loss=True
+                          reduced=False, l_r=0.003, batch_size=64, binary_loss=True
                           ):
     if seeds is None:
         seeds = [0]
@@ -34,9 +35,9 @@ def concept_extractor_cub(dataset_root="..//..//data//CUB_200_2011", epochs=200,
                                         inception=cnn_model == cnn_models.INCEPTION)
         test_transform = get_transform(dataset=CUB200, data_augmentation=False,
                                        inception=cnn_model == cnn_models.INCEPTION)
-        dataset = ImageToConceptDataset(dataset_root, train_transform, dataset_name=CUB200, denoised=denoised)
+        dataset = ImageToConceptDataset(dataset_root, train_transform, dataset_name=CUB200)
         if reduced:
-            bill_attributes = 8 if denoised else 9
+            bill_attributes = 8
             dataset.attributes = dataset.attributes[:, :bill_attributes]
             dataset.attribute_names = dataset.attribute_names[:bill_attributes]
             dataset.n_attributes = bill_attributes
@@ -54,7 +55,7 @@ def concept_extractor_cub(dataset_root="..//..//data//CUB_200_2011", epochs=200,
             show_batch(test_set, test_set.dataset.attribute_names)
 
         name = f"model_{cnn_model}_prtr_{pretrained}_trlr_{transfer_learning}_bl_{binary_loss}_fs_{few_shot}_dataset_" \
-               f"{CUB200}_denoised_{denoised}_reduced_{reduced}_lr_{l_r}_epochs_{epochs}_seed_{seed}_" \
+               f"{CUB200}_reduced_{reduced}_lr_{l_r}_epochs_{epochs}_seed_{seed}_" \
                f"time_{datetime.now().strftime('%d-%m-%y %H:%M:%S')}.pth"
         # name = "model_Resnet_18_prtr_True_trlr_False_bl_True_fs_False_dataset_cub200_denoised_True_reduced_False_" \
         #        "lr_0.003_epochs_200_seed_0_time_04-02-21 16:20:27.pth"

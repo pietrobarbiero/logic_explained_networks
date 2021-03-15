@@ -172,6 +172,7 @@ def clean_names(names: list) -> list:
                 .replace("-", "")
                 .replace("(", "")
                 .replace(")", "")
+                .replace(" ", "_")
             for name in names
         ]
     return names

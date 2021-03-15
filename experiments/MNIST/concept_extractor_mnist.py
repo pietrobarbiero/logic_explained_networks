@@ -8,10 +8,11 @@ import torch
 import numpy as np
 from torch.utils.data import Subset
 from data import MNIST
-from deep_logic.utils.datasets import ImageToConceptDataset
+from deep_logic.utils.datasets import ImageToConceptDataset, ImageToConceptAndTaskDataset
 from deep_logic.utils import metrics
 from deep_logic.utils.base import set_seed, ClassifierNotTrainedError
 from deep_logic.utils.data import get_transform, get_splits_train_val_test, get_splits_for_fsc, show_batch
+from deep_logic.utils.loss import MultiLabelLoss
 from deep_logic.concept_extractor import cnn_models
 from deep_logic.concept_extractor.concept_extractor import CNNConceptExtractor
 
@@ -19,9 +20,8 @@ from deep_logic.concept_extractor.concept_extractor import CNNConceptExtractor
 def concept_extractor_mnist(dataset_root=f"..//..//data//MNIST", epochs=20, seeds=None,
                             device=torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu"),
                             metric=metrics.F1Score, cnn_model=cnn_models.RESNET10, pretrained=False,
-                            transfer_learning=False, show_image=True, data_augmentation=False, few_shot=False,
-                            denoised=False, l_r=0.01, batch_size=128, binary_loss=False
-                            ):
+                            transfer_learning=False, show_image=True, data_augmentation=False, multi_label=False,
+                            few_shot=False, l_r=0.01, batch_size=128, binary_loss=False):
     if seeds is None:
         seeds = [0]
     if multi_label:
@@ -37,7 +37,10 @@ def concept_extractor_mnist(dataset_root=f"..//..//data//MNIST", epochs=20, seed
                                         inception=cnn_model == cnn_models.INCEPTION)
         test_transform = get_transform(dataset=MNIST, data_augmentation=False,
                                        inception=cnn_model == cnn_models.INCEPTION)
-        dataset = ImageToConceptDataset(dataset_root, train_transform, dataset_name=MNIST, denoised=denoised)
+        if multi_label:
+            dataset = ImageToConceptAndTaskDataset(dataset_root, train_transform, dataset_name=MNIST)
+        else:
+            dataset = ImageToConceptDataset(dataset_root, train_transform, dataset_name=MNIST)
         if few_shot:
             train_set, val_set = get_splits_for_fsc(dataset, train_split=0.8, test_transform=test_transform)
             test_idx = train_set.indices + val_set.indices
@@ -53,7 +56,7 @@ def concept_extractor_mnist(dataset_root=f"..//..//data//MNIST", epochs=20, seed
             show_batch(test_set, test_set.dataset.attribute_names)
 
         name = f"model_{cnn_model}_prtr_{pretrained}_trlr_{transfer_learning}_bl_{binary_loss}_fs_{few_shot}_dataset_" \
-               f"{MNIST}_denoised_{denoised}__lr_{l_r}_epochs_{epochs}_seed_{seed}_" \
+               f"{MNIST}_lr_{l_r}_epochs_{epochs}_seed_{seed}_" \
                f"time_{datetime.now().strftime('%d-%m-%y_%H-%M-%S')}.pth"
         print(name)
         model = CNNConceptExtractor(dataset.n_attributes, cnn_model=cnn_model,

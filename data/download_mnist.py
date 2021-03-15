@@ -20,18 +20,18 @@ def download_mnist(root="MNIST", force=True):
     orig_dir = os.curdir
     os.chdir(root)
 
-    if not os.path.isfile("mnist.zip"):
-        os.system("curl https://data.deepai.org/mnist.zip -o mnist.zip")
-        print("Dataset Downloaded")
-    os.system("tar -zxvf mnist.zip")
-    os.remove("mnist.zip")
-    os.system("gzip -d *.gz")
-    os.system(f"mkdir {root}")
-    os.chdir(root)
-    os.system("mkdir raw")
-    os.system("mkdir processed")
-    os.chdir("..")
-    os.system(f"mv *ubyte {root}/raw")
+    # if not os.path.isfile("mnist.zip"):
+    #     os.system("curl https://data.deepai.org/mnist.zip -o mnist.zip")
+    #     print("Dataset Downloaded")
+    # os.system("tar -zxvf mnist.zip")
+    # os.remove("mnist.zip")
+    # os.system("gzip -d *.gz")
+    # os.system(f"mkdir {root}")
+    # os.chdir(root)
+    # os.system("mkdir raw")
+    # os.system("mkdir processed")
+    # os.chdir("..")
+    # os.system(f"mv *ubyte {root}/raw")
     dataset = torchvision.datasets.MNIST(root=".", download=True)
     os.system("rm -r *")
     print("Dataset Extracted")
@@ -84,9 +84,11 @@ def download_mnist(root="MNIST", force=True):
     print("Dataset saved with Image Folder structure")
 
     np.save("attributes.npy", attributes)
-    with open("attributes_names.txt", "w") as f:
-        json.dump(dataset.classes, f)
     print("Attributes saved")
+
+    attributes_names = [c[4:] for c in dataset.classes]
+    with open("attributes_names.txt", "w") as f:
+        json.dump(attributes_names, f)
 
     os.chdir(orig_dir)
 
