@@ -86,3 +86,4 @@ data/Shapes/
 *.pth
 *.zip
 experiments/.ipynb_checkpoints/
+req.txt
