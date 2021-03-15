@@ -5,20 +5,23 @@ import numpy as np
 import pandas as pd
 
 
-def download_cub(force=True):
-    if os.path.isdir("CUB_200_2011") and not force:
+# noinspection PyUnresolvedReferences
+def download_cub(root="CUB_200_2011", force=True):
+
+    if os.path.isdir(root) and not force:
         print("Dataset already downloaded")
         return
 
-    # os.system("git clone https://github.com/chentinghao/download_google_drive.git")
-    # from download_google_drive.download_gdrive import download_file_from_google_drive
-    # download_file_from_google_drive("1hbzc_P1FuxMkcabkgn9ZKinBwW683j45", "CUB_200_2011.tgz")
-    # print("Dataset downloaded")
+    os.system("git clone https://github.com/chentinghao/download_google_drive.git")
+    from download_google_drive.download_gdrive import download_file_from_google_drive
+    download_file_from_google_drive("1hbzc_P1FuxMkcabkgn9ZKinBwW683j45", "CUB_200_2011.tgz")
+    print("Dataset downloaded")
 
     os.system("tar -zxvf CUB_200_2011.tgz")
     print("\nDataset extracted")
 
-    os.chdir("CUB_200_2011")
+    origin_dir = os.curdir
+    os.chdir(root)
 
     os.system("mv ../attributes.txt .")
     os.rename("attributes.txt", "attributes_names.txt")
@@ -117,6 +120,8 @@ def download_cub(force=True):
     os.remove("images.txt")
     print("Images sorted and renamed")
     print("Dataset configured correctly")
+
+    os.chdir(origin_dir)
 
 
 if __name__ == "__main__":

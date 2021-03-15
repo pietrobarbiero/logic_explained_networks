@@ -13,7 +13,7 @@ from torchvision import transforms
 from matplotlib import pyplot as plt
 from .datasets import ConceptDataset
 
-from data import CUB200
+from data import CUB200, MNIST
 
 
 def get_transform(dataset, data_augmentation=False, inception=False) -> transforms.Compose:
@@ -38,13 +38,22 @@ def get_transform(dataset, data_augmentation=False, inception=False) -> transfor
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
+    elif dataset == MNIST:
+        size = 299 if inception else 224
+        resize = int(size * 0.9)
+        transform = transforms.Compose([
+            transforms.Resize(size=resize),
+            transforms.CenterCrop(size=size),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
     else:
         raise NotImplementedError()
     return transform
 
 
 def get_splits_train_val_test(dataset: ConceptDataset, val_split: float = 0.1, test_split: float = 0.1,
-                              load=False, test_transform: transforms.Compose = None) \
+                              load=True, test_transform: transforms.Compose = None) \
         -> Tuple[Subset, Subset, Subset]:
     train_json = os.path.join(os.path.dirname(dataset.root), f"train_samples_{dataset.dataset_name}.json")
     val_json = os.path.join(os.path.dirname(dataset.root), f"val_samples_{dataset.dataset_name}.json")
