@@ -1,8 +1,9 @@
 from .linear import XLinear
-from .logic import XLogic, XLogicConv2d
+from .logic import XLogic
+from .concepts import Conv2Concepts
 
 __all__ = [
     'XLogic',
     'XLinear',
-    'XLogicConv2d',
+    'Conv2Concepts',
 ]

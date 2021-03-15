@@ -5,9 +5,9 @@ import torch
 import numpy as np
 from sympy import simplify_logic
 
-from .base import replace_names, test_explanation, simplify_formula2
+from .base import replace_names, test_explanation, simplify_formula2, simplify_formula
 from .psi_nn import _build_truth_table
-from ..nn import XLogic, XLogicConv2d
+from ..nn import XLogic#, XLogicConv2d
 from ..utils.base import collect_parameters, to_categorical
 from ..utils.selection import rank_pruning, rank_weights, rank_lime
 
@@ -83,8 +83,8 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, concepts_in: torch.Te
     class_explanations = {}
     is_first = True
     for layer_id, module in enumerate(model.children()):
-        # prune only Linear layers
-        if isinstance(module, XLogic) or isinstance(module, XLogicConv2d):
+        # analyze only logic layers
+        if isinstance(module, XLogic): # or isinstance(module, XLogicConv2d):
 
             if is_first:
                 prev_module = module
@@ -103,16 +103,16 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, concepts_in: torch.Te
                         explanation_raw = ''
                         for j in torch.nonzero(prev_module.weight.sum(axis=1)):
                             if feature_names[j[0]] not in ['()', '']:
-                                if explanation_raw and prev_module.conceptizator.concepts[i, j[0]] > module.conceptizator.threshold:
-                                    explanation_raw += ' & '
-                                if prev_module.conceptizator.concepts[i, j[0]] > module.conceptizator.threshold:
-                                    explanation_raw += feature_names[j[0]]
-                                # if explanation_raw:
+                                # if explanation_raw and prev_module.conceptizator.concepts[i, j[0]] > module.conceptizator.threshold:
                                 #     explanation_raw += ' & '
                                 # if prev_module.conceptizator.concepts[i, j[0]] > module.conceptizator.threshold:
                                 #     explanation_raw += feature_names[j[0]]
-                                # else:
-                                #     explanation_raw += f'~{feature_names[j[0]]}'
+                                if explanation_raw:
+                                    explanation_raw += ' & '
+                                if prev_module.conceptizator.concepts[i, j[0]] > module.conceptizator.threshold:
+                                    explanation_raw += feature_names[j[0]]
+                                else:
+                                    explanation_raw += f'~{feature_names[j[0]]}'
 
                         # # replace "not True" with "False" and vice versa
                         # explanation = explanation_raw.replace('~(True)', '(False)')
@@ -127,7 +127,7 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, concepts_in: torch.Te
                         if explanation_raw in neuron_explanations_raw:
                             explanation = neuron_explanations_raw[explanation_raw]
                         elif simplify:
-                            explanation = simplify_formula2(explanation_raw, c_validation, y_validation, target_class)
+                            explanation = simplify_formula(explanation_raw, c_validation, y_validation, target_class)
                         else:
                             explanation = explanation_raw
 
