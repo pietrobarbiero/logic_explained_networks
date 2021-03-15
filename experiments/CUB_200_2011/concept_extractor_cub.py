@@ -53,11 +53,11 @@ def concept_extractor_cub(dataset_root="..//..//data//CUB_200_2011", epochs=200,
             show_batch(val_set, val_set.dataset.attribute_names)
             show_batch(test_set, test_set.dataset.attribute_names)
 
-        # name = f"model_{cnn_model}_prtr_{pretrained}_trlr_{transfer_learning}_bl_{binary_loss}_fs_{few_shot}_dataset_" \
-        #        f"{CUB200}_denoised_{denoised}_reduced_{reduced}_lr_{l_r}_epochs_{epochs}_seed_{seed}_" \
-        #        f"time_{datetime.now().strftime('%d-%m-%y %H:%M:%S')}.pth"
-        name = "model_Resnet_18_prtr_True_trlr_False_bl_True_fs_False_dataset_cub200_denoised_True_reduced_False_" \
-               "lr_0.003_epochs_200_seed_0_time_04-02-21 16:20:27.pth"
+        name = f"model_{cnn_model}_prtr_{pretrained}_trlr_{transfer_learning}_bl_{binary_loss}_fs_{few_shot}_dataset_" \
+               f"{CUB200}_denoised_{denoised}_reduced_{reduced}_lr_{l_r}_epochs_{epochs}_seed_{seed}_" \
+               f"time_{datetime.now().strftime('%d-%m-%y %H:%M:%S')}.pth"
+        # name = "model_Resnet_18_prtr_True_trlr_False_bl_True_fs_False_dataset_cub200_denoised_True_reduced_False_" \
+        #        "lr_0.003_epochs_200_seed_0_time_04-02-21 16:20:27.pth"
         print(name)
         model = CNNConceptExtractor(dataset.n_attributes, cnn_model=cnn_model,
                                     loss=loss(), name=name, pretrained=pretrained, transfer_learning=transfer_learning)
@@ -73,26 +73,8 @@ def concept_extractor_cub(dataset_root="..//..//data//CUB_200_2011", epochs=200,
             model.eval()
             preds, labels = model.predict(dataset, num_workers=8, device=device)
             val = model.evaluate(dataset, metric=metric(), device=device, outputs=preds, labels=labels)
-            np.save(os.path.join(dataset_root, "CUB200_predictions.npy"), preds.cpu().numpy())
+            np.save(os.path.join(dataset_root, f"{CUB200}_predictions.npy"), preds.cpu().numpy())
             print("Performance:", val)
-
-            # model.eval()
-            # preds, labels = model.predict(train_set, num_workers=8, device=device)
-            # val = model.evaluate(train_set, metric=metric(), device=device, outputs=preds, labels=labels)
-            # torch.save(preds, os.path.join(dataset_root, "CUB200_predictions_train_set"))
-            # print("Performance on train set:", val)
-            #
-            # model.eval()
-            # preds, labels = model.predict(val_set, num_workers=8, device=device)
-            # val = model.evaluate(val_set, metric=metric(), device=device, outputs=preds, labels=labels)
-            # torch.save(preds, os.path.join(dataset_root, "CUB200_predictions_val_set"))
-            # print("Performance on val set:", val)
-            #
-            # model.eval()
-            # preds, labels = model.predict(test_set, num_workers=8, device=device)
-            # val = model.evaluate(test_set, metric=metric(), device=device, outputs=preds, labels=labels)
-            # torch.save(preds, os.path.join(dataset_root, "CUB200_predictions_test_set"))
-            # print("Performance on test set:", val)
 
 
 if __name__ == '__main__':

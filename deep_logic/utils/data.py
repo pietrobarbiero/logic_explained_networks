@@ -55,9 +55,9 @@ def get_transform(dataset, data_augmentation=False, inception=False) -> transfor
 def get_splits_train_val_test(dataset: ConceptDataset, val_split: float = 0.1, test_split: float = 0.1,
                               load=True, test_transform: transforms.Compose = None) \
         -> Tuple[Subset, Subset, Subset]:
-    train_json = os.path.join(os.path.dirname(dataset.root), f"train_samples_{dataset.dataset_name}.json")
-    val_json = os.path.join(os.path.dirname(dataset.root), f"val_samples_{dataset.dataset_name}.json")
-    test_json = os.path.join(os.path.dirname(dataset.root), f"test_samples_{dataset.dataset_name}.json")
+    train_json = os.path.join(dataset.root, "..", f"train_samples_{dataset.dataset_name}.json")
+    val_json = os.path.join(dataset.root, "..", f"val_samples_{dataset.dataset_name}.json")
+    test_json = os.path.join(dataset.root, "..", f"test_samples_{dataset.dataset_name}.json")
 
     # Copying dataset if test_transform is given
     if test_transform is not None:

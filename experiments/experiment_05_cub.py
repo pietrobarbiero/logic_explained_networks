@@ -1,3 +1,4 @@
+
 if __name__ == "__main__":
 
     #%%
@@ -19,10 +20,14 @@ if __name__ == "__main__":
     from deep_logic.utils.datasets import ConceptToTaskDataset
     from deep_logic.utils.data import get_splits_train_val_test
     from deep_logic.logic.base import test_multi_class_explanation
+    from data import CUB200
+    from experiments.CUB_200_2011.concept_extractor_cub import concept_extractor_cub
 
     results_dir = 'results/cub'
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
+    dataset_root = "../data/CUB_200_2011/"
+    dataset_root
 
     #%% md
 
@@ -48,8 +53,11 @@ if __name__ == "__main__":
     ## Loading CUB data
 
     #%%
-
-    dataset = ConceptToTaskDataset("../data/CUB_200_2011/")
+    if not os.path.isfile(os.path.join(dataset_root, f"{CUB200}_predictions.npy")):
+        concept_extractor_cub(dataset_root)
+    else:
+        print("Concepts already extracted")
+    dataset = ConceptToTaskDataset(dataset_root)
     concept_names = dataset.attribute_names
     print("Concept names", concept_names)
     n_features = dataset.n_attributes

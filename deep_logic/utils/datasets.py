@@ -7,6 +7,8 @@ import numpy as np
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms
 
+from data import CUB200
+
 
 class ConceptDataset(ImageFolder, ABC):
     """
@@ -38,7 +40,7 @@ class ConceptDataset(ImageFolder, ABC):
         with open(os.path.join(root, "attributes_names.txt"), "r") as f:
             self.attribute_names = json.load(f)
             self.attribute_names = np.asarray(clean_names(self.attribute_names))
-        if predictions or denoised:
+        if (predictions or denoised) and dataset_name == CUB200:
             attributes = np.load(os.path.join(root, "very_denoised_attributes.npy"))
             attribute_to_filter = np.sum(attributes, axis=0) > 0
             self.attribute_names = self.attribute_names[attribute_to_filter]
