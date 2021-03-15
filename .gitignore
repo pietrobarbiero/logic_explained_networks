@@ -85,3 +85,4 @@ data/MNIST/
 data/Shapes/
 *.pth
 *.zip
+experiments/.ipynb_checkpoints/

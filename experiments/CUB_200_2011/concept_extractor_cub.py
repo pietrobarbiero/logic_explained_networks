@@ -1,5 +1,6 @@
 import sys
 import os
+
 sys.path.append(os.path.join('..', '..'))
 
 import torch
@@ -8,30 +9,20 @@ from torch.utils.data import Subset
 from data import CUB200
 from deep_logic.utils.datasets import ImageToConceptDataset
 from deep_logic.utils import metrics
-from deep_logic.utils.base import set_seed
+from deep_logic.utils.base import set_seed, ClassifierNotTrainedError
 from deep_logic.utils.data import get_transform, get_splits_train_val_test, get_splits_for_fsc, show_batch
 from deep_logic.concept_extractor import cnn_models
 from deep_logic.concept_extractor.concept_extractor import CNNConceptExtractor
 
 
-if __name__ == '__main__':
-
-    root = "..//..//data//CUB_200_2011"
-    epochs = 200
-    seeds = [0]  # [0, 1, 2]
-    device = torch.device("cuda:1") if torch.cuda.is_available() else torch.device("cpu")
-    metric = metrics.F1Score
-    cnn_model = cnn_models.RESNET18
-    pretrained = True
-    transfer_learning = False  # True
-    show_image = True
-    data_augmentation = True
-    few_shot = False
-    denoised = True
-    reduced = False
-    l_r = 0.003
-    batch_size = 64
-    binary_loss = True
+def concept_extractor_cub(dataset_root="..//..//data//CUB_200_2011", epochs=200, seeds=None,
+                          device=torch.device("cuda:1") if torch.cuda.is_available() else torch.device("cpu"),
+                          metric=metrics.F1Score, cnn_model=cnn_models.RESNET18, pretrained=True,
+                          transfer_learning=False, show_image=True, data_augmentation=True, few_shot=False,
+                          denoised=True, reduced=False, l_r=0.003, batch_size=64, binary_loss=True
+                          ):
+    if seeds is None:
+        seeds = [0]
     if binary_loss:
         loss = torch.nn.BCELoss
     else:
@@ -40,15 +31,15 @@ if __name__ == '__main__':
     for seed in seeds:
         set_seed(seed)
         train_transform = get_transform(dataset=CUB200, data_augmentation=data_augmentation,
-                                                        inception=cnn_model == cnn_models.INCEPTION)
+                                        inception=cnn_model == cnn_models.INCEPTION)
         test_transform = get_transform(dataset=CUB200, data_augmentation=False,
-                                                       inception=cnn_model == cnn_models.INCEPTION)
-        dataset = ImageToConceptDataset(root, train_transform, dataset_name=CUB200, denoised=denoised)
+                                       inception=cnn_model == cnn_models.INCEPTION)
+        dataset = ImageToConceptDataset(dataset_root, train_transform, dataset_name=CUB200, denoised=denoised)
         if reduced:
             bill_attributes = 8 if denoised else 9
-            dataset.attributes = dataset.attributes[:, :8]
-            dataset.attribute_names = dataset.attribute_names[:8]
-            dataset.n_attributes = 8
+            dataset.attributes = dataset.attributes[:, :bill_attributes]
+            dataset.attribute_names = dataset.attribute_names[:bill_attributes]
+            dataset.n_attributes = bill_attributes
         if few_shot:
             train_set, val_set = get_splits_for_fsc(dataset, train_split=0.8, test_transform=test_transform)
             test_idx = train_set.indices + val_set.indices
@@ -70,33 +61,39 @@ if __name__ == '__main__':
         print(name)
         model = CNNConceptExtractor(dataset.n_attributes, cnn_model=cnn_model,
                                     loss=loss(), name=name, pretrained=pretrained, transfer_learning=transfer_learning)
-        model.load(device)
-        # It takes a few
-        # results = model.fit(train_set=train_set, val_set=val_set, epochs=epochs, num_workers=8, l_r=l_r,
-        #                     lr_scheduler=True, device=device, metric=metric(), batch_size=batch_size)
-        # results.to_csv("results_" + name + ".csv")
+        try:
+            model.load(device)
+        except ClassifierNotTrainedError:
+            # It takes a few
+            results = model.fit(train_set=train_set, val_set=val_set, epochs=epochs, num_workers=8, l_r=l_r,
+                                lr_scheduler=True, device=device, metric=metric(), batch_size=batch_size)
+            results.to_csv("results_" + name + ".csv")
 
         with torch.no_grad():
             model.eval()
             preds, labels = model.predict(dataset, num_workers=8, device=device)
             val = model.evaluate(dataset, metric=metric(), device=device, outputs=preds, labels=labels)
-            np.save(os.path.join(root, "CUB200_predictions.npy"), preds.cpu().numpy())
+            np.save(os.path.join(dataset_root, "CUB200_predictions.npy"), preds.cpu().numpy())
             print("Performance:", val)
 
             # model.eval()
             # preds, labels = model.predict(train_set, num_workers=8, device=device)
             # val = model.evaluate(train_set, metric=metric(), device=device, outputs=preds, labels=labels)
-            # torch.save(preds, os.path.join(root, "CUB200_predictions_train_set"))
+            # torch.save(preds, os.path.join(dataset_root, "CUB200_predictions_train_set"))
             # print("Performance on train set:", val)
             #
             # model.eval()
             # preds, labels = model.predict(val_set, num_workers=8, device=device)
             # val = model.evaluate(val_set, metric=metric(), device=device, outputs=preds, labels=labels)
-            # torch.save(preds, os.path.join(root, "CUB200_predictions_val_set"))
+            # torch.save(preds, os.path.join(dataset_root, "CUB200_predictions_val_set"))
             # print("Performance on val set:", val)
             #
             # model.eval()
             # preds, labels = model.predict(test_set, num_workers=8, device=device)
             # val = model.evaluate(test_set, metric=metric(), device=device, outputs=preds, labels=labels)
-            # torch.save(preds, os.path.join(root, "CUB200_predictions_test_set"))
+            # torch.save(preds, os.path.join(dataset_root, "CUB200_predictions_test_set"))
             # print("Performance on test set:", val)
+
+
+if __name__ == '__main__':
+    concept_extractor_cub()

@@ -42,13 +42,14 @@ class CNNConceptExtractor(BaseClassifier):
         self._output = None
         self._aux_output = None
 
-    def get_loss(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def get_loss(self, outputs: torch.Tensor, targets: torch.Tensor, **kwargs) -> torch.Tensor:
         """
         get_loss method extended from Classifier. The loss passed in the __init__ function of the InterpretableReLU is
         employed. An L1 weight regularization is also always applied
 
         :param outputs: output tensor from the forward function
         :param targets: label tensor
+        :param kwargs: for compatibility
         :return: loss tensor value
         """
         loss = super().get_loss(outputs, targets)
@@ -81,7 +82,7 @@ class CNNConceptExtractor(BaseClassifier):
 
     def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 32, epochs: int = 10, num_workers: int = 0,
             l_r: float = 0.01, lr_scheduler: bool = False, metric: Metric = TopkAccuracy(),
-            device: torch.device = torch.device("cpu"), verbose: bool = True) -> pd.DataFrame:
+            device: torch.device = torch.device("cpu"), verbose: bool = True, **kwargs) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.
         Adam optimizer is always employed
@@ -106,9 +107,11 @@ class CNNConceptExtractor(BaseClassifier):
         if self.pretrained:
             fc_parameters = [param for param in self.model.fc.parameters()]
             parameters = [param for param in self.parameters() if param.requires_grad][:-2]
-            params = [{'params': fc_parameters, 'lr': l_r},
-                      {'params': parameters, 'lr': l_r * 1e-1}
-                      ]
+            if self.transfer_learning:
+                params = [{'params': fc_parameters, 'lr': l_r}]
+            else:
+                params = [{'params': fc_parameters, 'lr': l_r},
+                          {'params': parameters, 'lr': l_r * 1e-1}]
         else:
             params = self.parameters()
         optimizer = torch.optim.AdamW(params)
@@ -126,23 +129,24 @@ class CNNConceptExtractor(BaseClassifier):
             tot_losses_i = []
             train_outputs, train_labels = [], []
             for i, data in enumerate(train_loader):
-                # print(f"{i}/{len(train_loader)}")
                 # Load batch (dataset, labels) on the correct device
                 batch_data, batch_labels = data[0].to(device), data[1].to(device)
                 optimizer.zero_grad()
 
                 # Network outputs on the current batch of dataset
-                batch_outputs = self.forward(batch_data)
+                batch_outputs = self.forward(batch_data, logits=True)
+                batch_activation = self.activation(batch_outputs)
 
                 # Compute losses and update gradients
                 tot_loss = self.get_loss(batch_outputs, batch_labels)
                 tot_loss.backward()
                 optimizer.step()
+                print(f"{i+1}/{len(train_loader)}, loss: {tot_loss:.4}")
 
                 # Data moved to cpu again
                 batch_outputs, batch_labels = batch_outputs.detach().cpu(), batch_labels.detach().cpu()
                 tot_loss = tot_loss.detach().cpu()
-                train_outputs.append(batch_outputs), train_labels.append(batch_labels), tot_losses_i.append(tot_loss)
+                train_outputs.append(batch_activation), train_labels.append(batch_labels), tot_losses_i.append(tot_loss)
 
             train_outputs, train_labels = torch.cat(train_outputs), torch.cat(train_labels)
             tot_losses_i = torch.stack(tot_losses_i)

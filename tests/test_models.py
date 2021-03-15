@@ -205,10 +205,10 @@ class TestModels(unittest.TestCase):
         train_data_brl = TensorDataset(x_brl, y_brl)
         train_data_multi_brl = TensorDataset(x_brl, y_multi_brl)
         y_sample_multi_brl = y_multi_brl[100].argmax()
-        features_names = iris.feature_names
+        feature_names = iris.feature_names
         class_names = iris.target_names
 
-        model = XBRLClassifier(n_classes=1, n_features=n_features, features_names=features_names,
+        model = XBRLClassifier(n_classes=1, n_features=n_features, feature_names=feature_names,
                                class_names=class_names)
 
         results = model.fit(train_data_brl, train_data_brl, metric=metric, save=False)
@@ -222,7 +222,7 @@ class TestModels(unittest.TestCase):
         formula = model.get_global_explanation(class_to_explain=0)
         print(formula)
 
-        model = XBRLClassifier(n_classes=len(class_names), n_features=n_features, features_names=features_names,
+        model = XBRLClassifier(n_classes=len(class_names), n_features=n_features, feature_names=feature_names,
                                class_names=class_names)
 
         results = model.fit(train_data_multi_brl, train_data_multi_brl, metric=metric, save=False)

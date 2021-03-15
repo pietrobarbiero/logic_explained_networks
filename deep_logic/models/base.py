@@ -314,8 +314,11 @@ class BaseClassifier(torch.nn.Module):
         """
         if name is None:
             name = self.name
-        incompatible_keys = self.load_state_dict(torch.load(name, map_location=torch.device(device)),
-                                                 strict=False)
+        try:
+            incompatible_keys = self.load_state_dict(torch.load(name, map_location=torch.device(device)),
+                                                     strict=False)
+        except FileNotFoundError:
+            raise ClassifierNotTrainedError()
         if len(incompatible_keys.missing_keys) > 0 or \
                 len(incompatible_keys.unexpected_keys) > 0:
             raise IncompatibleClassifierError(incompatible_keys.missing_keys,
