@@ -69,7 +69,7 @@ def _entropy(output, sample_probability):
     return torch.squeeze(entropy)
 
 
-def mutual_information(output: torch.Tensor, sample_probability=None):
+def mutual_information(output: torch.Tensor, sample_probability=None, normalized=False) -> torch.tensor:
     # Sample probability: if not given may be supposed to be = 1/n_sample.
     # Anyway need to be normalized to sum(p(xi))= 1
     if sample_probability is None:
@@ -85,13 +85,8 @@ def mutual_information(output: torch.Tensor, sample_probability=None):
     cond_entropy_t = _conditional_entropy(output, sample_probability)
     mutual_info_t = entropy_t - cond_entropy_t
 
+    if normalized:
+        return mutual_info_t / entropy_t
+
     return mutual_info_t
 
-
-class MutualInformationLoss(torch.nn.modules.loss._Loss):
-    def __init__(self):
-        super(MutualInformationLoss, self).__init__()
-
-    def __call__(self, output, *args, **kwargs):
-        output_probability = torch.nn.Sigmoid()(output)
-        return - mutual_information(output_probability)
