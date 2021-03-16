@@ -17,7 +17,7 @@ def prune_logic_layers(model: torch.nn.Module, fan_in: int = None,
         # prune only Linear layers
         if isinstance(module, XLogic):
             if not module.top:
-                _prune(module, fan_in, device)
+                _prune(module, fan_in, device=device)
         if isinstance(module, Conv2Concepts):
             _prune(module, fan_in, linear=False, device=device)
         # break
