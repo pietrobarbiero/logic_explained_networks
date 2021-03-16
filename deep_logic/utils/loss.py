@@ -3,6 +3,38 @@ import torch
 eps = 1e-10
 
 
+class MixedMultiLabelLoss(torch.nn.modules.loss._Loss):
+    def __init__(self, exclusive_classes_mask: torch.tensor, excl_loss=torch.nn.CrossEntropyLoss(),
+                 non_excl_loss=torch.nn.BCEWithLogitsLoss()):
+        super(MixedMultiLabelLoss, self).__init__()
+        assert exclusive_classes_mask.dtype == torch.bool, "Only boolean mask are allowed"
+        self.exclusive_classes = exclusive_classes_mask
+        self.excl_loss = excl_loss
+        self.non_excl_loss = non_excl_loss
+
+    def __call__(self, output, target, *args, **kwargs) -> torch.tensor:
+        assert output.shape[1] == self.exclusive_classes.squeeze().shape[0], \
+            f"boolean mask shape {self.exclusive_classes.squeeze().shape}, " \
+            f"different from output number of classes {output.shape[1]}"
+        excl_output = output[:, self.exclusive_classes]
+        excl_target = target[:, self.exclusive_classes]
+        excl_target = excl_target.argmax(dim=1)
+        non_excl_output = output[:, ~self.exclusive_classes]
+        non_excl_target = target[:, ~self.exclusive_classes]
+        excl_loss = self.excl_loss(excl_output, excl_target)
+        non_excl_loss = self.non_excl_loss(non_excl_output, non_excl_target)
+        return excl_loss + non_excl_loss
+
+
+class MutualInformationLoss(torch.nn.modules.loss._Loss):
+    def __init__(self):
+        super(MutualInformationLoss, self).__init__()
+
+    def __call__(self, output, *args, **kwargs) -> torch.tensor:
+        output_probability = torch.nn.Sigmoid()(output)
+        return 1 - mutual_information(output_probability, normalized=True)
+
+
 def _conditional_probabilities(x):
     # Normalized probability over all the outputs on each sample that each outputs holds true
     z = 0.99
