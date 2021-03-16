@@ -26,7 +26,7 @@ class CNNConceptExtractor(BaseClassifier):
             whether to instantiate the model with the weights trained on ImageNet or randomly
     """
 
-    def __init__(self, n_classes: int, cnn_model: str = RESNET10, loss = torch.nn.BCEWithLogitsLoss(),
+    def __init__(self, n_classes: int, cnn_model: str = RESNET10, loss=torch.nn.BCEWithLogitsLoss(),
                  transfer_learning: bool = False, pretrained: bool = False, name: str = "net",
                  device: torch.device = torch.device("cpu")):
         super().__init__(loss, name, device)
@@ -141,7 +141,7 @@ class CNNConceptExtractor(BaseClassifier):
                 tot_loss = self.get_loss(batch_outputs, batch_labels)
                 tot_loss.backward()
                 optimizer.step()
-                print(f"{i+1}/{len(train_loader)}, loss: {tot_loss:.4}")
+                # print(f"{i+1}/{len(train_loader)}, loss: {tot_loss:.4}")
 
                 # Data moved to cpu again
                 batch_outputs, batch_labels = batch_outputs.detach().cpu(), batch_labels.detach().cpu()
