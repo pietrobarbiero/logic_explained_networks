@@ -6,7 +6,7 @@ import numpy as np
 from sklearn.tree import _tree, DecisionTreeClassifier
 from sympy import simplify_logic
 
-from ..models.ext_models.brl import RuleListClassifier
+# from ..models.ext_models.brl import RuleListClassifier
 
 
 def set_seed(seed):
@@ -162,7 +162,7 @@ def tree_to_formula(tree: DecisionTreeClassifier, concept_names: List[str], targ
     return explanation[:-3]
 
 
-def brl_extracting_formula(model: RuleListClassifier) -> str:
+def brl_extracting_formula(model) -> str:
     min_terms = []
     for i, j in enumerate(model.d_star):
         if model.itemsets[j] != 'null' and model.theta[i]:  # > 0.5:
