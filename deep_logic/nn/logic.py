@@ -9,19 +9,22 @@ class XLogic(Linear):
     """Applies a linear transformation to the incoming data: :math:`y = xA^T + b`
     """
 
-    def __init__(self, in_features: int, bias: bool = True, activation: str = 'sigmoid',
-                 first: bool = False, top: bool = False) -> None:
-        super(XLogic, self).__init__(in_features, in_features, bias)
+    def __init__(self, in_features: int, out_features: int, bias: bool = True,
+                 activation: str = 'sigmoid', first: bool = False, top: bool = False) -> None:
+        super(XLogic, self).__init__(in_features, out_features, bias)
         self.in_features = in_features
+        self.out_features = out_features
         self.top = top
         self.first = first
+        if self.first:
+            activation = 'identity'
         self.conceptizator = XConceptizator(activation)
         self.activation = activation
 
     def forward(self, input: Tensor) -> Tensor:
-        if not self.first:
-            input = torch.nn.functional.linear(input, self.weight, self.bias)
         x = self.conceptizator(input)
+        if not self.top:
+            x = torch.nn.functional.linear(x, self.weight, self.bias)
         return x
 
     def extra_repr(self) -> str:

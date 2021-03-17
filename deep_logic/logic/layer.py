@@ -64,7 +64,7 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, bina
                     for i in neuron_list:
                         if module.top:
                             simplify = True
-                            y_target = y_validation
+                            y_target = y_validation.eq(target_class)
                         else:
                             simplify = False
                             y_target = neuron_concepts
@@ -83,6 +83,7 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, bina
                     class_explanations[f'layer_{layer_id}-neuron_{neuron}'] = str(aggregated_explanation)
 
                 prev_module = module
+                c_validation = prev_module.conceptizator.concepts
                 feature_names = explanations
                 if not aggregated_explanation:
                     aggregated_explanation = ''
@@ -116,7 +117,7 @@ def _simplify_formula(explanation: str, x: torch.Tensor, y: torch.Tensor, target
 
         if explanation_simplified:
             accuracy, preds = test_explanation(explanation_simplified, target_class, x, y, metric=accuracy_score)
-            if accuracy >= base_accuracy:
+            if accuracy == 1.:
                 explanation = copy.deepcopy(explanation_simplified)
 
     return explanation
@@ -150,7 +151,7 @@ def _local_explanation(prev_module, feature_names, neuron_id, neuron_explanation
                        c_validation, y_target, target_class, simplify):
     # explanation is the conjunction of non-pruned features
     explanation_raw = ''
-    for j in torch.nonzero(prev_module.weight.sum(axis=1)):
+    for j in torch.nonzero(prev_module.weight.sum(axis=0)):
         if feature_names[j[0]] not in ['()', '']:
             if explanation_raw:
                 explanation_raw += ' & '
