@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 
 from .base import BaseClassifier, ClassifierNotTrainedError, BaseXModel
 from .ext_models.brl.RuleListClassifier import RuleListClassifier
-from ..utils.base import NotAvailableError
+from ..utils.base import NotAvailableError, brl_extracting_formula
 from ..utils.metrics import Metric, Accuracy
 
 
@@ -82,7 +82,7 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         return outputs
 
     def _discretize(self, train_data: np.ndarray) -> np.ndarray:
-        train_data = [[self.features_names[i] if item > 0.5 else "Not " + self.features_names[i]
+        train_data = [[self.features_names[i] if item > 0.5 else "~" + self.features_names[i]
                        for i, item in enumerate(array)]
                       for array in train_data]
         return np.asarray(train_data)
@@ -249,7 +249,8 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
                                return_time: bool = False, **kwargs):
         start_time = time.time()
 
-        formula = str(self.model[class_to_explain])
+        # formula = str(self.model[class_to_explain])
+        formula = brl_extracting_formula(self.model[class_to_explain])
 
         if concept_names is not None:
             for i, name in enumerate(concept_names):

@@ -4,6 +4,9 @@ import sklearn
 import torch
 import numpy as np
 from sklearn.tree import _tree, DecisionTreeClassifier
+from sympy import simplify_logic
+
+from ..models.ext_models.brl import RuleListClassifier
 
 
 def set_seed(seed):
@@ -157,6 +160,35 @@ def tree_to_formula(tree: DecisionTreeClassifier, concept_names: List[str], targ
 
     recurse(0, 1, 0)
     return explanation[:-3]
+
+
+def brl_extracting_formula(model: RuleListClassifier) -> str:
+    min_terms = []
+    for i, j in enumerate(model.d_star):
+        if model.itemsets[j] != 'null' and model.theta[i]:  # > 0.5:
+            min_term = (" & ".join([str(model.itemsets[j][k])
+                                    for k in range(len(model.itemsets[j]))]))
+            min_terms.append(min_term)
+
+    formula = ""
+    for i, min_term in enumerate(min_terms):
+        if model.theta[i] > 0.5:
+            part_formula = min_term
+            # Taking into consideration all the previous terms negated
+            for j, min_term2 in enumerate(min_terms[:i]):
+                part_formula += f" & ~{min_term2}"
+            formula += f"({part_formula}) | "
+
+    # Taking into consideration the ELSE (only in case it implies the class)
+    i = len(min_terms)
+    if model.theta[i] > 0.5:
+            formula += f" & ".join([f"~{min_term2}" for min_term2 in min_terms])
+    else:
+        formula = formula[:-3]
+
+    simplified_formula = str(simplify_logic(formula, form="dnf"))
+
+    return simplified_formula
 
 
 class ClassifierNotTrainedError(Exception):

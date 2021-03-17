@@ -16,7 +16,7 @@ from deep_logic.concept_extractor import cnn_models
 from deep_logic.concept_extractor.concept_extractor import CNNConceptExtractor
 
 
-def concept_extractor_cub(dataset_root="..//..//data//CUB_200_2011", epochs=200, seeds=None,
+def concept_extractor_cub(dataset_root="..//data//CUB_200_2011", epochs=200, seeds=None,
                           device=torch.device("cuda:1") if torch.cuda.is_available() else torch.device("cpu"),
                           metric=metrics.F1Score, cnn_model=cnn_models.RESNET18, pretrained=True,
                           transfer_learning=False, show_image=True, data_augmentation=True, few_shot=False,
@@ -54,11 +54,13 @@ def concept_extractor_cub(dataset_root="..//..//data//CUB_200_2011", epochs=200,
             show_batch(val_set, val_set.dataset.attribute_names)
             show_batch(test_set, test_set.dataset.attribute_names)
 
-        name = f"model_{cnn_model}_prtr_{pretrained}_trlr_{transfer_learning}_bl_{binary_loss}_fs_{few_shot}_dataset_" \
-               f"{CUB200}_reduced_{reduced}_lr_{l_r}_epochs_{epochs}_seed_{seed}_" \
-               f"time_{datetime.now().strftime('%d-%m-%y %H:%M:%S')}.pth"
-        # name = "model_Resnet_18_prtr_True_trlr_False_bl_True_fs_False_dataset_cub200_denoised_True_reduced_False_" \
-        #        "lr_0.003_epochs_200_seed_0_time_04-02-21 16:20:27.pth"
+        # name = f"model_{cnn_model}_prtr_{pretrained}_trlr_{transfer_learning}_bl_{binary_loss}_fs_{few_shot}_dataset_" \
+        #        f"{CUB200}_reduced_{reduced}_lr_{l_r}_epochs_{epochs}_seed_{seed}_" \
+        #        f"time_{datetime.now().strftime('%d-%m-%y %H:%M:%S')}.pth"
+        orig_dir = os.curdir
+        os.chdir("CUB_200_2011")
+        name = "model_Resnet_18_prtr_True_trlr_False_bl_True_fs_False_dataset_cub200_denoised_True_reduced_False_" \
+               "lr_0.003_epochs_200_seed_0_time_04-02-21 16:20:27.pth"
         print(name)
         model = CNNConceptExtractor(dataset.n_attributes, cnn_model=cnn_model,
                                     loss=loss(), name=name, pretrained=pretrained, transfer_learning=transfer_learning)
@@ -76,7 +78,9 @@ def concept_extractor_cub(dataset_root="..//..//data//CUB_200_2011", epochs=200,
             val = model.evaluate(dataset, metric=metric(), device=device, outputs=preds, labels=labels)
             np.save(os.path.join(dataset_root, f"{CUB200}_predictions.npy"), preds.cpu().numpy())
             print("Performance:", val)
+        os.chdir(orig_dir)
 
 
 if __name__ == '__main__':
+    os.chdir("..")
     concept_extractor_cub()

@@ -25,20 +25,20 @@ def download_cub(root="CUB_200_2011", force=True):
 
     os.system("mv ../attributes.txt .")
     os.rename("attributes.txt", "attributes_names.txt")
-    attribute_groups = {}
-    with open("attributes_names.txt", "r") as f:
-        lines = f.readlines()
-        for line in lines:
-            fields = line.split(" ")
-            attr_idx = int(fields[0]) - 1
-            cur_prefix = fields[1].split(":")[0]
-            if cur_prefix in attribute_groups:
-                attribute_groups[cur_prefix].append(attr_idx)
-            else:
-                attribute_groups.update({cur_prefix: [attr_idx]})
-    with open("attribute_groups.json", "w") as f:
-        json.dump(attribute_groups, f)
-    print("Attribute groups saved")
+    # attribute_groups = {}
+    # with open("attributes_names.txt", "r") as f:
+    #     lines = f.readlines()
+    #     for line in lines:
+    #         fields = line.split(" ")
+    #         attr_idx = int(fields[0]) - 1
+    #         cur_prefix = fields[1].split(":")[0]
+    #         if cur_prefix in attribute_groups:
+    #             attribute_groups[cur_prefix].append(attr_idx)
+    #         else:
+    #             attribute_groups.update({cur_prefix: [attr_idx]})
+    # with open("attribute_groups.json", "w") as f:
+    #     json.dump(attribute_groups, f)
+    # print("Attribute groups saved")
 
     with open("attributes_names.txt", "r") as f:
         attribute_names = []
@@ -46,9 +46,6 @@ def download_cub(root="CUB_200_2011", force=True):
         for line in lines:
             attr_name = line.split(" ")[1]
             attribute_names.append(attr_name)
-    with open("attributes_names.txt", "w") as f:
-        json.dump(attribute_names, f)
-    print("Attribute names saved")
 
     attribute_per_class = pd.read_csv(os.path.join("attributes", "class_attribute_labels_continuous.txt"), " ",
                                       header=None).to_numpy()
@@ -59,7 +56,7 @@ def download_cub(root="CUB_200_2011", force=True):
 
     tot_annotations, count = 0, 0
     attributes = np.zeros(shape=(11788, 312))
-    denoised_attributes = np.zeros(shape=(11788, 312))
+    # denoised_attributes = np.zeros(shape=(11788, 312))
     with open(os.path.join("attributes", "image_attribute_labels.txt"), "r") as f:
         lines = f.readlines()
         for line in lines:
@@ -67,22 +64,22 @@ def download_cub(root="CUB_200_2011", force=True):
             if fields[2] == "1":
                 img_idx = int(fields[0]) - 1
                 attr_idx = int(fields[1]) - 1
-                key = [key for (key, values) in attribute_groups.items() if attr_idx in values][0]
-                values = attribute_groups[key]
-                cls = classes[img_idx] - 1
-                group_attribute_values = attribute_per_class[cls, values]
-                correct_attribute = np.argmax(group_attribute_values) + values[0]
+                # key = [key for (key, values) in attribute_groups.items() if attr_idx in values][0]
+                # values = attribute_groups[key]
+                # cls = classes[img_idx] - 1
+                # group_attribute_values = attribute_per_class[cls, values]
+                # correct_attribute = np.argmax(group_attribute_values) + values[0]
                 attributes[img_idx][attr_idx] = 1
-                denoised_attributes[img_idx][correct_attribute] = 1
-                if correct_attribute != attr_idx:
-                    count += 1
-                tot_annotations += 1
+                # denoised_attributes[img_idx][correct_attribute] = 1
+                # if correct_attribute != attr_idx:
+                #     count += 1
+                # tot_annotations += 1
 
-    np.save("attributes.npy", attributes)
-    print("Attributes saved")
-    np.save("denoised_attributes.npy", denoised_attributes)
-    print(f"{count} attribute over {tot_annotations} annotations corrected")
-    print("Denoised attributes Saved")
+    np.save("original_attributes.npy", attributes)
+    print("Original attributes saved")
+    # np.save("denoised_attributes.npy", denoised_attributes)
+    # print(f"{count} attribute over {tot_annotations} annotations corrected")
+    # print("Denoised attributes Saved")
 
     very_denoised_attributes = np.zeros(shape=(11788, 312))
     attribute_sparsity = np.zeros(attributes.shape[1])
@@ -93,15 +90,21 @@ def download_cub(root="CUB_200_2011", force=True):
         very_denoised_attributes[imgs, :] = class_attributes
         attribute_sparsity += class_attributes
     classes_to_filter = attribute_sparsity < 10
-    very_denoised_attributes[:, classes_to_filter] = 0
-    attributes_filtered = np.sum(1 - classes_to_filter)
+    # very_denoised_attributes[:, classes_to_filter] = 0
+    very_denoised_attributes = very_denoised_attributes[:, ~classes_to_filter]
+    # attributes_filtered = np.sum(1 - classes_to_filter)
+    attributes_filtered = np.sum(classes_to_filter)
     print("Number of attributes remained", attributes_filtered)
-    np.save("very_denoised_attributes.npy", very_denoised_attributes)
+    np.save("attributes.npy", very_denoised_attributes)
     print("Denoised attributes Saved")
+
+    with open("attributes_names.txt", "w") as f:
+        json.dump(attribute_names[:, ~classes_to_filter], f)
+    print("Attribute names saved")
 
     for item in os.listdir():
         if item not in ["images", "images.txt", "attributes_names.txt", "attribute_groups.json",
-                        "denoised_attributes.npy", "very_denoised_attributes.npy", "attributes.npy"]:
+                        "original_attributes.npy",  "attributes.npy"]:
             os.system(f"rm -r {item}")
     os.system("rm -rf ../download_google_drive")
     print("Temporary file cleaned")

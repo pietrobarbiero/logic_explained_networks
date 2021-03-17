@@ -195,10 +195,16 @@ class TestModels(unittest.TestCase):
         return
 
     def test_5_brl(self):
+        from sklearn.preprocessing import MinMaxScaler
+        from deep_logic.logic import test_explanation
+        from deep_logic.utils.data import clean_names
+
         set_seed(0)
 
         iris = datasets.load_iris()
-        x_brl = torch.FloatTensor(iris.data)
+        x_brl = MinMaxScaler().fit_transform(iris.data)
+        x_brl = torch.FloatTensor(x_brl)
+
         y_brl = torch.FloatTensor(iris.target == 2)
         y_multi_brl = LabelBinarizer().fit_transform(iris.target)
         y_multi_brl = torch.FloatTensor(y_multi_brl)
@@ -206,35 +212,46 @@ class TestModels(unittest.TestCase):
         train_data_multi_brl = TensorDataset(x_brl, y_multi_brl)
         y_sample_multi_brl = y_multi_brl[100].argmax()
         feature_names = iris.feature_names
+        feature_names = clean_names(feature_names)
         class_names = iris.target_names
 
         model = XBRLClassifier(n_classes=1, n_features=n_features, feature_names=feature_names,
-                               class_names=class_names)
+                               class_names=class_names, discretize=True, name="brl_single")
 
-        results = model.fit(train_data_brl, train_data_brl, metric=metric, save=False)
-
+        results = model.fit(train_data_brl, metric=metric, save=False)
         assert results.shape == (1, 4)
+
+        model.save()
+        model.load()
 
         accuracy = model.evaluate(train_data_brl)
 
         assert accuracy >= 70.0
 
         formula = model.get_global_explanation(class_to_explain=0)
-        print(formula)
+        print(f"{class_names[0]} <-> {formula}")
+
+        exp_accuracy, _ = test_explanation(formula, target_class=1, x=x_brl, y=y_brl, concept_names=feature_names)
+        print("Formula accuracy", exp_accuracy)
 
         model = XBRLClassifier(n_classes=len(class_names), n_features=n_features, feature_names=feature_names,
-                               class_names=class_names)
+                               class_names=class_names, discretize=True, name="brl_multi")
 
-        results = model.fit(train_data_multi_brl, train_data_multi_brl, metric=metric, save=False)
-
+        results = model.fit(train_data_multi_brl, metric=metric, save=False)
         assert results.shape == (1, 4)
 
-        accuracy = model.evaluate(train_data_multi_brl)
+        model.save()
+        model.load()
 
+        accuracy = model.evaluate(train_data_multi_brl)
+        print("")
         assert accuracy >= 70.0
 
         formula = model.get_global_explanation(class_to_explain=y_sample_multi_brl)
         print(formula)
+
+        exp_accuracy, _ = test_explanation(formula, target_class=y_sample_multi_brl, x=x_brl, y=y_multi_brl, concept_names=feature_names)
+        print("Formula accuracy", exp_accuracy)
         return
 
 

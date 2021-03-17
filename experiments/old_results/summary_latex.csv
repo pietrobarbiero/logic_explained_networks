@@ -1,0 +1,5 @@
+,Method,Model's accuracy (%),Explanation's accuracy (%),Explanation's extraction (s)
+0,general,$91.63 \pm 0.17$,$95.99 \pm 2.58$,$0.51 \pm 0.04$
+1,relu,$91.84 \pm 0.22$,$95.71 \pm 1.16$,$0.16 \pm 0.02$
+2,psi,$34.01 \pm 0.98$,$63.36 \pm 7.76$,$6.49 \pm 0.12$
+3,tree,$89.08 \pm 0.28$,$89.08 \pm 0.28$,$0.01 \pm 0.00$
