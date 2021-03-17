@@ -92,8 +92,31 @@ class F1Score(Metric):
         return f1_val
 
 
+class MixedMetric(Metric):
+    def __init__(self, exclusive_classes_mask: torch.tensor, excl_metric: Metric = Accuracy(),
+                 non_excl_metric: Metric = F1Score()):
+        super(MixedMetric, self).__init__()
+        assert exclusive_classes_mask.dtype == torch.bool, "Only boolean mask are allowed"
+        self.exclusive_classes = exclusive_classes_mask
+        self.excl_metric = excl_metric
+        self.non_excl_metric = non_excl_metric
+
+    def __call__(self, output, target, *args, **kwargs) -> torch.tensor:
+        assert output.shape[1] == self.exclusive_classes.squeeze().shape[0], \
+            f"boolean mask shape {self.exclusive_classes.squeeze().shape}, " \
+            f"different from output number of classes {output.shape[1]}"
+        excl_output = output[:, self.exclusive_classes]
+        excl_target = target[:, self.exclusive_classes]
+        excl_target = excl_target.argmax(dim=1)
+        non_excl_output = output[:, ~self.exclusive_classes]
+        non_excl_target = target[:, ~self.exclusive_classes]
+        excl_metric = self.excl_metric(excl_output, excl_target)
+        non_excl_metric = self.non_excl_metric(non_excl_output, non_excl_target)
+        return excl_metric + non_excl_metric
+
+
 class UnsupervisedMetric(Metric):
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
-        mi = mutual_information(outputs) * 100
+        mi = mutual_information(outputs, normalized=True) * 100
 
-        return mi
+        return mi.cpu().numpy()

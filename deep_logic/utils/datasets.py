@@ -35,10 +35,14 @@ class ConceptDataset(ImageFolder, ABC):
             self.attributes = np.load(os.path.join(root, "attributes.npy"))
             if multi_label:
                 multi_labels_targets = LabelBinarizer().fit_transform(self.targets)
-                self.attributes = np.concatenate(multi_labels_targets, self.attributes, axis=1)
+                if np.unique(np.asarray(self.targets)).shape[0] == 2:
+                    multi_labels_targets = np.hstack((1 - multi_labels_targets, multi_labels_targets))
+                self.attributes = np.concatenate((multi_labels_targets, self.attributes), axis=1)
 
         with open(os.path.join(root, "attributes_names.txt"), "r") as f:
             self.attribute_names : list = json.load(f)
+            if multi_label:
+                self.attribute_names = self.classes + self.attribute_names
             self.attribute_names = np.asarray(clean_names(self.attribute_names))
 
         self.attributes = self.attributes.astype(np.float32)
@@ -62,7 +66,7 @@ class ConceptOnlyDataset(ConceptDataset):
 
     def __getitem__(self, idx):
         attribute = self.attributes[idx]
-        return attribute
+        return attribute, 0
 
 
 class ConceptToTaskDataset(ConceptDataset):
@@ -110,7 +114,6 @@ class ImageToConceptAndTaskDataset(ConceptDataset):
     """
     def __init__(self, root: str, transform: transforms, **kwargs):
         super().__init__(root, transform, predictions=False, multi_label=True, **kwargs)
-        self.target_transform = LabelBinarizer().fit(self.targets)
 
     def __getitem__(self, idx):
         sample, _ = ImageFolder.__getitem__(self, idx)

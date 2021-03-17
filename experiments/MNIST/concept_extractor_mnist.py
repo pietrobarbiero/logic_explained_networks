@@ -12,7 +12,7 @@ from deep_logic.utils.datasets import ImageToConceptDataset, ImageToConceptAndTa
 from deep_logic.utils import metrics
 from deep_logic.utils.base import set_seed, ClassifierNotTrainedError
 from deep_logic.utils.data import get_transform, get_splits_train_val_test, get_splits_for_fsc, show_batch
-from deep_logic.utils.loss import MultiLabelLoss
+from deep_logic.utils.loss import MixedMultiLabelLoss
 from deep_logic.concept_extractor import cnn_models
 from deep_logic.concept_extractor.concept_extractor import CNNConceptExtractor
 
@@ -25,7 +25,7 @@ def concept_extractor_mnist(dataset_root=f"..//..//data//MNIST", epochs=20, seed
     if seeds is None:
         seeds = [0]
     if multi_label:
-        loss = MultiLabelLoss()
+        loss = torch.nn.BCEWithLogitsLoss()  # MixedMultiLabelLoss(torch.as_tensor([False] * 2 + [True] * 10))
     elif binary_loss:
         loss = torch.nn.BCEWithLogitsLoss()
     else:
@@ -60,7 +60,7 @@ def concept_extractor_mnist(dataset_root=f"..//..//data//MNIST", epochs=20, seed
                f"time_{datetime.now().strftime('%d-%m-%y_%H-%M-%S')}.pth"
         print(name)
         model = CNNConceptExtractor(dataset.n_attributes, cnn_model=cnn_model,
-                                    loss=loss(), name=name, pretrained=pretrained, transfer_learning=transfer_learning)
+                                    loss=loss, name=name, pretrained=pretrained, transfer_learning=transfer_learning)
         try:
             model.load(device)
         except ClassifierNotTrainedError:
@@ -73,7 +73,11 @@ def concept_extractor_mnist(dataset_root=f"..//..//data//MNIST", epochs=20, seed
             model.eval()
             preds, labels = model.predict(dataset, num_workers=8, device=device)
             val = model.evaluate(dataset, metric=metric(), device=device, outputs=preds, labels=labels)
-            np.save(os.path.join(dataset_root, f"{MNIST}_predictions.npy"), preds.cpu().numpy())
+            if multi_label:
+                pred_path = os.path.join(dataset_root, f"{MNIST}_multi_label_predictions.npy")
+            else:
+                pred_path = os.path.join(dataset_root, f"{MNIST}_predictions.npy")
+            np.save(pred_path, preds.cpu().numpy())
             print("Performance:", val)
 
 

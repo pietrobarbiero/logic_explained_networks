@@ -37,17 +37,16 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         layers = []
         for i in range(len(hidden_neurons) + 1):
             input_nodes = hidden_neurons[i - 1] if i != 0 else n_features
-            output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else n_classes
+            output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else 1
             if i == 0:
                 layer = torch.nn.Linear(input_nodes, output_nodes * self.n_classes)
-            elif i != len(hidden_neurons):
-                layer = XLinear(input_nodes, output_nodes, self.n_classes)
             else:
-                layer = XLinear(input_nodes, 1, self.n_classes)
+                layer = XLinear(input_nodes, output_nodes, self.n_classes)
             layers.extend([
                 layer,
                 torch.nn.Sigmoid() if i != len(hidden_neurons) else torch.nn.Identity()
             ])
+
         self.model = torch.nn.Sequential(*layers)
         self.l1_weight = l1_weight
         self.fan_in = fan_in

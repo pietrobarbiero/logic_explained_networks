@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 
 from deep_logic.utils.base import ClassifierNotTrainedError, IncompatibleClassifierError
 from deep_logic.utils.metrics import Metric, TopkAccuracy, Accuracy
-from deep_logic.utils.loss import MutualInformationLoss
+from deep_logic.utils.loss import MutualInformationLoss, MixedMultiLabelLoss
 
 
 class BaseXModel(ABC):
@@ -71,6 +71,7 @@ class BaseClassifier(torch.nn.Module):
         if loss is not None:
             assert isinstance(loss, torch.nn.CrossEntropyLoss) or \
                    isinstance(loss, torch.nn.BCEWithLogitsLoss) or \
+                   isinstance(loss, MixedMultiLabelLoss) or \
                    isinstance(loss, MutualInformationLoss), \
                    "Only CrossEntropyLoss, BCEWithLogitsLoss or MutualInformationLoss are available."
         self.loss = loss
@@ -114,8 +115,10 @@ class BaseClassifier(torch.nn.Module):
             if len(target.squeeze().shape) > 1:
                 target = target.argmax(dim=1)
             loss = self.loss(output.squeeze(), target.squeeze())
-        else:
+        elif isinstance(self.loss, torch.nn.BCEWithLogitsLoss):
             target = target.to(torch.float)
+            loss = self.loss(output.squeeze(), target.squeeze())
+        else:
             loss = self.loss(output.squeeze(), target.squeeze())
         return loss
 

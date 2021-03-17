@@ -86,7 +86,7 @@ def download_mnist(root="MNIST", force=True):
     np.save("attributes.npy", attributes)
     print("Attributes saved")
 
-    attributes_names = [c[4:] for c in dataset.classes]
+    attributes_names = [c[4:].title() for c in dataset.classes]
     with open("attributes_names.txt", "w") as f:
         json.dump(attributes_names, f)
 

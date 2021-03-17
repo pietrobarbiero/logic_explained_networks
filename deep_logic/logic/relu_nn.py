@@ -135,9 +135,11 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
     # the global explanation is the disjunction of local explanations
     global_explanation = ' | '.join(most_common_explanations)
-    global_explanation_simplified = simplify_logic(global_explanation, 'dnf', force=simplify)
-    global_explanation_simplified_str = str(global_explanation_simplified)
-
+    if simplify:
+        global_explanation_simplified = simplify_logic(global_explanation, 'dnf', force=simplify)
+        global_explanation_simplified_str = str(global_explanation_simplified)
+    else:
+        global_explanation_simplified_str = global_explanation
     if not global_explanation_simplified_str:
         if not return_accuracy:
             return '', np.array, collections.Counter()
