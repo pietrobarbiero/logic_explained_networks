@@ -89,17 +89,17 @@ def download_cub(root="CUB_200_2011", force=True):
         class_attributes = attribute_per_class[c - 1, :] > 50
         very_denoised_attributes[imgs, :] = class_attributes
         attribute_sparsity += class_attributes
-    classes_to_filter = attribute_sparsity < 10
-    # very_denoised_attributes[:, classes_to_filter] = 0
-    very_denoised_attributes = very_denoised_attributes[:, ~classes_to_filter]
-    # attributes_filtered = np.sum(1 - classes_to_filter)
-    attributes_filtered = np.sum(classes_to_filter)
+    attributes_to_filter = attribute_sparsity < 10
+    # very_denoised_attributes[:, attributes_to_filter] = 0
+    very_denoised_attributes = very_denoised_attributes[:, ~attributes_to_filter]
+    # attributes_filtered = np.sum(1 - attributes_to_filter)
+    attributes_filtered = np.sum(attributes_to_filter)
     print("Number of attributes remained", attributes_filtered)
     np.save("attributes.npy", very_denoised_attributes)
     print("Denoised attributes Saved")
 
     with open("attributes_names.txt", "w") as f:
-        json.dump(attribute_names[:, ~classes_to_filter], f)
+        json.dump(np.asarray(attribute_names)[~attributes_to_filter].tolist(), f)
     print("Attribute names saved")
 
     for item in os.listdir():
