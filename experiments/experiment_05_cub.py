@@ -39,7 +39,7 @@ if __name__ == "__main__":
     loss = torch.nn.CrossEntropyLoss()
     metric = F1Score()
 
-    method_list = ['BRL', 'DTree', 'Relu', 'Psi', 'General']
+    method_list = ['Relu', 'Psi', 'General', 'BRL', 'DTree']
 
     #%% md
 
@@ -50,7 +50,7 @@ if __name__ == "__main__":
         concept_extractor_cub(dataset_root)
     else:
         print("Concepts already extracted")
-    dataset = ConceptToTaskDataset(dataset_root)
+    dataset = ConceptToTaskDataset(dataset_root, predictions=True)
     concept_names = dataset.attribute_names
     print("Concept names", concept_names)
     n_features = dataset.n_attributes
@@ -62,35 +62,30 @@ if __name__ == "__main__":
 
     #%%
 
-    epochs = 20
+    epochs = 200
     l_r = 0.001
     lr_scheduler = True
     top_k_explanations = 1
     simplify = True
-    seeds = [*range(10)]
-    seeds_brl = [0]
+    seeds = [*range(5)]
     print("Seeds", seeds)
-
 
     for method in method_list:
 
         methods = []
         splits = []
         explanations = []
-        explanations_inv = []
         model_accuracies = []
         explanation_accuracies = []
-        explanation_accuracies_inv = []
         elapsed_times = []
-        elapsed_times_inv = []
         explanation_fidelities = []
         explanation_complexities = []
 
         for seed in seeds:
             set_seed(seed)
-            name = f"{method}_{seed}"
+            name = os.path.join(results_dir, f"{method}_{seed}")
 
-            train_data, val_data, test_data = get_splits_train_val_test(dataset)
+            train_data, val_data, test_data = get_splits_train_val_test(dataset, load=False)
             x_test = torch.tensor(dataset.attributes[test_data.indices])
             y_test = torch.tensor(dataset.targets[test_data.indices])
             print(train_data.indices)
@@ -101,19 +96,41 @@ if __name__ == "__main__":
             print(f"Training {name} Classifier...")
 
             if method == 'BRL':
-                model = XBRLClassifier(name=name, n_classes=200, discretize=True, n_features=n_features,
-                                       feature_names=concept_names, class_names=dataset.classes)
+                model = XBRLClassifier(name=name, n_classes=dataset.n_classes, n_features=n_features,
+                                       feature_names=concept_names, class_names=dataset.classes, discretize=True)
                 results = model.fit(val_data, metric=metric, save=True)
                 accuracy = model.evaluate(test_data)
-                exp_accuracy = accuracy
-                exp_accuracies = [exp_accuracy]
+                formulas, times, exp_accuracies, exp_complexities = [], [], [], []
+                for i, class_to_explain in enumerate(dataset.classes):
+                    formula, elapsed_time = model.get_global_explanation(i, concept_names,
+                                                                         return_time=True)
+                    exp_accuracy, y_formula = test_explanation(formula, i, x_test, y_test,
+                                                               metric=metric, concept_names=concept_names)
+                    explanation_complexity = dl.logic.complexity(formula)
+                    formulas.append(formula), times.append(elapsed_time)
+                    exp_accuracies.append(exp_accuracy), exp_complexities.append(explanation_complexity)
+                    print(f"{class_to_explain} <-> {formula}")
+                    print("Elapsed time", elapsed_time)
+                    print("Explanation accuracy", exp_accuracy)
+                    print("Explanation complexity", explanation_complexity)
 
             elif method == 'DTree':
                 model = XDecisionTreeClassifier(n_classes=dataset.n_classes, n_features=n_features)
                 results = model.fit(train_data, val_data, metric=metric, save=False)
                 accuracy = model.evaluate(test_data)
-                exp_accuracy = accuracy
-                exp_accuracies = [exp_accuracy]
+                formulas, times, exp_accuracies, exp_complexities = [], [], [], []
+                for i, class_to_explain in enumerate(dataset.classes):
+                    formula, elapsed_time = model.get_global_explanation(i, concept_names,
+                                                                         return_time=True)
+                    exp_accuracy, y_formula = test_explanation(formula, i, x_test, y_test,
+                                                               metric=metric, concept_names=concept_names)
+                    explanation_complexity = dl.logic.complexity(formula)
+                    formulas.append(formula), times.append(elapsed_time)
+                    exp_accuracies.append(exp_accuracy), exp_complexities.append(explanation_complexity)
+                    print(f"{class_to_explain} <-> {formula}")
+                    print("Elapsed time", elapsed_time)
+                    print("Explanation accuracy", exp_accuracy)
+                    print("Explanation complexity", explanation_complexity)
 
             elif method == 'Psi':
                 # Network structures
@@ -169,11 +186,11 @@ if __name__ == "__main__":
                     print("Explanation accuracy", exp_accuracy)
                     print("Explanation complexity", explanation_complexity)
 
-            else:
+            elif method == 'General':
                 x_val = torch.tensor(dataset.attributes[val_data.indices])
                 y_val = torch.tensor(dataset.targets[val_data.indices])
                 # Network structures
-                l1_weight = 1e-4
+                l1_weight = 1e-3
                 hidden_neurons = [10, 5]
                 set_seed(seed)
                 model = XGeneralNN(n_classes=dataset.n_classes, n_features=n_features, hidden_neurons=hidden_neurons,
@@ -195,20 +212,8 @@ if __name__ == "__main__":
                     print("Elapsed time", elapsed_time)
                     print("Explanation accuracy", exp_accuracy)
                     print("Explanation complexity", explanation_complexity)
-
-            if method in ['BRL', 'DTree']:
-                formulas, times, exp_complexities = [], [], []
-                for i, class_to_explain in enumerate(dataset.classes):
-                    formula, elapsed_time = model.get_global_explanation(i, concept_names,
-                                                                         return_time=True)
-                    exp_accuracy, y_formula = test_explanation(formula, i, x_test, y_test,
-                                                               metric=metric, concept_names=concept_names)
-                    explanation_complexity = dl.logic.complexity(formula)
-                    formulas.append(formula), times.append(elapsed_time), exp_complexities.append(explanation_complexity)
-                    print(f"{class_to_explain} <-> {formula}")
-                    print("Elapsed time", elapsed_time)
-                    print("Explanation accuracy", exp_accuracy)
-                    print("Explanation complexity", explanation_complexity)
+            else:
+                raise NotImplementedError(f"{method} not implemented")
 
             print(results)
             print("Test model accuracy", accuracy)
