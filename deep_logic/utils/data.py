@@ -77,11 +77,12 @@ def get_splits_train_val_test(dataset: ConceptDataset, val_split: float = 0.1, t
                    for c in dataset.classes}
         val_samples = []
         for c in dataset.classes:
-            indices = np.argwhere(dataset.targets == dataset.class_to_idx[c]).squeeze()
-            val_samples.extend(sorted(random.sample(indices.tolist(), val_len[c])))
-        with open(os.path.join(val_json), "w") as f:
-            val_file = {"samples": val_samples}
-            json.dump(val_file, f)
+            indices = np.argwhere(dataset.targets == dataset.class_to_idx[c]).squeeze().tolist()
+            val_samples.extend(sorted(random.sample(indices, val_len[c])))
+        if load:
+            with open(os.path.join(val_json), "w") as f:
+                val_file = {"samples": val_samples}
+                json.dump(val_file, f)
     val_dataset = Subset(dataset_copy, np.asarray(val_samples))
 
     # Creating dataset for Validation by splitting the samples in the dataset
@@ -95,12 +96,13 @@ def get_splits_train_val_test(dataset: ConceptDataset, val_split: float = 0.1, t
                     for c in dataset.classes}
         test_samples = []
         for c in dataset.classes:
-            indices = np.argwhere(dataset.targets == dataset.class_to_idx[c]).squeeze()
-            indices = [int(i) for i in indices if i not in val_samples]
+            indices = np.argwhere(dataset.targets == dataset.class_to_idx[c]).squeeze().tolist()
+            indices = list(set(indices) - set(val_samples))  # [int(i) for i in indices if i not in val_samples]
             test_samples.extend(sorted(random.sample(indices, test_len[c])))
-        with open(os.path.join(test_json), "w") as f:
-            test_file = {"samples": test_samples}
-            json.dump(test_file, f)
+        if load:
+            with open(os.path.join(test_json), "w") as f:
+                test_file = {"samples": test_samples}
+                json.dump(test_file, f)
     test_dataset = Subset(dataset_copy, np.asarray(test_samples))
 
     # Creating dataset for Training with the remaining samples
@@ -109,10 +111,11 @@ def get_splits_train_val_test(dataset: ConceptDataset, val_split: float = 0.1, t
             train_file = json.load(f)
             train_samples = train_file["samples"]
     else:
-        train_samples = [i for i in range(len(dataset)) if i not in val_samples and i not in test_samples]
-        with open(os.path.join(train_json), "w") as f:
-            train_file = {"samples": train_samples}
-            json.dump(train_file, f)
+        train_samples = list({*range(len(dataset))} - set(val_samples) - set(test_samples))  # [i for i in range(len(dataset)) if i not in val_samples and i not in test_samples]
+        if load:
+            with open(os.path.join(train_json), "w") as f:
+                train_file = {"samples": train_samples}
+                json.dump(train_file, f)
     train_dataset = Subset(dataset, np.asarray(train_samples))
 
     return train_dataset, val_dataset, test_dataset
@@ -153,7 +156,7 @@ def get_splits_for_fsc(dataset: ConceptDataset, train_split: float = 0.5, load=F
             ft_samples = ft_file["samples"]
             ft_classes = ft_file["classes"]
     else:
-        ft_samples = [i for i in range(len(dataset)) if i not in train_samples]
+        ft_samples = {*range(len(dataset))} - set(train_samples)  #  [i for i in range(len(dataset)) if i not in train_samples]
         ft_classes = [c for c in dataset.classes if c not in train_classes]
         with open(os.path.join(ft_json), "w") as f:
             ft_file = {"samples": ft_samples, "classes": ft_classes}

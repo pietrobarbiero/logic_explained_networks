@@ -45,12 +45,6 @@ class ConceptDataset(ImageFolder, ABC):
                 self.attribute_names = self.classes + self.attribute_names
             self.attribute_names = np.asarray(clean_names(self.attribute_names))
 
-        # check if there are attributes never valid
-        attributes_to_filter = np.sum(self.attributes, axis=0) > 0
-        if np.sum(attributes_to_filter) != self.attributes.shape[1]:
-            self.attribute_names = self.attribute_names[attributes_to_filter]
-            self.attributes = self.attributes[:, attributes_to_filter]
-
         self.attributes = self.attributes.astype(np.float32)
         self.n_attributes = self.attributes.shape[1]
         self.n_classes = len(self.classes)
