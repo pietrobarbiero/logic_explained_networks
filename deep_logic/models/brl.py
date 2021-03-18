@@ -87,6 +87,18 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
                       for array in train_data]
         return np.asarray(train_data)
 
+    def _binarize_labels(self, train_labels: torch.tensor):
+        if len(train_labels.shape) == 1:
+            train_labels = np.expand_dims(train_labels, axis=1)
+        if len(np.unique(train_labels)) > 2:
+            train_labels = LabelBinarizer().fit_transform(train_labels)
+            print(f"Binarized labels. Labels {train_labels.shape}")
+        elif len(np.unique(train_labels)) == 2 and self.n_classes == 2:
+            train_labels = np.hstack((1 - train_labels, train_labels))
+        else:
+            print(f"Labels {train_labels.shape}")
+        return train_labels
+
     def get_loss(self, output: torch.Tensor, target: torch.Tensor, **kwargs) -> None:
         """
         Loss is not used in BRL as it is not a gradient based algorithm. Therefore, if this function
@@ -127,16 +139,7 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
             train_data.append(data[0]), train_labels.append(data[1])
         train_data = torch.cat(train_data).numpy()
         train_labels = torch.cat(train_labels).numpy()
-
-        if len(train_labels.shape) == 1:
-            train_labels = np.expand_dims(train_labels, axis=1)
-        if len(np.unique(train_labels)) > 2:
-            train_labels = LabelBinarizer().fit_transform(train_labels)
-            print(f"Binarized labels. Labels {train_labels.shape}")
-        elif len(np.unique(train_labels)) == 2 and self.n_classes == 2:
-            train_labels = np.hstack((1 - train_labels, train_labels))
-        else:
-            print(f"Labels {train_labels.shape}")
+        train_labels = self._binarize_labels(train_labels)
 
         if self.discretize:
             print("Discretized features")
@@ -227,7 +230,7 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
             name = self.name
         dump(self.model, name)
 
-    def load(self, name=None, **kwargs) -> None:
+    def load(self, device=torch.device("cpu"), name=None, **kwargs) -> None:
         from joblib import load
         """
         Load BRL model.

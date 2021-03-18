@@ -176,7 +176,7 @@ def brl_extracting_formula(model) -> str:
             part_formula = min_term
             # Taking into consideration all the previous terms negated
             for j, min_term2 in enumerate(min_terms[:i]):
-                part_formula += f" & ~{min_term2}"
+                part_formula += f" & ~({min_term2})"
             formula += f"({part_formula}) | "
 
     # Taking into consideration the ELSE (only in case it implies the class)
