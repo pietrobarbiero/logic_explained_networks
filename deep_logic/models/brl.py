@@ -133,6 +133,8 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         if len(np.unique(train_labels)) > 2:
             train_labels = LabelBinarizer().fit_transform(train_labels)
             print(f"Binarized labels. Labels {train_labels.shape}")
+        elif len(np.unique(train_labels)) == 2 and self.n_classes == 2:
+            train_labels = np.hstack((1 - train_labels, train_labels))
         else:
             print(f"Labels {train_labels.shape}")
 

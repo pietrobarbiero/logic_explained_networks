@@ -270,7 +270,7 @@ class BaseClassifier(torch.nn.Module):
         with torch.no_grad():
             if outputs is None or labels is None:
                 outputs, labels = self.predict(dataset, batch_size, num_workers, device)
-            metric_val = metric(outputs, labels)
+            metric_val = metric(outputs.cpu(), labels.cpu())
         self.train()
         return metric_val
 

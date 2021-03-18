@@ -15,7 +15,7 @@ if __name__ == "__main__":
     from deep_logic.models.psi_nn import PsiNetwork
     from deep_logic.models.tree import XDecisionTreeClassifier
     from deep_logic.models.brl import XBRLClassifier
-    from deep_logic.utils.base import set_seed
+    from deep_logic.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
     from deep_logic.utils.metrics import F1Score
     from deep_logic.models.general_nn import XGeneralNN
     from deep_logic.utils.datasets import ConceptToTaskDataset
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     loss = torch.nn.CrossEntropyLoss()
     metric = F1Score()
 
-    method_list = ['Relu', 'Psi', 'General', 'BRL', 'DTree']
+    method_list = ['Psi', 'Relu', 'General', 'BRL', 'DTree']
 
     #%% md
 
@@ -86,19 +86,24 @@ if __name__ == "__main__":
             name = os.path.join(results_dir, f"{method}_{seed}")
 
             train_data, val_data, test_data = get_splits_train_val_test(dataset, load=False)
+            x_val = torch.tensor(dataset.attributes[val_data.indices])
+            y_val = torch.tensor(dataset.targets[val_data.indices])
             x_test = torch.tensor(dataset.attributes[test_data.indices])
             y_test = torch.tensor(dataset.targets[test_data.indices])
             print(train_data.indices)
 
             # Setting device
-            device = torch.device("cpu") if torch.cuda.is_available() else torch.device("cpu")
-
-            print(f"Training {name} Classifier...")
+            device = torch.device("cuda:1") if torch.cuda.is_available() else torch.device("cpu")
 
             if method == 'BRL':
                 model = XBRLClassifier(name=name, n_classes=dataset.n_classes, n_features=n_features,
                                        feature_names=concept_names, class_names=dataset.classes, discretize=True)
-                results = model.fit(val_data, metric=metric, save=True)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except ClassifierNotTrainedError:
+                    print(f"Training {name} Classifier...")
+                    results = model.fit(val_data, metric=metric, save=True,  verbose=False)
                 accuracy = model.evaluate(test_data)
                 formulas, times, exp_accuracies, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
@@ -115,8 +120,13 @@ if __name__ == "__main__":
                     print("Explanation complexity", explanation_complexity)
 
             elif method == 'DTree':
-                model = XDecisionTreeClassifier(n_classes=dataset.n_classes, n_features=n_features)
-                results = model.fit(train_data, val_data, metric=metric, save=False)
+                model = XDecisionTreeClassifier(name=name, n_classes=dataset.n_classes, n_features=n_features)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except ClassifierNotTrainedError:
+                    print(f"Training {name} Classifier...")
+                    results = model.fit(train_data, val_data, metric=metric, save=True,  verbose=False,)
                 accuracy = model.evaluate(test_data)
                 formulas, times, exp_accuracies, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
@@ -140,9 +150,14 @@ if __name__ == "__main__":
                 lr_psi = 0.01
                 set_seed(seed)
                 model = PsiNetwork(dataset.n_classes, n_features, hidden_neurons, loss,
-                                   l1_weight, fan_in=fan_in)
-                results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_psi, verbose=True,
-                                    metric=metric, lr_scheduler=lr_scheduler, device=device, save=False)
+                                   l1_weight, name=name, fan_in=fan_in)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except ClassifierNotTrainedError or IncompatibleClassifierError:
+                    print(f"Training {name} Classifier...")
+                    results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_psi, verbose=False,
+                                        metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
                 accuracy = model.evaluate(test_data, metric=metric)
                 formulas, times, exp_accuracies, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
@@ -159,16 +174,19 @@ if __name__ == "__main__":
                     print("Explanation complexity", explanation_complexity)
 
             elif method == 'Relu':
-                x_val = torch.tensor(dataset.attributes[val_data.indices])
-                y_val = torch.tensor(dataset.targets[val_data.indices])
                 # Network structures
                 l1_weight = 1e-5
                 hidden_neurons = [200, 100]
                 set_seed(seed)
-                model = XReluNN(n_classes=dataset.n_classes, n_features=n_features,
+                model = XReluNN(n_classes=dataset.n_classes, n_features=n_features, name=name,
                                 hidden_neurons=hidden_neurons, loss=loss, l1_weight=l1_weight)
-                results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
-                                    metric=metric, lr_scheduler=lr_scheduler, device=device, save=False)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except ClassifierNotTrainedError:
+                    print(f"Training {name} Classifier...")
+                    results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=False,
+                                        metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
                 accuracy = model.evaluate(test_data, metric=metric)
                 formulas, times, exp_accuracies, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
@@ -187,16 +205,19 @@ if __name__ == "__main__":
                     print("Explanation complexity", explanation_complexity)
 
             elif method == 'General':
-                x_val = torch.tensor(dataset.attributes[val_data.indices])
-                y_val = torch.tensor(dataset.targets[val_data.indices])
                 # Network structures
                 l1_weight = 1e-3
                 hidden_neurons = [10, 5]
                 set_seed(seed)
                 model = XGeneralNN(n_classes=dataset.n_classes, n_features=n_features, hidden_neurons=hidden_neurons,
-                                   loss=loss, l1_weight=l1_weight)
-                results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
-                                    lr_scheduler=lr_scheduler, device=device, save=False, verbose=True)
+                                   loss=loss, l1_weight=l1_weight, name=name)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except ClassifierNotTrainedError or IncompatibleClassifierError:
+                    print(f"Training {name} Classifier...")
+                    results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
+                                        lr_scheduler=lr_scheduler, device=device, save=True, verbose=False)
                 accuracy = model.evaluate(test_data, metric=metric)
                 formulas, times, exp_accuracies, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
@@ -215,7 +236,6 @@ if __name__ == "__main__":
             else:
                 raise NotImplementedError(f"{method} not implemented")
 
-            print(results)
             print("Test model accuracy", accuracy)
 
             methods.append(method)
