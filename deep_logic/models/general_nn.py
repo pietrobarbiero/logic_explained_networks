@@ -63,10 +63,10 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         :param epoch:
         :return: loss tensor value
         """
-        if epoch is None or epochs is None or epoch > epochs / 4:
+        if epoch is None or epochs is None or epoch + 1 > epochs / 4:
             l1_weight = self.l1_weight
         else:
-            l1_weight = self.l1_weight * 4 * epoch / epochs
+            l1_weight = self.l1_weight * 4 * (epoch + 1) / epochs
         l1_reg_loss = .0
         if self.need_pruning:
             l1_reg_loss += torch.sum(torch.abs(self.model[0].weight))
@@ -109,10 +109,7 @@ class XGeneralNN(BaseClassifier, BaseXModel):
 
         :return: Local Explanation
         """
-        if self.fan_in is None:
-            method = "weights"
-        else:
-            method = "pruning"
+        method = "pruning"
         return explain_local(self, x, y, x_sample, target_class, method=method, simplify=simplify,
                              concept_names=concept_names, device=self.get_device(), num_classes=self.n_classes)
 
@@ -130,10 +127,7 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         :param concept_names: list containing the names of the input concepts
         :param return_time:
         """
-        if self.fan_in is None:
-            method = "weights"
-        else:
-            method = "pruning"
+        method = "pruning"
         start_time = time.time()
         global_expl, _, _ = combine_local_explanations(self, x, y, target_class, method=method,
                                                        simplify=simplify, topk_explanations=topk_explanations,
