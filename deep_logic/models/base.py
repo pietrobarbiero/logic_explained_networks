@@ -317,21 +317,20 @@ class BaseClassifier(torch.nn.Module):
         :param set_trained: whether to set the buffer flag "trained" before loading or not.
         :param name: Load a model with a name different from the one assigned in the __init__
         """
-        from .psi_nn import PsiNetwork
-        from .general_nn import XGeneralNN
         if name is None:
             name = self.name
         try:
-            if isinstance(self, PsiNetwork) or isinstance(self, XGeneralNN):
-                self.prune()
-            incompatible_keys = self.load_state_dict(torch.load(name, map_location=torch.device(device)),
-                                                     strict=False)
+            incompat_keys = self.load_state_dict(torch.load(name, map_location=torch.device(device)), strict=False)
         except FileNotFoundError:
             raise ClassifierNotTrainedError()
-        if len(incompatible_keys.missing_keys) > 0 or \
-                len(incompatible_keys.unexpected_keys) > 0:
-            raise IncompatibleClassifierError(incompatible_keys.missing_keys,
-                                              incompatible_keys.unexpected_keys)
+        if len(incompat_keys.missing_keys) > 0 or len(incompat_keys.unexpected_keys) > 0:
+            if self.need_pruning:
+                self.prune()
+                incompat_keys = self.load_state_dict(torch.load(name, map_location=torch.device(device)), strict=False)
+                if len(incompat_keys.missing_keys) > 0 or len(incompat_keys.unexpected_keys) > 0:
+                    raise IncompatibleClassifierError(incompat_keys.missing_keys, incompat_keys.unexpected_keys)
+            else:
+                raise IncompatibleClassifierError(incompat_keys.missing_keys, incompat_keys.unexpected_keys)
         if set_trained:
             self.save(set_trained=True)
         if not self.trained:
