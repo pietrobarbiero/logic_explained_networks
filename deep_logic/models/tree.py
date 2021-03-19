@@ -154,7 +154,7 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
             name = self.name
         dump(self.model, name)
 
-    def load(self, name=None, **kwargs) -> None:
+    def load(self, device=torch.device("cpu"), name=None, **kwargs) -> None:
         from joblib import load
         """
         Load decision tree model.

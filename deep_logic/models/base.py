@@ -53,19 +53,18 @@ class BaseClassifier(torch.nn.Module):
     methods such as the fit(), the save() and the load() functions.
     init(), forward() and get_loss() methods are required to be implemented by extending classes
 
+    :param loss: torch.nn.Module
+        loss to employ during training. It may be None when using non-gradient based methods
     :param name: str
         name of the network: used for saving and loading purposes
     :param device: torch.device
         device on which to load the model after instantiating
-    :param loss: torch.nn.Module
-        loss to employ during training. It may be None when using non-gradient based methods
     :var trained: torch.bool
         flag set at the end of the training and saved with the model. Only trained model can be loaded from memory
      """
 
     @abstractmethod
-    def __init__(self, loss: torch.nn.Module = None, name: str = "net.pth", device: torch.device = torch.device("cpu"),
-                 activation: torch.nn.Module = torch.nn.Sigmoid()):
+    def __init__(self, loss: torch.nn.Module = None, name: str = "net.pth", device: torch.device = torch.device("cpu")):
 
         super(BaseClassifier, self).__init__()
         if loss is not None:
@@ -73,9 +72,9 @@ class BaseClassifier(torch.nn.Module):
                    isinstance(loss, torch.nn.BCEWithLogitsLoss) or \
                    isinstance(loss, MixedMultiLabelLoss) or \
                    isinstance(loss, MutualInformationLoss), \
-                   "Only CrossEntropyLoss, BCEWithLogitsLoss or MutualInformationLoss are available."
+                   "Only CrossEntropyLoss, BCEWithLogitsLoss, MixedMultiLabelLoss or MutualInformationLoss available."
         self.loss = loss
-        self.activation = activation
+        self.activation = torch.nn.Softmax(dim=1) if isinstance(loss, torch.nn.CrossEntropyLoss) else torch.nn.Sigmoid()
         self.name = name
         self.register_buffer("trained", torch.tensor(True))
         self.need_pruning = False
@@ -270,7 +269,7 @@ class BaseClassifier(torch.nn.Module):
         with torch.no_grad():
             if outputs is None or labels is None:
                 outputs, labels = self.predict(dataset, batch_size, num_workers, device)
-            metric_val = metric(outputs, labels)
+            metric_val = metric(outputs.cpu(), labels.cpu())
         self.train()
         return metric_val
 
@@ -321,14 +320,17 @@ class BaseClassifier(torch.nn.Module):
         if name is None:
             name = self.name
         try:
-            incompatible_keys = self.load_state_dict(torch.load(name, map_location=torch.device(device)),
-                                                     strict=False)
+            incompat_keys = self.load_state_dict(torch.load(name, map_location=torch.device(device)), strict=False)
         except FileNotFoundError:
             raise ClassifierNotTrainedError()
-        if len(incompatible_keys.missing_keys) > 0 or \
-                len(incompatible_keys.unexpected_keys) > 0:
-            raise IncompatibleClassifierError(incompatible_keys.missing_keys,
-                                              incompatible_keys.unexpected_keys)
+        if len(incompat_keys.missing_keys) > 0 or len(incompat_keys.unexpected_keys) > 0:
+            if self.need_pruning:
+                self.prune()
+                incompat_keys = self.load_state_dict(torch.load(name, map_location=torch.device(device)), strict=False)
+                if len(incompat_keys.missing_keys) > 0 or len(incompat_keys.unexpected_keys) > 0:
+                    raise IncompatibleClassifierError(incompat_keys.missing_keys, incompat_keys.unexpected_keys)
+            else:
+                raise IncompatibleClassifierError(incompat_keys.missing_keys, incompat_keys.unexpected_keys)
         if set_trained:
             self.save(set_trained=True)
         if not self.trained:

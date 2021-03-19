@@ -65,10 +65,10 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         :param epoch:
         :return: loss tensor value
         """
-        if epoch is None or epochs is None or epoch > epochs / 4:
+        if epoch is None or epochs is None or epoch + 1 > epochs / 4:
             l1_weight = self.l1_weight
         else:
-            l1_weight = self.l1_weight * 4 * epoch / epochs
+            l1_weight = self.l1_weight * 4 * (epoch + 1) / epochs
         l1_reg_loss = .0
         if self.need_pruning:
             for layer in self.model.children():

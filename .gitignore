@@ -81,7 +81,7 @@ data/samples_cub200_fine_tuning.json
 data/samples_cub200_training.json
 *.tgz
 experiments/results/
-data/MNIST/
+data/MNIST_EVEN_ODD/
 data/Shapes/
 *.pth
 *.zip

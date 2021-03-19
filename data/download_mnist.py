@@ -10,7 +10,7 @@ from torchvision.transforms import transforms
 # from PIL import Image
 
 
-def download_mnist(root="MNIST", force=True):
+def download_mnist(root="MNIST_EVEN_ODD", force=True):
 
     if os.path.isdir(root) and not force:
         print("Dataset already downloaded")
