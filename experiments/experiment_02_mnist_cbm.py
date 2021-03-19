@@ -1,7 +1,6 @@
-
 if __name__ == "__main__":
 
-    #%%
+    # %%
 
     import sys
 
@@ -15,6 +14,7 @@ if __name__ == "__main__":
     from deep_logic.models.psi_nn import PsiNetwork
     from deep_logic.models.tree import XDecisionTreeClassifier
     from deep_logic.models.brl import XBRLClassifier
+    from deep_logic.models.logistic_regression import XLogisticRegressionClassifier
     from deep_logic.utils.base import set_seed, ClassifierNotTrainedError
     from deep_logic.utils.metrics import F1Score
     from deep_logic.models.general_nn import XGeneralNN
@@ -30,22 +30,19 @@ if __name__ == "__main__":
     dataset_root = "../data/MNIST_EVEN_ODD/"
     dataset_root
 
-    #%% md
-
+    # %% md
     ## Define loss, metrics and saved metrics
-
-    #%%
+    # %%
 
     loss = torch.nn.CrossEntropyLoss()
     metric = F1Score()
 
-    method_list = ['BRL', 'Psi', 'Relu', 'DTree', 'General',]
+    method_list = ['Psi', 'Relu', 'General', 'LogisticRegression', 'DTree', 'BRL']
 
     #%% md
-
     ## Loading MNIST data
-
     #%%
+
     if not os.path.isfile(os.path.join(dataset_root, f"{MNIST}_predictions.npy")):
         concept_extractor_mnist(dataset_root)
     else:
@@ -61,9 +58,7 @@ if __name__ == "__main__":
     print("Number of classes", n_classes)
 
     #%% md
-
     ## Training Hyperparameters
-
     #%%
 
     epochs = 20
@@ -71,7 +66,7 @@ if __name__ == "__main__":
     lr_scheduler = True
     top_k_explanations = 5
     simplify = True
-    seeds = [*range(10)]
+    seeds = [*range(1)]
     print("Seeds", seeds)
     device = torch.device("cpu") if torch.cuda.is_available() else torch.device("cpu")
     print("Device", device)
@@ -106,8 +101,7 @@ if __name__ == "__main__":
                     model.load(device)
                     print(f"Model {name} already trained")
                 except ClassifierNotTrainedError:
-                    print(f"Training {name} Classifier...")
-                    results = model.fit(val_data, metric=metric, save=True,  verbose=False)
+                    results = model.fit(val_data, metric=metric, save=True, verbose=False)
                     print(results)
                 accuracy = model.evaluate(test_data, metric=metric)
                 print("Test model accuracy", accuracy)
@@ -126,17 +120,20 @@ if __name__ == "__main__":
                     print("Explanation complexity", explanation_complexity)
 
             elif method == 'DTree':
-                model = XDecisionTreeClassifier(n_classes=n_classes, n_features=n_features)
-                results = model.fit(train_data, val_data, metric=metric, save=False)
-                print(results)
+                model = XDecisionTreeClassifier(name=name, n_classes=n_classes, n_features=n_features)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except ClassifierNotTrainedError:
+                    results = model.fit(train_data, val_data, metric=metric, save=True)
+                    print(results)
                 accuracy = model.evaluate(test_data, metric=metric)
                 print("Test model accuracy", accuracy)
                 formulas, times, exp_accuracies, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula, elapsed_time = model.get_global_explanation(i, concept_names,
                                                                          return_time=True)
-                    exp_accuracy, y_formula = test_explanation(formula, i, x_test, y_test,
-                                                               metric=metric, concept_names=concept_names)
+                    exp_accuracy = accuracy
                     explanation_complexity = dl.logic.complexity(formula)
                     formulas.append(formula), times.append(elapsed_time)
                     exp_accuracies.append(exp_accuracy), exp_complexities.append(explanation_complexity)
@@ -151,12 +148,15 @@ if __name__ == "__main__":
                 hidden_neurons = []
                 fan_in = 5
                 lr_psi = 0.01
-                set_seed(seed)
                 model = PsiNetwork(n_classes, n_features, hidden_neurons, loss,
-                                   l1_weight, fan_in=fan_in)
-                results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_psi, verbose=True,
-                                    metric=metric, lr_scheduler=lr_scheduler, device=device, save=False)
-                print(results)
+                                   l1_weight, name=name, fan_in=fan_in)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except ClassifierNotTrainedError:
+                    results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_psi, verbose=True,
+                                        metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
+                    print(results)
                 accuracy = model.evaluate(test_data, metric=metric)
                 print("Test model accuracy", accuracy)
                 formulas, times, exp_accuracies, exp_complexities = [], [], [], []
@@ -179,12 +179,15 @@ if __name__ == "__main__":
                 # Network structures
                 l1_weight = 1e-2
                 hidden_neurons = [20, 10]
-                set_seed(seed)
-                model = XReluNN(n_classes=n_classes, n_features=n_features,
+                model = XReluNN(n_classes=n_classes, n_features=n_features, name=name,
                                 hidden_neurons=hidden_neurons, loss=loss, l1_weight=l1_weight)
-                results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
-                                    metric=metric, lr_scheduler=lr_scheduler, device=device, save=False)
-                print(results)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except ClassifierNotTrainedError:
+                    results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
+                                        metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
+                    print(results)
                 accuracy = model.evaluate(test_data, metric=metric)
                 print("Test model accuracy", accuracy)
                 formulas, times, exp_accuracies, exp_complexities = [], [], [], []
@@ -209,12 +212,15 @@ if __name__ == "__main__":
                 # Network structures
                 l1_weight = 1e-1
                 hidden_neurons = [10, 5]
-                set_seed(seed)
                 model = XGeneralNN(n_classes=n_classes, n_features=n_features, hidden_neurons=hidden_neurons,
-                                   loss=loss, l1_weight=l1_weight)
-                results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
-                                    lr_scheduler=lr_scheduler, device=device, save=False, verbose=True)
-                print(results)
+                                   loss=loss, name=name, l1_weight=l1_weight)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except ClassifierNotTrainedError:
+                    results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
+                                        lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
+                    print(results)
                 accuracy = model.evaluate(test_data, metric=metric)
                 print("Test model accuracy", accuracy)
                 formulas, times, exp_accuracies, exp_complexities = [], [], [], []
@@ -231,6 +237,20 @@ if __name__ == "__main__":
                     print("Elapsed time", elapsed_time)
                     print("Explanation accuracy", exp_accuracy)
                     print("Explanation complexity", explanation_complexity)
+
+            elif method == 'LogisticRegression':
+                set_seed(seed)
+                model = XLogisticRegressionClassifier(name=name, n_classes=n_classes, n_features=n_features, loss=loss)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except ClassifierNotTrainedError:
+                    results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
+                                        lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
+                    print(results)
+                accuracy = model.evaluate(test_data, metric=metric)
+                print("Test model accuracy", accuracy)
+                formulas, times, exp_accuracies, exp_complexities = [""], [0], [0], [0]
             else:
                 raise NotImplementedError(f"{method} not implemented")
 
@@ -258,14 +278,12 @@ if __name__ == "__main__":
         results.to_csv(os.path.join(results_dir, f'results_{method}.csv'))
         print(results)
 
-
     #%% md
-
-    # Summary
-
+    ##Summary
     #%%
 
-    cols = ['model_accuracy', 'explanation_accuracy', 'explanation_complexity', 'elapsed_time', 'explanation_consistency']
+    cols = ['model_accuracy', 'explanation_accuracy', 'explanation_complexity', 'elapsed_time',
+            'explanation_consistency']
     mean_cols = [f'{c}_mean' for c in cols]
     sem_cols = [f'{c}_sem' for c in cols]
 
@@ -327,8 +345,6 @@ if __name__ == "__main__":
     summary.columns = mean_cols + sem_cols
     print(summary)
 
-    #%%
+    # %%
 
     summary.to_csv(os.path.join(results_dir, 'summary.csv'))
-
-
