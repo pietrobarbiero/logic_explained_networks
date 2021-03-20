@@ -3,6 +3,7 @@ from typing import Tuple, List
 
 import torch
 import numpy as np
+import pyparsing
 from sklearn.metrics import accuracy_score
 
 from ..utils.base import to_categorical
@@ -49,20 +50,16 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
         local_predictions = [torch.tensor(np.zeros_like(y))]
         predictions = torch.cat(local_predictions).eq(target_class).cpu().detach().numpy()
     else:
+        thecontent = pyparsing.Word(pyparsing.alphanums) | '~' | '&'
+        parens = pyparsing.nestedExpr('(', ')', content=thecontent)
+
         minterms = str(explanation).split(' | ')
         x = x > 0.5
         local_predictions = []
         for minterm in minterms:
-            minterm = minterm.replace('(', '').replace(')', '').split(' & ')
-            features = []
-            for terms in minterm:
-                terms = terms.split('feature')
-                if terms[0] == '~':
-                    features.append(~x[:, int(terms[1])])
-                else:
-                    features.append(x[:, int(terms[1])])
-
-            local_prediction = torch.stack(features, dim=0).prod(dim=0)
+            paresed_string = parens.parseString(f'({minterm})')
+            list_of_terms = paresed_string.asList()
+            _, local_prediction = predict_minterm(list_of_terms, x)
             local_predictions.append(local_prediction)
         predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).cpu().detach().numpy()
 
@@ -70,6 +67,46 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
 
     accuracy = metric(y, predictions)
     return accuracy, torch.stack(local_predictions, dim=0).sum(dim=0) > 0 if give_local else predictions
+
+
+def predict_minterm(list_of_terms, x):
+    if all(isinstance(item, str) for item in list_of_terms):
+        features = []
+        prev_term = ''
+        for feature in list_of_terms:
+            if feature.startswith('f'):
+                features.append(predict_term(x, prev_term, feature))
+            prev_term = feature
+        prediction = torch.stack(features, dim=0).prod(dim=0)
+        # print(f"({' '.join(lists2)})")
+        return f"({' '.join(list_of_terms)})", prediction
+    else:
+        predictions = []
+        prev_term = ''
+        for i, item in enumerate(list_of_terms):
+            prediction = torch.NoneType
+            if isinstance(item, list):
+                list_of_terms[i], prediction = predict_minterm(item, x)
+            elif item not in ['~', '&']:
+                prediction = predict_term(x, prev_term, item)
+
+            if prev_term == '~':
+                prediction = ~prediction
+
+            prev_term = item
+            if item not in ['~', '&']:
+                predictions.append(prediction)
+        prediction = torch.stack(predictions, dim=0).prod(dim=0)
+        # print(lists2)
+        return f"({' '.join(list_of_terms)})", prediction
+
+
+def predict_term(x, prev_term, term):
+    term_id = int(term.split('feature')[1])
+    if prev_term == '~':
+        return ~x[:, term_id]
+    else:
+        return x[:, term_id]
 
 
 def replace_names(explanation: str, concept_names: List[str]) -> str:
