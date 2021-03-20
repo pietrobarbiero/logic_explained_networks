@@ -5,6 +5,7 @@ import torch
 import numpy as np
 import pyparsing
 from sklearn.metrics import accuracy_score
+from sympy import to_dnf
 
 from ..utils.base import to_categorical
 from ..utils.metrics import Metric, Accuracy
@@ -50,17 +51,23 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
         local_predictions = [torch.tensor(np.zeros_like(y))]
         predictions = torch.cat(local_predictions).eq(target_class).cpu().detach().numpy()
     else:
-        thecontent = pyparsing.Word(pyparsing.alphanums) | '~' | '&'
-        parens = pyparsing.nestedExpr('(', ')', content=thecontent)
-
+        explanation = to_dnf(explanation)
         minterms = str(explanation).split(' | ')
         x = x > 0.5
         local_predictions = []
         for minterm in minterms:
-            paresed_string = parens.parseString(f'({minterm})')
-            list_of_terms = paresed_string.asList()
-            _, local_prediction = predict_minterm(list_of_terms, x)
+            minterm = minterm.replace('(', '').replace(')', '').split(' & ')
+            features = []
+            for terms in minterm:
+                terms = terms.split('feature')
+                if terms[0] == '~':
+                    features.append(~x[:, int(terms[1])])
+                else:
+                    features.append(x[:, int(terms[1])])
+
+            local_prediction = torch.stack(features, dim=0).prod(dim=0)
             local_predictions.append(local_prediction)
+
         predictions = (torch.stack(local_predictions, dim=0).sum(dim=0) > 0).cpu().detach().numpy()
 
     y = to_categorical(y).eq(target_class).cpu().detach().numpy()
