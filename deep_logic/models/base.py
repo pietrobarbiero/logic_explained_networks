@@ -74,9 +74,9 @@ class BaseClassifier(torch.nn.Module):
                    isinstance(loss, MutualInformationLoss), \
                    "Only CrossEntropyLoss, BCEWithLogitsLoss, MixedMultiLabelLoss or MutualInformationLoss available."
         self.loss = loss
-        self.activation = torch.nn.Softmax(dim=1) if isinstance(loss, torch.nn.CrossEntropyLoss) else torch.nn.Sigmoid()
+        self.activation = torch.nn.Sigmoid()  # torch.nn.Softmax(dim=1) if isinstance(loss, torch.nn.CrossEntropyLoss) else torch.nn.Sigmoid()
         self.name = name
-        self.register_buffer("trained", torch.tensor(True))
+        self.register_buffer("trained", torch.tensor(False))
         self.need_pruning = False
         self.to(device)
 
@@ -138,7 +138,7 @@ class BaseClassifier(torch.nn.Module):
         """
         pass
 
-    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 64, epochs: int = 10, num_workers: int = 0,
+    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 1024, epochs: int = 20, num_workers: int = 0,
             l_r: float = 0.01, lr_scheduler: bool = False, metric: Metric = TopkAccuracy(), early_stopping: bool = True,
             device: torch.device = torch.device("cpu"), verbose: bool = True, save: bool = True) -> pd.DataFrame:
         """
@@ -165,7 +165,7 @@ class BaseClassifier(torch.nn.Module):
 
         # Setting loss function and optimizer
         optimizer = torch.optim.Adam(self.parameters(), lr=l_r)
-        scheduler = ReduceLROnPlateau(optimizer, verbose=verbose, mode='max',
+        scheduler = ReduceLROnPlateau(optimizer, verbose=verbose, mode='max', patience=epochs//10,
                                       factor=0.33, min_lr=1e-2 * l_r) if lr_scheduler else None
 
         # Training epochs
@@ -214,6 +214,12 @@ class BaseClassifier(torch.nn.Module):
             if lr_scheduler:
                 scheduler.step(train_acc)
 
+            # Save best model if early_stopping is True
+            if (val_acc > best_acc and epoch >= epochs // 2 or epochs <= 2) and early_stopping:
+                best_acc = val_acc
+                best_epoch = epoch + 1
+                self.save()
+
             # Prune network
             if (epoch + 1) == epochs // 2 and self.need_pruning:
                 self.prune()
@@ -221,12 +227,6 @@ class BaseClassifier(torch.nn.Module):
                 optimizer = torch.optim.AdamW(self.parameters(), lr=l_r)
                 scheduler = ReduceLROnPlateau(optimizer, verbose=verbose, mode='max',
                                               factor=0.33, min_lr=1e-3 * l_r) if lr_scheduler else None
-
-            # Save best model if early_stopping is True
-            if (val_acc > best_acc and epoch > epochs // 2 or epochs <= 2) and early_stopping:
-                best_acc = val_acc
-                best_epoch = epoch + 1
-                self.save()
 
             if verbose:
                 print(f"Epoch: {epoch + 1}/{epochs}, Loss: {tot_losses[-1]:.3f}, "
@@ -321,7 +321,12 @@ class BaseClassifier(torch.nn.Module):
             name = self.name
         try:
             incompat_keys = self.load_state_dict(torch.load(name, map_location=torch.device(device)), strict=False)
-        except FileNotFoundError:
+        except (FileNotFoundError, RuntimeError):
+            raise ClassifierNotTrainedError()
+        if set_trained:
+            self.save(set_trained=True)
+        if not self.trained:
+            self._reinit()
             raise ClassifierNotTrainedError()
         if len(incompat_keys.missing_keys) > 0 or len(incompat_keys.unexpected_keys) > 0:
             if self.need_pruning:
@@ -331,16 +336,17 @@ class BaseClassifier(torch.nn.Module):
                     raise IncompatibleClassifierError(incompat_keys.missing_keys, incompat_keys.unexpected_keys)
             else:
                 raise IncompatibleClassifierError(incompat_keys.missing_keys, incompat_keys.unexpected_keys)
-        if set_trained:
-            self.save(set_trained=True)
-        if not self.trained:
-            raise ClassifierNotTrainedError()
 
     def _set_trained(self) -> None:
         """
         Internal function used to set the buffer "trained" to true
         """
         self.trained = torch.tensor(True)
+
+    def _reinit(self):
+        for layer in self.model.children():
+            if hasattr(layer, 'reset_parameters'):
+                layer.reset_parameters()
 
 
 if __name__ == "__main__":

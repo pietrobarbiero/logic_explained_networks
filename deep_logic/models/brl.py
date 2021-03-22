@@ -201,7 +201,7 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         metric_val = metric(outputs, labels)
         return metric_val
 
-    def predict(self, dataset, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
+    def predict(self, dataset: Dataset, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Predict function to compute the prediction of BRL on a certain dataset
 
@@ -209,7 +209,7 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         :return: a tuple containing the outputs computed on the dataset and the labels
         """
         outputs, labels = [], []
-        loader = torch.utils.data.DataLoader(dataset, 1024)
+        loader = torch.utils.data.DataLoader(dataset, 2**20)
         for data in loader:
             batch_data = data[0]
             batch_output = self.forward(batch_data)

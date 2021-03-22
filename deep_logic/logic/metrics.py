@@ -1,4 +1,6 @@
 from typing import List
+
+import sympy
 import torch
 import numpy as np
 from sklearn.metrics import accuracy_score
@@ -20,8 +22,12 @@ def accuracy_score(y_formula: torch.Tensor, y_true: torch.Tensor, metric: callab
     return metric(y_formula, y_true)
 
 
-def complexity(formula: str) -> float:
-    return np.array([len(f.split(' & ')) for f in formula.split(' | ')]).sum()
+def complexity(formula: str, to_dnf=False) -> float:
+    if formula != "":
+        if to_dnf:
+            formula = str(sympy.to_dnf(formula))
+        return np.array([len(f.split(' & ')) for f in formula.split(' | ')]).sum()
+    return 1
 
 
 def concept_consistency(formula_list: List[str]) -> dict:

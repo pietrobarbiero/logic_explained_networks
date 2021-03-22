@@ -11,14 +11,6 @@ from ..utils.base import to_categorical
 from ..utils.metrics import Metric, Accuracy
 
 
-def test_multi_class_explanation(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor,
-                                 give_local: bool = False, metric: Metric = Accuracy(), concept_names: list = None) \
-        -> Tuple[float, np.ndarray]:
-    y_single_class = y.eq(target_class)
-    return test_explanation(explanation, target_class=1, x=x, y=y_single_class,
-                            give_local=give_local, metric=metric, concept_names=concept_names)
-
-
 def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor,
                      give_local: bool = False, metric: Metric = Accuracy(), concept_names: list = None) \
         -> Tuple[float, np.ndarray]:

@@ -34,22 +34,24 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         self.n_classes = n_classes
         self.n_features = n_features
 
-        layers = []
-        for i in range(len(hidden_neurons) + 1):
-            input_nodes = hidden_neurons[i - 1] if i != 0 else n_features
-            output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else 1
-            if i == 0:
-                layer = torch.nn.Linear(input_nodes, output_nodes * self.n_classes)
-            else:
-                layer = XLinear(input_nodes, output_nodes, self.n_classes)
-            layers.extend([
-                layer,
-                torch.nn.LeakyReLU() if i != len(hidden_neurons) else torch.nn.Identity()
-            ])
-        self.model = torch.nn.Sequential(*layers)
+        models = torch.nn.ModuleList()
+        for j in range(n_classes):
+            layers = []
+            for i in range(len(hidden_neurons) + 1):
+                input_nodes = hidden_neurons[i - 1] if i != 0 else n_features
+                output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else 1
+                layer = torch.nn.Linear(input_nodes, output_nodes)
+                layers.extend([
+                    layer,
+                    torch.nn.LeakyReLU() if i != len(hidden_neurons) else torch.nn.Identity()
+                ])
+            model = torch.nn.Sequential(*layers)
+            models.append(model)
+        self.model = models
         self.l1_weight = l1_weight
         self.fan_in = fan_in
         self.need_pruning = True
+        self._target_class = None
 
     def get_loss(self, output: torch.Tensor, target: torch.Tensor, epoch: int = None, epochs: int = None)\
             -> torch.Tensor:
@@ -63,13 +65,16 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         :param epoch:
         :return: loss tensor value
         """
-        if epoch is None or epochs is None or epoch + 1 > epochs / 4:
-            l1_weight = self.l1_weight
-        else:
-            l1_weight = self.l1_weight * 4 * (epoch + 1) / epochs
+        # if epochs is None or epoch + 1 > epochs / 4:
+        l1_weight = self.l1_weight
+        # else:
+        #     l1_weight = self.l1_weight * 4 * (epoch + 1) / epochs
         l1_reg_loss = .0
         if self.need_pruning:
-            l1_reg_loss += torch.sum(torch.abs(self.model[0].weight))
+            for model in self.model:
+                l1_reg_loss += torch.norm(model[0].weight, 1)
+                l1_reg_loss += torch.norm(model[0].bias, 1)
+
         output_loss = super().get_loss(output, target)
         return output_loss + l1_weight * l1_reg_loss
 
@@ -82,18 +87,26 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         :param logits: whether to return the logits or the probability value after the activation (default)
         :return: output classification
         """
-        super(XGeneralNN, self).forward(x)
-        output = self.model(x)
+        assert not torch.isnan(x).any(), "Input data contain nan values"
+        assert not torch.isinf(x).any(), "Input data contain inf values"
+        outputs = []
+        for model in self.model:
+            output = model(x)
+            outputs.append(output)
+        output = torch.hstack(outputs)
         if logits:
             return output
         output = self.activation(output)
+        if len(output.shape) == 1:
+            output = output.unsqueeze(dim=0)
         return output
 
     def prune(self):
-        if self.fan_in is None:
-            prune_features(self.model, self.n_classes, device=self.get_device())
-        else:
-            prune_features_fanin(self.model, self.fan_in, self.n_classes, device=self.get_device())
+        for model in self.model:
+            if self.fan_in is None:
+                prune_features(model, 1, device=self.get_device())
+            else:
+                prune_features_fanin(model, self.fan_in, 1, device=self.get_device())
 
     def get_local_explanation(self, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
                               target_class, simplify: bool = True, concept_names: list = None):
@@ -129,10 +142,13 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         """
         method = "pruning"
         start_time = time.time()
+        # if self.n_classes == 2 and target_class == 0 and len(y.squeeze().shape) == 1:
+        #     target_class = 1
+        #     y = 1 - y
         global_expl, _, _ = combine_local_explanations(self, x, y, target_class, method=method,
                                                        simplify=simplify, topk_explanations=topk_explanations,
                                                        concept_names=concept_names, device=self.get_device(),
-                                                       num_classes=self.n_classes)
+                                                       num_classes=1)
         elapsed_time = time.time() - start_time
         if return_time:
             return global_expl, elapsed_time
