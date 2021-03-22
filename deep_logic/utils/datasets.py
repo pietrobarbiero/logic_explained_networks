@@ -22,7 +22,7 @@ class ConceptDataset(ImageFolder, ABC):
     """
 
     def __init__(self, root: str, transform: Callable = None, dataset_name: str = CUB200,
-                 predictions: bool = False, multi_label: bool = False):
+                 predictions: bool = False, multi_label: bool = False, binary=False):
         super().__init__(root, transform)
         from .data import clean_names
 
@@ -38,6 +38,14 @@ class ConceptDataset(ImageFolder, ABC):
                 if np.unique(np.asarray(self.targets)).shape[0] == 2:
                     multi_labels_targets = np.hstack((1 - multi_labels_targets, multi_labels_targets))
                 self.attributes = np.concatenate((multi_labels_targets, self.attributes), axis=1)
+
+        self.targets = np.asarray(self.targets)
+        if binary:
+            if len(self.targets.squeeze().shape) == 1:
+                targets = LabelBinarizer().fit_transform(self.targets)
+                if len(targets.squeeze().shape) == 1:
+                    targets = np.hstack([1 - targets, targets])
+                self.targets = targets
 
         with open(os.path.join(root, "attributes_names.txt"), "r") as f:
             self.attribute_names : list = json.load(f)

@@ -28,6 +28,7 @@ def prune_features(model: torch.nn.Module, n_classes: int,
                 mask = torch.ones(block_size)
                 mask[:, w_bool] = 0
                 blocks.append(mask)
+                print(f"Pruned {w_bool.sum()}/{w_bool.shape[0]} features")
 
             # prune
             final_mask = torch.vstack(blocks).to(device)

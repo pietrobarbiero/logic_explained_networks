@@ -1,3 +1,4 @@
+import random
 from typing import Tuple, List
 
 import sklearn
@@ -15,6 +16,7 @@ def set_seed(seed):
 
     :param seed:
     """
+    random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
@@ -28,6 +30,8 @@ def to_categorical(y: torch.Tensor) -> torch.Tensor:
     :param y: input tensor.
     :return: Categorical tensor
     """
+    if y.min() < 0:
+        y = torch.nn.Sigmoid()(y)
     if len(y.shape) == 2 and y.shape[1] > 1:
         # one hot encoding to categorical
         yc = torch.argmax(y, dim=1)
@@ -172,7 +176,7 @@ def brl_extracting_formula(model) -> str:
 
     formula = ""
     for i, min_term in enumerate(min_terms):
-        if model.theta[i] > 0.5:
+        if model.theta[i] >= 0.5:
             part_formula = min_term
             # Taking into consideration all the previous terms negated
             for j, min_term2 in enumerate(min_terms[:i]):
@@ -181,8 +185,8 @@ def brl_extracting_formula(model) -> str:
 
     # Taking into consideration the ELSE (only in case it implies the class)
     i = len(min_terms)
-    if model.theta[i] > 0.5:
-            formula += f" & ".join([f"~{min_term2}" for min_term2 in min_terms])
+    if model.theta[i] >= 0.5:
+            formula += f" & ".join([f"~({min_term2})" for min_term2 in min_terms])
     else:
         formula = formula[:-3]
 

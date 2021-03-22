@@ -31,7 +31,7 @@ def rank_pruning(model: torch.nn.Module,
     feature_weights = w[0]
 
     n_classes = len(torch.unique(y)) if num_classes is None else num_classes
-    if n_classes <= 2:
+    if num_classes < 2 or num_classes is None and n_classes <= 2:
         feature_used_bool = np.sum(np.abs(feature_weights), axis=0) > 0
 
     else:

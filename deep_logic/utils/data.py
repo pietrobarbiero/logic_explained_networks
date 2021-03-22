@@ -66,18 +66,22 @@ def get_splits_train_val_test(dataset: ConceptDataset, val_split: float = 0.1, t
     else:
         dataset_copy = dataset
 
+    # Checking dataset targets
+    targets = np.asarray(dataset.targets)
+    if len(targets.squeeze().shape) > 1:
+        targets = targets.argmax(axis=1)
+
     # Creating dataset for Validation by splitting the samples in the dataset
     if os.path.isfile(val_json) and load:
         with open(os.path.join(val_json), "r") as f:
             val_file = json.load(f)
             val_samples = val_file["samples"]
     else:
-        dataset.targets = np.array(dataset.targets)
-        val_len = {c: int(round(np.sum(dataset.targets == dataset.class_to_idx[c]) * val_split))
+        val_len = {c: int(round(np.sum(targets == dataset.class_to_idx[c]) * val_split))
                    for c in dataset.classes}
         val_samples = []
         for c in dataset.classes:
-            indices = np.argwhere(dataset.targets == dataset.class_to_idx[c]).squeeze().tolist()
+            indices = np.argwhere(targets == dataset.class_to_idx[c]).squeeze().tolist()
             val_samples.extend(sorted(random.sample(indices, val_len[c])))
         if load:
             with open(os.path.join(val_json), "w") as f:
@@ -91,12 +95,11 @@ def get_splits_train_val_test(dataset: ConceptDataset, val_split: float = 0.1, t
             test_file = json.load(f)
             test_samples = test_file["samples"]
     else:
-        dataset.targets = np.array(dataset.targets)
-        test_len = {c: int(round(np.sum(dataset.targets == dataset.class_to_idx[c]) * test_split))
+        test_len = {c: int(round(np.sum(targets == dataset.class_to_idx[c]) * test_split))
                     for c in dataset.classes}
         test_samples = []
         for c in dataset.classes:
-            indices = np.argwhere(dataset.targets == dataset.class_to_idx[c]).squeeze().tolist()
+            indices = np.argwhere(targets == dataset.class_to_idx[c]).squeeze().tolist()
             indices = list(set(indices) - set(val_samples))  # [int(i) for i in indices if i not in val_samples]
             test_samples.extend(sorted(random.sample(indices, test_len[c])))
         if load:
