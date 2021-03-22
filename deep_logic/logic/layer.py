@@ -30,7 +30,7 @@ def explain_class(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, bina
     :param num_classes: override the number of classes
     :return: Local explanation
     """
-    x_validation, y_validation, model = _get_validation_data(x, y, model, target_class)
+    x_validation, y_validation, model = _get_validation_data(x, y, model, target_class, binary)
 
     class_explanation = ''
     class_explanations = {}
@@ -190,7 +190,7 @@ def _replace_names_dict(class_explanation, class_explanations, concept_names):
     return class_explanation, class_explanations
 
 
-def _get_validation_data(x, y, model, target_class):
+def _get_validation_data(x, y, model, target_class, binary=True):
     y = to_categorical(y)
     assert (y == target_class).any(), "Cannot get explanation if target class is not amongst target labels"
 
@@ -210,6 +210,8 @@ def _get_validation_data(x, y, model, target_class):
 
     # get model's predictions
     preds = model(x_target)
+    if binary:
+        preds = preds.unsqueeze(-1)
     preds = to_categorical(preds)
 
     # identify samples correctly classified of the target class

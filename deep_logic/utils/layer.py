@@ -2,8 +2,8 @@ import torch
 from ..nn import XLogic, Conv2Concepts
 
 
-def prune_logic_layers(model: torch.nn.Module, fan_in: int = None,
-                       device: torch.device = torch.device('cpu')) -> torch.nn.Module:
+def prune_logic_layers(model: torch.nn.Module, current_epoch: int, prune_epoch: int,
+                       fan_in: int = None, device: torch.device = torch.device('cpu')) -> torch.nn.Module:
     """
     Prune the inputs of the model.
 
@@ -12,21 +12,27 @@ def prune_logic_layers(model: torch.nn.Module, fan_in: int = None,
     :param device: cpu or cuda device
     :return: pruned model
     """
+    if current_epoch != prune_epoch:
+        return model
+
     model.eval()
     for i, module in enumerate(model.children()):
         # prune only Linear layers
         if isinstance(module, XLogic):
             if not module.top:
-                _prune(module, fan_in, linear=False, device=device)
+                if hasattr(module, 'weight_orig'):
+                    break
+                _prune(module, fan_in, device=device)
+
         if isinstance(module, Conv2Concepts):
-            _prune(module, fan_in, linear=False, device=device)
+            _prune(module, fan_in, device=device)
         # break
 
     model.train()
     return model
 
 
-def _prune(module: torch.nn.Module, fan_in: int, linear: bool = True, device: torch.device = torch.device('cpu')):
+def _prune(module: torch.nn.Module, fan_in: int, device: torch.device = torch.device('cpu')):
     # pruning
     w_size = (module.weight.shape[0], module.weight.shape[1])
 
@@ -56,3 +62,27 @@ def _prune(module: torch.nn.Module, fan_in: int, linear: bool = True, device: to
     torch.nn.utils.prune.custom_from_mask(module, name="weight", mask=mask.to(device))
     # torch.nn.utils.prune.custom_from_mask(module, name="bias", mask=mask.mean(dim=0).to(device))
     return
+
+
+def l1_loss(model: torch.nn.Module):
+    loss = 0
+    for module in model.children():
+        if isinstance(module, XLogic):
+            loss += torch.norm(module.weight, 1) + torch.norm(module.bias, 1)
+            break
+    return loss
+
+
+def whitening_loss(model: torch.nn.Module, device: torch.device = torch.device('cpu')):
+    loss = 0
+    cov = None
+    for module in model.children():
+        if isinstance(module, XLogic):
+            # the target covariance matrix is diagonal
+            n_concepts = module.conceptizator.concepts.shape[1]
+            cov_objective = torch.eye(n_concepts).to(device)
+            # compute covariance matrix of activations
+            cov = 1 / (n_concepts - 1) * torch.matmul(module.conceptizator.concepts.T, module.conceptizator.concepts)
+            loss += torch.norm(cov - cov_objective, p=2)
+            break
+    return loss, cov

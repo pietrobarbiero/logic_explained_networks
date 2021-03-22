@@ -60,6 +60,9 @@ class XConceptizator(Module):
             self.threshold = 0.
         if self.activation_name == 'identity':
             self.activation = identity
+            self.threshold = 0.
+        if self.activation_name == 'identity_bool':
+            self.activation = identity
             self.threshold = 0.5
 
     def forward(self, input: Tensor) -> Tensor:
