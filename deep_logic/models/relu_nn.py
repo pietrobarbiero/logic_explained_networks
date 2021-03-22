@@ -52,13 +52,12 @@ class XReluNN(BaseClassifier, BaseXModel):
 
         :param output: output tensor from the forward function
         :param target: label tensor
-        :param kwargs:
         :return: loss tensor value
         """
-        if epoch is None or epochs is None or epoch > epochs / 2:
-            l1_weight = self.l1_weight
-        else:
-            l1_weight = self.l1_weight * 2 * epoch / epochs
+        # if epoch is None or epochs is None or epoch > epochs / 2:
+        l1_weight = self.l1_weight
+        # else:
+        #     l1_weight = self.l1_weight * 2 * epoch / epochs
         l1_reg_loss = .0
         for layer in self.model.children():
             if hasattr(layer, "weight"):

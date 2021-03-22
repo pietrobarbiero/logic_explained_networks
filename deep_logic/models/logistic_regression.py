@@ -25,7 +25,6 @@ class XLogisticRegressionClassifier(BaseClassifier, BaseXModel):
 
         layers = [
             torch.nn.Linear(n_features, n_classes),
-            torch.nn.Sigmoid(),
         ]
         self.model = torch.nn.Sequential(*layers)
 

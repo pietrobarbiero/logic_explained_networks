@@ -2,7 +2,6 @@ import time
 
 import torch
 
-from ..nn import XLinear
 from ..utils.base import NotAvailableError
 from ..utils.psi_nn import prune_equal_fanin
 from ..logic.psi_nn import generate_fol_explanations
@@ -34,20 +33,21 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         self.n_classes = n_classes
         self.n_features = n_features
 
-        layers = []
-        for i in range(len(hidden_neurons) + 1):
-            input_nodes = hidden_neurons[i - 1] if i != 0 else n_features
-            output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else 1
-            if i == 0:
-                layer = torch.nn.Linear(input_nodes, output_nodes * self.n_classes)
-            else:
-                layer = XLinear(input_nodes, output_nodes, self.n_classes)
-            layers.extend([
-                layer,
-                torch.nn.Sigmoid() if i != len(hidden_neurons) else torch.nn.Identity()
-            ])
+        models = torch.nn.ModuleList()
+        for j in range(n_classes):
+            layers = []
+            for i in range(len(hidden_neurons) + 1):
+                input_nodes = hidden_neurons[i - 1] if i != 0 else n_features
+                output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else 1
+                layer = torch.nn.Linear(input_nodes, output_nodes)
+                layers.extend([
+                    layer,
+                    torch.nn.Sigmoid() if i != len(hidden_neurons) else torch.nn.Identity()
+                ])
+            model = torch.nn.Sequential(*layers)
+            models.append(model)
 
-        self.model = torch.nn.Sequential(*layers)
+        self.model = models
         self.l1_weight = l1_weight
         self.fan_in = fan_in
         self.need_pruning = True
@@ -65,20 +65,46 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         :param epoch:
         :return: loss tensor value
         """
-        if epoch is None or epochs is None or epoch + 1 > epochs / 4:
-            l1_weight = self.l1_weight
-        else:
-            l1_weight = self.l1_weight * 4 * (epoch + 1) / epochs
+        # if epoch is None or epochs is None or epoch + 1 > epochs / 4:
+        l1_weight = self.l1_weight
+        # else:
+        #     l1_weight = self.l1_weight * 4 * (epoch + 1) / epochs
         l1_reg_loss = .0
         if self.need_pruning:
-            for layer in self.model.children():
-                if hasattr(layer, "weight"):
-                    l1_reg_loss += torch.sum(torch.abs(layer.weight))
+            for model in self.model:
+                for layer in model.children():
+                    if hasattr(layer, "weight"):
+                        l1_reg_loss += torch.norm(layer.weight, 1)
+                        l1_reg_loss += torch.norm(layer.bias, 1)
         output_loss = super().get_loss(output, target)
         return output_loss + l1_weight * l1_reg_loss
 
+    def forward(self, x, logits=False):
+        """
+        forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
+        A probability value is returned in output after activation in case logits
+
+        :param x: input tensor
+        :param logits: whether to return the logits or the probability value after the activation (default)
+        :return: output classification
+        """
+        assert not torch.isnan(x).any(), "Input data contain nan values"
+        assert not torch.isinf(x).any(), "Input data contain inf values"
+        outputs = []
+        for model in self.model:
+            output = model(x)
+            outputs.append(output)
+        output = torch.hstack(outputs)
+        if logits:
+            return output
+        output = self.activation(output)
+        if len(output.shape) == 1:
+            output = output.unsqueeze(dim=0)
+        return output
+
     def prune(self):
-        prune_equal_fanin(self.model, self.fan_in, validate=True, device=self.get_device())
+        for model in self.model:
+            prune_equal_fanin(model, self.fan_in, validate=True, device=self.get_device())
 
     def get_local_explanation(self, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor, target_class,
                               simplify: bool = True, concept_names: list = None) -> str:
@@ -96,11 +122,8 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         :return: Explanation
         """
         start_time = time.time()
-        if self._explanations is None:
-            explanations = generate_fol_explanations(self.model, self.get_device(), concept_names, simplify=True)
-            self._explanations = explanations
-        else:
-            explanations = self._explanations
+        model = self.model[target_class]
+        explanations = generate_fol_explanations(model, self.get_device(), concept_names, simplify=True)
 
         if len(explanations) > 1:
             explanations = explanations[target_class]
