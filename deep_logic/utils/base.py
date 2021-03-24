@@ -192,6 +192,8 @@ def brl_extracting_formula(model) -> str:
             formula += f" & ".join([f"~({min_term2})" for min_term2 in min_terms])
     else:
         formula = formula[:-3]
+    if formula == "":
+        formula = "false"
 
     simplified_formula = str(simplify_logic(formula, form="dnf"))
 

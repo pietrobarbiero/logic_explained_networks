@@ -3,7 +3,7 @@ import collections
 
 import torch
 import numpy as np
-from sympy import simplify_logic
+from sympy import simplify_logic, to_dnf
 
 from .base import replace_names, test_explanation, simplify_formula
 from .psi_nn import _build_truth_table
@@ -139,7 +139,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
         global_explanation_simplified = simplify_logic(global_explanation, 'dnf', force=simplify)
         global_explanation_simplified_str = str(global_explanation_simplified)
     else:
-        global_explanation_simplified_str = global_explanation
+        global_explanation_simplified_str = str(to_dnf(global_explanation))
     if not global_explanation_simplified_str:
         if not return_accuracy:
             return '', np.array, collections.Counter()

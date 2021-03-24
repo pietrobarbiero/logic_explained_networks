@@ -119,4 +119,4 @@ class UnsupervisedMetric(Metric):
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
         mi = mutual_information(outputs, normalized=True) * 100
 
-        return mi.cpu().numpy()
+        return mi.cpu().item()
