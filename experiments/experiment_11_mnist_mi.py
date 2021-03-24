@@ -9,9 +9,10 @@ if __name__ == "__main__":
     import torch
     import pandas as pd
     import numpy as np
+    import deep_logic as dl
     from deep_logic.models.relu_nn import XReluNN
     from deep_logic.models.psi_nn import PsiNetwork
-    from deep_logic.utils.base import set_seed
+    from deep_logic.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
     from deep_logic.utils.metrics import UnsupervisedMetric
     from deep_logic.models.general_nn import XGeneralNN
     from deep_logic.utils.datasets import ConceptOnlyDataset
@@ -21,7 +22,7 @@ if __name__ == "__main__":
     from data.download_mnist import download_mnist
     from experiments.MNIST.concept_extractor_mnist import concept_extractor_mnist
 
-    results_dir = 'results/mnist'
+    results_dir = 'results/mnist_mi'
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
 
@@ -29,11 +30,12 @@ if __name__ == "__main__":
     ## Loading MNIST data
     #%%
 
-    dataset_root = f"../data/MNIST/"
+    dataset_root = "../data/MNIST_EVEN_ODD/"
     if not os.path.isdir(dataset_root):
         download_mnist(dataset_root)
     else:
         print("Dataset already downloaded")
+    print(dataset_root)
 
     #%% md
     ## Extracting concepts
@@ -56,201 +58,178 @@ if __name__ == "__main__":
     #%%
 
     epochs = 100
-    l_r = 0.001
+    l_r = 1e-3
     lr_scheduler = True
     simplify = True
     seeds = [*range(10)]
     print("Seeds", seeds)
     top_k_explanations = 5
+    device = torch.device("cpu") if torch.cuda.is_available() else torch.device("cpu")
+    print("Device", device)
 
     #%% md
-    ## Define loss, metrics and saved metrics
+    ## Define methods, loss, metrics and saved metrics
     #%%
 
+    method_list = ['General', 'Psi', 'Relu']
     loss = MutualInformationLoss()
     metric = UnsupervisedMetric()
 
-    methods = []
-    splits = []
-    explanations = []
-    explanations_inv = []
-    elapsed_times = []
-    elapsed_times_inv = []
+    # for method in method_list:
+    #
+    #     methods = []
+    #     splits = []
+    #     explanations = []
+    #     model_accuracies = []
+    #     explanation_accuracies = []
+    #     elapsed_times = []
+    #     explanation_fidelities = []
+    #     explanation_complexities = []
+    #
+    #     for seed in seeds:
+    #         set_seed(seed)
+    #         name = os.path.join(results_dir, f"{method}_{seed}")
+    #
+    #         train_data, val_data, test_data = get_splits_train_val_test(dataset, load=False)
+    #         x_val = torch.tensor(dataset.attributes[val_data.indices])
+    #         y_val = torch.tensor(dataset.targets[val_data.indices])
+    #         x_test = torch.tensor(dataset.attributes[test_data.indices])
+    #         y_test = torch.tensor(dataset.targets[test_data.indices])
+    #         print(train_data.indices)
+    #
+    #         # Setting device
+    #         print(f"Training {name} Classifier...")
+    #
+    #         if method == 'Psi':
+    #             # Network structures
+    #             l1_weight = 1e-2
+    #             print("l1 weight", l1_weight)
+    #             hidden_neurons = []
+    #             fan_in = 2
+    #             lr_psi = 1e-2
+    #             model = PsiNetwork(n_clusters, n_features, hidden_neurons, loss,
+    #                                l1_weight, name=name, fan_in=fan_in)
+    #             try:
+    #                 model.load(device)
+    #                 print(f"Model {name} already trained")
+    #             except (ClassifierNotTrainedError, IncompatibleClassifierError):
+    #                 results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_psi, verbose=True,
+    #                                     metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
+    #             accuracy = model.evaluate(test_data, metric=metric)
+    #             print("Test model accuracy", accuracy)
+    #             formulas, times, exp_accuracies, exp_complexities = [], [], [], []
+    #             for i, class_to_explain in enumerate(dataset.classes):
+    #                 formula, elapsed_time = model.get_global_explanation(i, concept_names,
+    #                                                                      simplify=simplify, return_time=True)
+    #                 explanation_complexity = dl.logic.complexity(formula)
+    #                 formulas.append(formula), times.append(elapsed_time)
+    #                 exp_complexities.append(explanation_complexity)
+    #                 print(f"Formula {i}: {formula}")
+    #                 print("Elapsed time", elapsed_time)
+    #                 print("Explanation complexity", explanation_complexity)
+    #
+    #         elif method == 'Relu':
+    #             # Network structures
+    #             l1_weight = 1e-4
+    #             hidden_neurons = [50, 30]
+    #             model = XReluNN(n_classes=n_clusters, n_features=n_features, name=name,
+    #                             hidden_neurons=hidden_neurons, loss=loss, l1_weight=l1_weight)
+    #             try:
+    #                 model.load(device)
+    #                 print(f"Model {name} already trained")
+    #             except (ClassifierNotTrainedError, IncompatibleClassifierError):
+    #                 results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
+    #                                     metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
+    #             accuracy = model.evaluate(test_data, metric=metric)
+    #             print("Test model accuracy", accuracy)
+    #             formulas, times, exp_accuracies, exp_complexities = [], [], [], []
+    #             for i, class_to_explain in enumerate(dataset.classes):
+    #                 formula, elapsed_time = model.get_global_explanation(x_val, y_val, i,
+    #                                                                      topk_explanations=top_k_explanations,
+    #                                                                      concept_names=concept_names,
+    #                                                                      simplify=simplify, return_time=True)
+    #                 explanation_complexity = dl.logic.complexity(formula)
+    #                 formulas.append(formula), times.append(elapsed_time)
+    #                 exp_complexities.append(explanation_complexity)
+    #                 print(f"Formula {i}: {formula}")
+    #                 print("Elapsed time", elapsed_time)
+    #                 print("Explanation complexity", explanation_complexity)
+    #
+    #         elif method == 'General':
+    #             # Network structures
+    #             l1_weight = 1e-3
+    #             fan_in = None
+    #             hidden_neurons = [20, 10]
+    #             model = XGeneralNN(n_classes=n_clusters, n_features=n_features, hidden_neurons=hidden_neurons,
+    #                                loss=loss, name=name, l1_weight=l1_weight, fan_in=fan_in)
+    #             try:
+    #                 model.load(device)
+    #                 print(f"Model {name} already trained")
+    #             except (ClassifierNotTrainedError, IncompatibleClassifierError):
+    #                 results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
+    #                                     lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
+    #             accuracy = model.evaluate(test_data, metric=metric)
+    #             print("Test model accuracy", accuracy)
+    #             formulas, times, exp_accuracies, exp_complexities = [], [], [], []
+    #             for i, class_to_explain in enumerate(dataset.classes):
+    #                 formula, elapsed_time = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
+    #                                                                      topk_explanations=top_k_explanations,
+    #                                                                      concept_names=concept_names, return_time=True)
+    #                 explanation_complexity = dl.logic.complexity(formula)
+    #                 formulas.append(formula), times.append(elapsed_time)
+    #                 exp_complexities.append(explanation_complexity)
+    #                 print(f"Formula {i}: {formula}")
+    #                 print("Elapsed time", elapsed_time)
+    #                 print("Explanation complexity", explanation_complexity)
+    #         else:
+    #             raise NotImplementedError(f"{method} not implemented")
+    #
+    #         methods.append(method)
+    #         splits.append(seed)
+    #         explanations.append(formulas[0])
+    #         model_accuracies.append(accuracy)
+    #         elapsed_times.append(np.mean(times))
+    #         explanation_complexities.append(np.mean(exp_complexities))
+    #
+    #     explanation_consistency = dl.logic.formula_consistency(explanations)
+    #     print(f'Consistency of explanations: {explanation_consistency:.4f}')
+    #
+    #     results = pd.DataFrame({
+    #         'method': methods,
+    #         'split': splits,
+    #         'explanation': explanations,
+    #         'model_accuracy': model_accuracies,
+    #         'explanation_complexity': explanation_complexities,
+    #         'explanation_consistency': explanation_consistency,
+    #         'elapsed_time': elapsed_times,
+    #     })
+    #     results.to_csv(os.path.join(results_dir, f'results_{method}.csv'))
+    #     print(results)
 
     #%% md
-    ## Relu NN
+    ##Summary
     #%%
 
-    for seed in seeds:
-        print("Seed", seed)
-        set_seed(seed)
+    cols = ['model_accuracy', 'explanation_complexity', 'elapsed_time',
+            'explanation_consistency']
+    mean_cols = [f'{c}_mean' for c in cols]
+    sem_cols = [f'{c}_sem' for c in cols]
 
-        train_data, val_data, test_data = get_splits_train_val_test(dataset)
-        print(train_data.indices)
+    results = {}
+    summaries = {}
+    for method in method_list:
+        results[method] = pd.read_csv(os.path.join(results_dir, f"results_{method}.csv"))
+        df_mean = results[method][cols].mean()
+        df_sem = results[method][cols].sem()
+        df_mean.columns = mean_cols
+        df_sem.columns = sem_cols
+        summaries[method] = pd.concat([df_mean, df_sem])
+        summaries[method].name = method
 
-        x_val = torch.tensor(dataset.attributes[val_data.indices])
+    results = pd.concat([results[method] for method in method_list], axis=1).T
+    results.to_csv(os.path.join(results_dir, f'results.csv'))
 
-        # Network structures
-        l1_weight = 1e-5
-        hidden_neurons = [100, 10]
-
-        # Setting device
-        device = torch.device("cpu") if torch.cuda.is_available() else torch.device("cpu")
-        set_seed(seed)
-        print(f"Training Relu NN...")
-        model = XReluNN(n_classes=dataset.n_classes, n_features=n_features,
-                        hidden_neurons=hidden_neurons, loss=loss, l1_weight=l1_weight)
-
-        results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
-                            metric=metric, lr_scheduler=lr_scheduler, device=device, save=False)
-        preds, _ = model.predict(val_data)
-        print(results)
-
-        formulas, times = [], []
-        for i, class_to_explain in enumerate(dataset.classes):
-            formula, elapsed_time = model.get_global_explanation(x_val, preds, i,
-                                                                 topk_explanations=top_k_explanations,
-                                                                 concept_names=concept_names,
-                                                                 simplify=True, return_time=True)
-            formulas.append(formula), times.append(elapsed_time)
-            print(f"{formula}")
-            print("Elapsed time", elapsed_time)
-
-        methods.append("Relu")
-        splits.append(seed)
-        explanations.append(formulas[0])
-        explanations_inv.append(formulas[1])
-        elapsed_times.append(np.mean(times))
-        elapsed_times_inv.append(np.mean(times))
-
-    results = pd.DataFrame({
-        'method': methods,
-        'split': splits,
-        'explanation': explanations,
-        'explanation_inv': explanations_inv,
-        'elapsed_time': elapsed_times,
-        'elapsed_time_inv': elapsed_times_inv,
-    })
-    results_relu = results[results['method'] == "Relu"]
-    results_relu.to_csv(os.path.join(results_dir, 'results_relu.csv'))
-    print(results_relu)
-
-    #%% md
-    ## PSI NN
-    #%%
-
-    for seed in seeds:
-        print("Seed", seed)
-        set_seed(seed)
-
-        train_data, val_data, test_data = get_splits_train_val_test(dataset)
-        print(train_data.indices)
-
-        # Network structures
-        l1_weight = 5e-6
-        hidden_neurons = []
-        fan_in = 6
-        lr_psi = 0.001
-        n_cluster = 2
-
-        # Setting device
-        device = torch.device("cpu") if torch.cuda.is_available() else torch.device("cpu")
-        set_seed(seed)
-
-        print("Training Psi NN...")
-        model = PsiNetwork(n_cluster, n_features, hidden_neurons, loss,
-                           l1_weight, fan_in=fan_in)
-
-        results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_psi, verbose=True,
-                            metric=metric, lr_scheduler=lr_scheduler, device=device, save=False)
-        print(results)
-
-        formulas, times = [], []
-        for i in range(n_cluster):
-            formula, elapsed_time = model.get_global_explanation(i, concept_names,
-                                                                 simplify=True, return_time=True)
-            formulas.append(formula), times.append(elapsed_time)
-            print(f"{i}) - {formula}")
-            print("Elapsed time", elapsed_time)
-
-        methods.append("Psi")
-        splits.append(seed)
-        explanations.append(formulas[0])
-        explanations_inv.append(formulas[1])
-        elapsed_times.append(np.mean(times))
-        elapsed_times_inv.append(np.mean(times))
-
-    results = pd.DataFrame({
-        'method': methods,
-        'split': splits,
-        'explanation': explanations,
-        'explanation_inv': explanations_inv,
-        'elapsed_time': elapsed_times,
-        'elapsed_time_inv': elapsed_times_inv,
-    })
-    results_psi = results[results['method'] == "Psi"]
-    results_psi.to_csv(os.path.join(results_dir, 'results_psi.csv'))
-    print(results_psi)
-
-    #%% md
-    ## Mu NN
-    #%%
-
-    for seed in seeds:
-        print("Seed", seed)
-        set_seed(seed)
-
-        train_data, val_data, test_data = get_splits_train_val_test(dataset)
-        print(train_data.indices)
-
-        x_val = torch.tensor(dataset.attributes[val_data.indices])
-
-        # Network structures
-        l1_weight = 1e-3
-        hidden_neurons = [20, 10]
-        fan_in = 6
-
-        # Setting device
-        device = torch.device("cpu") if torch.cuda.is_available() else torch.device("cpu")
-        set_seed(seed)
-
-        print("Training General NN...")
-        model = XGeneralNN(n_classes=dataset.n_classes, n_features=n_features, hidden_neurons=hidden_neurons,
-                           loss=loss, l1_weight=l1_weight, fan_in=fan_in)
-
-        results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
-                            lr_scheduler=lr_scheduler, device=device, save=False, verbose=True)
-        print(results)
-
-        preds, _ = model.predict(val_data)
-        formulas, times = [], []
-        for i, class_to_explain in enumerate(dataset.classes):
-            formula, elapsed_time = model.get_global_explanation(x_val, preds, i, simplify=True,
-                                                                 topk_explanations=top_k_explanations,
-                                                                 concept_names=concept_names, return_time=True)
-            formulas.append(formula), times.append(elapsed_time)
-            print(f"{formula}")
-            print("Elapsed time", elapsed_time)
-
-        methods.append("General")
-        splits.append(seed)
-        explanations.append(formulas[0])
-        explanations_inv.append(formulas[1])
-        elapsed_times.append(np.mean(times))
-        elapsed_times_inv.append(np.mean(times))
-
-    #%%
-
-    results = pd.DataFrame({
-        'method': methods,
-        'split': splits,
-        'explanation': explanations,
-        'explanation_inv': explanations_inv,
-        'elapsed_time': elapsed_times,
-        'elapsed_time_inv': elapsed_times_inv,
-    })
-    results_general = results[results['method'] == "General"]
-    results_general.to_csv(os.path.join(results_dir, 'results_general.csv'))
-    results.to_csv(os.path.join(results_dir, 'results.csv'))
-    print(results)
-
+    summary = pd.concat([summaries[method] for method in method_list], axis=1).T
+    summary.columns = mean_cols + sem_cols
+    summary.to_csv(os.path.join(results_dir, 'summary.csv'))
+    print(summary)
