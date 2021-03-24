@@ -250,7 +250,7 @@ class BaseClassifier(torch.nn.Module):
         performance_df = pd.DataFrame(performance_dict)
         return performance_df
 
-    def evaluate(self, dataset: Dataset, batch_size: int = 64,
+    def evaluate(self, dataset: Dataset, batch_size: int = 1024,
                  metric: Metric = Accuracy(), num_workers: int = 0,
                  device: torch.device = torch.device("cpu"), outputs=None, labels=None) -> float:
         """
@@ -273,7 +273,7 @@ class BaseClassifier(torch.nn.Module):
         self.train()
         return metric_val
 
-    def predict(self, dataset, batch_size: int = 64, num_workers: int = 4,
+    def predict(self, dataset, batch_size: int = 1024, num_workers: int = 4,
                 device: torch.device = torch.device("cpu")) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Predict function to compute the prediction of the model on a certain dataset

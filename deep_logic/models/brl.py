@@ -7,6 +7,7 @@ import pandas as pd
 import torch
 from sklearn.preprocessing import LabelBinarizer
 from torch.utils.data import Dataset
+from tqdm.auto import tqdm
 
 from .base import BaseClassifier, ClassifierNotTrainedError, BaseXModel
 from .ext_models.brl.RuleListClassifier import RuleListClassifier
@@ -65,6 +66,7 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         if self.discretize:
             x = self._discretize(x)
         outputs = []
+        pbar = tqdm(range(self.n_classes), desc="BRL predicting classes")
         with ProcessPoolExecutor() as executor:
             futures = []
             for i in range(self.n_classes):
@@ -75,8 +77,11 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
                 futures.append(executor.submit(RuleListClassifier.predict_proba, **args))
             for i in range(self.n_classes):
                 output = futures[i].result()
+                # output = RuleListClassifier.predict_proba(**args)
                 output = np.argmax(output, axis=1)
                 outputs.append(torch.tensor(output))
+                pbar.update()
+        pbar.close()
         outputs = torch.stack(outputs, dim=1)
 
         return outputs
@@ -119,7 +124,7 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         return torch.device("cpu")
 
     def fit(self, train_set: Dataset, val_set: Dataset = None, metric: Metric = Accuracy(),
-            verbose: bool = True, save=True, **kwargs) -> pd.DataFrame:
+            verbose: bool = True, save=True, eval=True, **kwargs) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.
         Adam optimizer is always employed
@@ -151,6 +156,7 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         # Fitting a BRL classifier for each class in parallel
         with ProcessPoolExecutor() as executor:
             futures = []
+            pbar = tqdm(range(self.n_classes), desc="BRL training classes")
             for i in range(self.n_classes):
                 self.model[i].verbose = verbose
                 args = {
@@ -164,14 +170,18 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
                 futures.append(executor.submit(RuleListClassifier.fit, **args))
             for i, future in enumerate(futures):
                 self.model[i] = future.result()
-                print(f"Completed model {i + 1}/{self.n_classes}!")
+                pbar.update()
+            pbar.close()
 
         # Compute accuracy, f1 and constraint_loss on the whole train, validation dataset
-        train_acc = self.evaluate(train_set, metric)
-        if val_set is not None:
-            val_acc = self.evaluate(val_set, metric)
+        if eval:
+            train_acc = self.evaluate(train_set, metric)
+            if val_set is not None:
+                val_acc = self.evaluate(val_set, metric)
+            else:
+                val_acc = 0
         else:
-            val_acc = 0
+            train_acc, val_acc = 0., 0.
 
         if verbose:
             print(f"Train_acc: {train_acc:.1f}, Val_acc: {val_acc:.1f}")
@@ -188,18 +198,6 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         }
         performance_df = pd.DataFrame(performance_dict)
         return performance_df
-
-    def evaluate(self, dataset: Dataset, metric: Metric = Accuracy(), **kwargs) -> float:
-        """
-        Evaluate function to test without training the performance of BRL on a certain dataset
-
-        :param dataset: dataset on which to test
-        :param metric: metric to evaluate the predictions of the network
-        :return: metric evaluated on the dataset
-        """
-        outputs, labels = self.predict(dataset)
-        metric_val = metric(outputs, labels)
-        return metric_val
 
     def predict(self, dataset: Dataset, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
         """

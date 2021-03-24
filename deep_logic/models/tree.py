@@ -113,19 +113,7 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         performance_df = pd.DataFrame(performance_dict)
         return performance_df
 
-    def evaluate(self, dataset: Dataset, metric: Metric = Accuracy(), **kwargs) -> float:
-        """
-        Evaluate function to test without training the performance of the decision tree on a certain dataset
-
-        :param dataset: dataset on which to test
-        :param metric: metric to evaluate the predictions of the network
-        :return: metric evaluated on the dataset
-        """
-        outputs, labels = self.predict(dataset)
-        metric_val = metric(outputs, labels)
-        return metric_val
-
-    def predict(self, dataset, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
+    def predict(self, dataset, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Predict function to compute the prediction of the decision tree on a certain dataset
 
