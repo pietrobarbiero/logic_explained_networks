@@ -175,9 +175,9 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
 
         # Compute accuracy, f1 and constraint_loss on the whole train, validation dataset
         if eval:
-            train_acc = self.evaluate(train_set, metric)
+            train_acc = self.evaluate(train_set, metric=metric)
             if val_set is not None:
-                val_acc = self.evaluate(val_set, metric)
+                val_acc = self.evaluate(val_set, metric=metric)
             else:
                 val_acc = 0
         else:
