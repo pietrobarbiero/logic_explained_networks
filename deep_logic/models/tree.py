@@ -94,8 +94,8 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         self.model = self.model.fit(X=train_data, y=train_labels)
 
         # Compute accuracy, f1 and constraint_loss on the whole train, validation dataset
-        train_acc = self.evaluate(train_set, metric)
-        val_acc = self.evaluate(val_set, metric)
+        train_acc = self.evaluate(train_set, metric=metric)
+        val_acc = self.evaluate(val_set, metric=metric)
 
         if verbose:
             print(f"Train_acc: {train_acc:.1f}, Val_acc: {val_acc:.1f}")
