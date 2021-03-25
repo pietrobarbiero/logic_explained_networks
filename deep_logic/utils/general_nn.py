@@ -27,7 +27,7 @@ def prune_features_fanin(model: torch.nn.Module, fan_in, n_classes: int,
                 mask = torch.ones(block_size)
                 mask[:, w_to_prune] = 0
                 blocks.append(mask)
-                print(f"Pruned {block_size[1] - fan_in}/{block_size[1]} features")
+                # print(f"Pruned {block_size[1] - fan_in}/{block_size[1]} features")
 
             # prune
             final_mask = torch.vstack(blocks).to(device)

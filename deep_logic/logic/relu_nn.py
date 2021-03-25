@@ -182,7 +182,7 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
     if hasattr(model, 'model'):
         model_to_rank = model.model
         if isinstance(model_to_rank, torch.nn.ModuleList):
-            model_to_rank = model_to_rank[target_class]
+            model_to_rank = model_to_rank[target_class] if model.n_classes > 1 else model_to_rank[0]
     else:
         model_to_rank = model
 

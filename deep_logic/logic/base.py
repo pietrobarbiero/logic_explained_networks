@@ -151,6 +151,7 @@ def simplify_formula(explanation: str, model: torch.nn.Module,
 
     y_pred_sample = model((x_sample > 0.5).to(torch.float))
     y_pred_sample = to_categorical(y_pred_sample)
+    y_pred_sample = y_pred_sample.view(-1)
 
     if not y_pred_sample.eq(target_class):
         return ''

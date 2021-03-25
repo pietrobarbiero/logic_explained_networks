@@ -40,7 +40,7 @@ class Accuracy(Metric):
                 outputs = outputs.argmax(dim=1)
         else:
             # Binary classification
-            assert len(targets.shape) == 1, "Target tensor needs to be (N,1) tensor if output is such."
+            assert targets.shape == outputs.shape, "Target tensor needs to be (N,1) tensor if output is such."
             outputs = outputs > 0.5
         if len(outputs.shape) > 1:
             n_samples = targets.shape[0] * targets.shape[1]
