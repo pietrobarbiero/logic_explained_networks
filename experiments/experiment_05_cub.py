@@ -17,7 +17,7 @@ if __name__ == "__main__":
     from deep_logic.models.brl import XBRLClassifier
     from deep_logic.models.logistic_regression import XLogisticRegressionClassifier
     from deep_logic.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
-    from deep_logic.utils.metrics import Accuracy
+    from deep_logic.utils.metrics import Accuracy, F1Score
     from deep_logic.models.general_nn import XGeneralNN
     from deep_logic.utils.datasets import ConceptToTaskDataset
     from deep_logic.utils.data import get_splits_train_val_test
@@ -118,8 +118,6 @@ if __name__ == "__main__":
                     results = model.fit(val_data, metric=metric, save=True, verbose=False, eval=False)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-                # accuracies = [83.51648351648352, 82.07945900253593, 80.4733727810651, 83.0938292476754, 82.67945900253593]
-                # accuracy = accuracies[seed]
                 print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
@@ -179,10 +177,10 @@ if __name__ == "__main__":
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(i, concept_names, simplify=simplify)
                     exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
-                                                                     metric=metric, concept_names=concept_names)
+                                                                     metric=F1Score(), concept_names=concept_names)
                     exp_predictions = torch.as_tensor(exp_predictions)
-                    class_output = outputs[:, i] > 0.5
-                    exp_fidelity = fidelity(exp_predictions, class_output, metric)
+                    class_output = outputs.argmax(dim=1) == i
+                    exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
                     explanation_complexity = complexity(formula, to_dnf=True)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
@@ -215,10 +213,10 @@ if __name__ == "__main__":
                                                            topk_explanations=top_k_explanations,
                                                            concept_names=concept_names)
                     exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
-                                                                     metric=metric, concept_names=concept_names)
+                                                                     metric=F1Score(), concept_names=concept_names)
                     exp_predictions = torch.as_tensor(exp_predictions)
-                    class_output = outputs[:, i] > 0.5
-                    exp_fidelity = fidelity(exp_predictions, class_output, metric)
+                    class_output = outputs.argmax(dim=1) == i
+                    exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
                     explanation_complexity = complexity(formula)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
@@ -250,10 +248,10 @@ if __name__ == "__main__":
                                                            concept_names=concept_names,
                                                            simplify=simplify)
                     exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
-                                                                     metric=metric, concept_names=concept_names)
+                                                                     metric=F1Score(), concept_names=concept_names)
                     exp_predictions = torch.as_tensor(exp_predictions)
-                    class_output = outputs[:, i] > 0.5
-                    exp_fidelity = fidelity(exp_predictions, class_output, metric)
+                    class_output = outputs.argmax(dim=1) == i
+                    exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
                     explanation_complexity = complexity(formula)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
