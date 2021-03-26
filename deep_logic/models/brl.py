@@ -77,11 +77,13 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
                 futures.append(executor.submit(RuleListClassifier.predict_proba, **args))
             for i in range(self.n_classes):
                 output = futures[i].result()
-                # output = RuleListClassifier.predict_proba(**args)
-                output = np.argmax(output, axis=1)
+
+                # BRL outputs both the negative prediction (output[0]) and the positive (output[1])
+                output = output[1]
                 outputs.append(torch.tensor(output))
                 pbar.update()
         pbar.close()
+
         outputs = torch.stack(outputs, dim=1)
 
         return outputs
@@ -134,6 +136,7 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         :param metric: metric to evaluate the predictions of the network
         :param verbose: whether to output or not epoch metrics
         :param save: whether to save the model or not
+        :param eval: whether to evaluate training and validation data (it may takes time)
         :return: pandas dataframe collecting the metrics from each epoch
         """
 
@@ -199,7 +202,7 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         performance_df = pd.DataFrame(performance_dict)
         return performance_df
 
-    def predict(self, dataset: Dataset, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
+    def predict(self, dataset: Dataset, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Predict function to compute the prediction of BRL on a certain dataset
 
