@@ -76,10 +76,10 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
                 }
                 futures.append(executor.submit(RuleListClassifier.predict_proba, **args))
             for i in range(self.n_classes):
-                output = futures[i].result()
+                brl_outputs = futures[i].result()
 
                 # BRL outputs both the negative prediction (output[0]) and the positive (output[1])
-                output = output[1]
+                output = brl_outputs[:, 1]
                 outputs.append(torch.tensor(output))
                 pbar.update()
         pbar.close()
