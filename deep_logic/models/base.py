@@ -165,7 +165,7 @@ class BaseClassifier(torch.nn.Module):
 
         # Setting loss function and optimizer
         optimizer = torch.optim.Adam(self.parameters(), lr=l_r)
-        scheduler = ReduceLROnPlateau(optimizer, verbose=verbose, mode='max', patience=epochs//10,
+        scheduler = ReduceLROnPlateau(optimizer, verbose=verbose, mode='max', patience=epochs//5,
                                       factor=0.33, min_lr=1e-2 * l_r) if lr_scheduler else None
 
         # Training epochs
@@ -215,7 +215,8 @@ class BaseClassifier(torch.nn.Module):
                 scheduler.step(train_acc)
 
             # Save best model if early_stopping is True
-            if (val_acc > best_acc and epoch >= epochs // 2 or epochs <= 2) and early_stopping:
+            if (val_acc > best_acc and epoch >= epochs // 4 or epochs <= 2) \
+                    and early_stopping and not self.need_pruning:
                 best_acc = val_acc
                 best_epoch = epoch + 1
                 self.save()
@@ -230,7 +231,7 @@ class BaseClassifier(torch.nn.Module):
 
             if verbose:
                 print(f"Epoch: {epoch + 1}/{epochs}, Loss: {tot_losses[-1]:.3f}, "
-                      f"Tr_acc: {train_acc:.1f}, Val_acc: {val_acc:.1f}, best_e: {best_epoch}")
+                      f"Tr_acc: {train_acc:.2f}, Val_acc: {val_acc:.2f}, best_e: {best_epoch}")
 
         # Best model is loaded and saved again with buffer "trained" set to true
         if early_stopping:

@@ -1,4 +1,6 @@
+import collections
 from abc import ABC, abstractmethod
+from statistics import mean
 
 import torch
 from sklearn.metrics import f1_score
@@ -115,8 +117,25 @@ class MixedMetric(Metric):
         return excl_metric + non_excl_metric
 
 
-class UnsupervisedMetric(Metric):
+class ClusterAccuracy(Metric):
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
-        mi = mutual_information(outputs, normalized=True) * 100
+        assert len(targets.squeeze().shape) == 1, "Unsupervised metric require (N, 1) tensor labels"
+        assert len(outputs.squeeze().shape) == 2, "Unsupervised metric require (N, C) tensor outputs"
+        cluster_accuracies = []
+        for i in range(outputs.shape[1]):
+            cluster_output = outputs[:, i]
+            bool_cluster_output = cluster_output > 0.5
+            class_cluster_output = targets[bool_cluster_output]
+            class_counter = collections.Counter(class_cluster_output.numpy())
+            prevalent_class = class_counter.most_common(1)[0][0]
+            target_class = targets == prevalent_class
+            cluster_accuracy = bool_cluster_output.eq(target_class).to(float).mean() * 100
+            cluster_accuracies.append(cluster_accuracy)
 
-        return mi.cpu().item()
+        mean_accuracy = torch.as_tensor(cluster_accuracies).mean().item()
+        return mean_accuracy
+
+
+        # mi = mutual_information(outputs, normalized=True) * 100
+        #
+        # return mi.cpu().item()

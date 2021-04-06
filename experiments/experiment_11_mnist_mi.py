@@ -14,9 +14,9 @@ if __name__ == "__main__":
     from deep_logic.models.relu_nn import XReluNN
     from deep_logic.models.psi_nn import PsiNetwork
     from deep_logic.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
-    from deep_logic.utils.metrics import UnsupervisedMetric
+    from deep_logic.utils.metrics import ClusterAccuracy
     from deep_logic.models.general_nn import XGeneralNN
-    from deep_logic.utils.datasets import ConceptOnlyDataset
+    from deep_logic.utils.datasets import ConceptOnlyDataset, ConceptToTaskDataset
     from deep_logic.utils.data import get_splits_train_val_test
     from deep_logic.utils.loss import MutualInformationLoss
     from data import MNIST
@@ -46,7 +46,7 @@ if __name__ == "__main__":
         concept_extractor_mnist(dataset_root, multi_label=True)
     else:
         print("Concepts already extracted")
-    dataset = ConceptOnlyDataset(dataset_root, dataset_name=MNIST)
+    dataset = ConceptToTaskDataset(dataset_root, dataset_name=MNIST)
     concept_names = dataset.attribute_names
     print("Concept names", concept_names)
     n_features = dataset.n_attributes
@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
     method_list = ['General', 'Psi', 'Relu']
     loss = MutualInformationLoss()
-    metric = UnsupervisedMetric()
+    metric = ClusterAccuracy()
 
     for method in method_list:
 
