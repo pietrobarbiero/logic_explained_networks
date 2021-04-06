@@ -14,11 +14,12 @@ if __name__ == "__main__":
     from deep_logic.models.relu_nn import XReluNN
     from deep_logic.models.psi_nn import PsiNetwork
     from deep_logic.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
-    from deep_logic.utils.metrics import ClusterAccuracy
+    from deep_logic.utils.metrics import ClusterAccuracy, F1Score
     from deep_logic.models.general_nn import XGeneralNN
-    from deep_logic.utils.datasets import ConceptOnlyDataset, ConceptToTaskDataset
+    from deep_logic.utils.datasets import ConceptOnlyDataset
     from deep_logic.utils.data import get_splits_train_val_test
     from deep_logic.utils.loss import MutualInformationLoss
+    from deep_logic.logic import test_explanation, fidelity, complexity
     from data import MNIST
     from data.download_mnist import download_mnist
     from experiments.MNIST.concept_extractor_mnist import concept_extractor_mnist
@@ -117,15 +118,25 @@ if __name__ == "__main__":
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
                     results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_psi, verbose=True,
                                         metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
-                accuracy = model.evaluate(test_data, metric=metric)
+                outputs, labels = model.predict(test_data, device=device)
+                accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
                 print("Test model accuracy", accuracy)
-                formulas, exp_accuracies, exp_complexities = [], [], []
+                formulas, exp_predictions, exp_complexities = [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(i, concept_names, simplify=simplify)
-                    explanation_complexity = dl.logic.complexity(formula)
-                    formulas.append(formula), exp_complexities.append(explanation_complexity)
+                    _, exp_prediction = test_explanation(formula, i, x_test, y_test,
+                                                         metric=F1Score(), concept_names=concept_names)
+                    exp_prediction = torch.as_tensor(exp_prediction)
+                    explanation_complexity = complexity(formula, to_dnf=True)
+                    formulas.append(formula)
+                    exp_predictions.append(exp_prediction)
+                    exp_complexities.append(explanation_complexity)
                     print(f"Formula {i}: {formula}")
                     print("Explanation complexity", explanation_complexity)
+                outputs = outputs.argmax(dim=1)
+                exp_predictions = torch.stack(exp_predictions, dim=1)
+                exp_accuracy = metric(exp_predictions, labels)
+                exp_fidelity = fidelity(exp_predictions, outputs, metric)
 
             elif method == 'General':
                 # Network structures
@@ -140,17 +151,27 @@ if __name__ == "__main__":
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
                     results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
                                         lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
-                accuracy = model.evaluate(test_data, metric=metric)
+                outputs, labels = model.predict(test_data, device=device)
+                accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
                 print("Test model accuracy", accuracy)
-                formulas, exp_accuracies, exp_complexities = [], [], []
+                formulas, exp_predictions, exp_complexities = [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
                                                            topk_explanations=top_k_explanations,
                                                            concept_names=concept_names)
-                    explanation_complexity = dl.logic.complexity(formula)
-                    formulas.append(formula), exp_complexities.append(explanation_complexity)
+                    _, exp_prediction = test_explanation(formula, i, x_test, y_test,
+                                                         metric=F1Score(), concept_names=concept_names)
+                    exp_prediction = torch.as_tensor(exp_prediction)
+                    explanation_complexity = complexity(formula, to_dnf=True)
+                    formulas.append(formula)
+                    exp_predictions.append(exp_prediction)
+                    exp_complexities.append(explanation_complexity)
                     print(f"Formula {i}: {formula}")
                     print("Explanation complexity", explanation_complexity)
+                outputs = outputs.argmax(dim=1)
+                exp_predictions = torch.stack(exp_predictions, dim=1)
+                exp_accuracy = metric(exp_predictions, labels)
+                exp_fidelity = fidelity(exp_predictions, outputs, metric)
 
             elif method == 'Relu':
                 # Network structures
@@ -164,18 +185,27 @@ if __name__ == "__main__":
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
                     results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
                                         metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
-                accuracy = model.evaluate(test_data, metric=metric)
+                outputs, labels = model.predict(test_data, device=device)
+                accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
                 print("Test model accuracy", accuracy)
-                formulas, exp_accuracies, exp_complexities = [], [], []
+                formulas, exp_predictions, exp_complexities = [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
-                    formula = model.get_global_explanation(x_val, y_val, i,
+                    formula = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
                                                            topk_explanations=top_k_explanations,
-                                                           concept_names=concept_names,
-                                                           simplify=simplify)
-                    explanation_complexity = dl.logic.complexity(formula)
-                    formulas.append(formula), exp_complexities.append(explanation_complexity)
+                                                           concept_names=concept_names)
+                    _, exp_prediction = test_explanation(formula, i, x_test, y_test,
+                                                         metric=F1Score(), concept_names=concept_names)
+                    exp_prediction = torch.as_tensor(exp_prediction)
+                    explanation_complexity = complexity(formula, to_dnf=True)
+                    formulas.append(formula)
+                    exp_predictions.append(exp_prediction)
+                    exp_complexities.append(explanation_complexity)
                     print(f"Formula {i}: {formula}")
                     print("Explanation complexity", explanation_complexity)
+                outputs = outputs.argmax(dim=1)
+                exp_predictions = torch.stack(exp_predictions, dim=1)
+                exp_accuracy = accuracy_score(exp_predictions, labels, metric)
+                exp_fidelity = fidelity(exp_predictions, outputs, metric)
 
             else:
                 raise NotImplementedError(f"{method} not implemented")
@@ -185,6 +215,8 @@ if __name__ == "__main__":
             splits.append(seed)
             explanations.append(formulas[0])
             model_accuracies.append(accuracy)
+            explanation_accuracies.append(exp_accuracy)
+            explanation_fidelities.append(exp_fidelity)
             elapsed_times.append(elapsed_time)
             explanation_complexities.append(np.mean(exp_complexities))
 
@@ -196,6 +228,8 @@ if __name__ == "__main__":
             'split': splits,
             'explanation': explanations,
             'model_accuracy': model_accuracies,
+            'explanation_accuracy': explanation_accuracies,
+            'explanation_fidelity': explanation_fidelities,
             'explanation_complexity': explanation_complexities,
             'explanation_consistency': explanation_consistency,
             'elapsed_time': elapsed_times,
@@ -207,7 +241,7 @@ if __name__ == "__main__":
     ##Summary
     #%%
 
-    cols = ['model_accuracy', 'explanation_complexity', 'elapsed_time',
+    cols = ['model_accuracy', 'explanation_accuracy', 'explanation_fidelity', 'explanation_complexity', 'elapsed_time',
             'explanation_consistency']
     mean_cols = [f'{c}_mean' for c in cols]
     sem_cols = [f'{c}_sem' for c in cols]
