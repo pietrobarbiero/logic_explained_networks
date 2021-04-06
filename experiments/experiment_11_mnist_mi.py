@@ -46,7 +46,7 @@ if __name__ == "__main__":
         concept_extractor_mnist(dataset_root, multi_label=True)
     else:
         print("Concepts already extracted")
-    dataset = ConceptToTaskDataset(dataset_root, dataset_name=MNIST)
+    dataset = ConceptOnlyDataset(dataset_root, dataset_name=MNIST)
     concept_names = dataset.attribute_names
     print("Concept names", concept_names)
     n_features = dataset.n_attributes
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     ## Define methods, loss, metrics and saved metrics
     #%%
 
-    method_list = ['General', 'Psi', 'Relu']
+    method_list = ['Psi', 'General', 'Relu']
     loss = MutualInformationLoss()
     metric = ClusterAccuracy()
 

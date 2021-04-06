@@ -126,10 +126,13 @@ class ClusterAccuracy(Metric):
             cluster_output = outputs[:, i]
             bool_cluster_output = cluster_output > 0.5
             class_cluster_output = targets[bool_cluster_output]
-            class_counter = collections.Counter(class_cluster_output.numpy())
-            prevalent_class = class_counter.most_common(1)[0][0]
-            target_class = targets == prevalent_class
-            cluster_accuracy = bool_cluster_output.eq(target_class).to(float).mean() * 100
+            if class_cluster_output.shape[0] > 0:
+                class_counter = collections.Counter(class_cluster_output.numpy())
+                prevalent_class = class_counter.most_common(1)[0][0]
+                target_class = targets == prevalent_class
+                cluster_accuracy = bool_cluster_output.eq(target_class).to(float).mean() * 100
+            else:
+                cluster_accuracy = 0.
             cluster_accuracies.append(cluster_accuracy)
 
         mean_accuracy = torch.as_tensor(cluster_accuracies).mean().item()

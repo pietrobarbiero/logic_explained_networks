@@ -74,7 +74,8 @@ class ConceptOnlyDataset(ConceptDataset):
 
     def __getitem__(self, idx):
         attribute = self.attributes[idx]
-        return attribute, 0
+        target = self.targets[idx]
+        return attribute, target
 
 
 class ConceptToTaskDataset(ConceptDataset):
