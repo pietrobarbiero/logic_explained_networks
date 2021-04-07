@@ -20,6 +20,7 @@ if __name__ == "__main__":
     from deep_logic.utils.data import get_splits_train_val_test
     from deep_logic.utils.loss import MutualInformationLoss
     from deep_logic.logic import test_explanation, fidelity, complexity
+    from deep_logic.logic.metrics import accuracy_score
     from data import MNIST
     from data.download_mnist import download_mnist
     from experiments.MNIST.concept_extractor_mnist import concept_extractor_mnist
@@ -135,7 +136,7 @@ if __name__ == "__main__":
                     print("Explanation complexity", explanation_complexity)
                 outputs = outputs.argmax(dim=1)
                 exp_predictions = torch.stack(exp_predictions, dim=1)
-                exp_accuracy = metric(exp_predictions, labels)
+                exp_accuracy = accuracy_score(exp_predictions, labels, metric)
                 exp_fidelity = fidelity(exp_predictions, outputs, metric)
 
             elif method == 'General':
@@ -170,7 +171,7 @@ if __name__ == "__main__":
                     print("Explanation complexity", explanation_complexity)
                 outputs = outputs.argmax(dim=1)
                 exp_predictions = torch.stack(exp_predictions, dim=1)
-                exp_accuracy = metric(exp_predictions, labels)
+                exp_accuracy = accuracy_score(exp_predictions, labels, metric)
                 exp_fidelity = fidelity(exp_predictions, outputs, metric)
 
             elif method == 'Relu':
