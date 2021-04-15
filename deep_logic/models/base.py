@@ -226,8 +226,8 @@ class BaseClassifier(torch.nn.Module):
                 self.prune()
                 self.need_pruning = False
                 optimizer = torch.optim.AdamW(self.parameters(), lr=l_r)
-                scheduler = ReduceLROnPlateau(optimizer, verbose=verbose, mode='max',
-                                              factor=0.33, min_lr=1e-3 * l_r) if lr_scheduler else None
+                scheduler = ReduceLROnPlateau(optimizer, verbose=verbose, mode='max', patience=epochs // 5,
+                                              factor=0.33, min_lr=1e-2 * l_r) if lr_scheduler else None
 
             if verbose:
                 print(f"Epoch: {epoch + 1}/{epochs}, Loss: {tot_losses[-1]:.3f}, "

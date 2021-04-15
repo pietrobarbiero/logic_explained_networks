@@ -72,240 +72,225 @@ if __name__ == "__main__":
     ## Training
     #%%
 
-    # epochs = 200
-    # l_r = 1e-2
-    # lr_scheduler = True
-    # top_k_explanations = 2
-    # simplify = True
-    # seeds = [*range(5)]
-    # print("Seeds", seeds)
-    # device = torch.device("cpu") if torch.cuda.is_available() else torch.device("cpu")
-    # print("Device", device)
-    #
-    # for method in method_list:
-    #
-    #     methods = []
-    #     splits = []
-    #     explanations = []
-    #     model_accuracies = []
-    #     explanation_accuracies = []
-    #     elapsed_times = []
-    #     explanation_fidelities = []
-    #     explanation_complexities = []
-    #
-    #     for seed in seeds:
-    #         set_seed(seed)
-    #         name = os.path.join(results_dir, f"{method}_{seed}")
-    #
-    #         train_data, val_data, test_data = get_splits_train_val_test(dataset, load=False)
-    #         x_val = torch.tensor(dataset.attributes[val_data.indices])
-    #         y_val = torch.tensor(dataset.targets[val_data.indices])
-    #         x_test = torch.tensor(dataset.attributes[test_data.indices])
-    #         y_test = torch.tensor(dataset.targets[test_data.indices])
-    #         print(train_data.indices)
-    #
-    #         # Setting device
-    #         print(f"Training {name} classifier...")
-    #         start_time = time.time()
-    #
-    #         if method == 'BRL':
-    #             model = XBRLClassifier(name=name, n_classes=n_classes, n_features=n_features,
-    #                                    feature_names=concept_names, class_names=dataset.classes, discretize=True)
-    #             try:
-    #                 model.load(device)
-    #                 print(f"Model {name} already trained")
-    #             except (ClassifierNotTrainedError, IncompatibleClassifierError):
-    #                 results = model.fit(val_data, metric=metric, save=True, verbose=False, eval=False)
-    #             outputs, labels = model.predict(test_data, device=device)
-    #             accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-    #             print("Test model accuracy", accuracy)
-    #             formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
-    #             for i, class_to_explain in enumerate(dataset.classes):
-    #                 formula = model.get_global_explanation(i, concept_names)
-    #                 exp_accuracy = accuracy
-    #                 exp_fidelity = 100
-    #                 explanation_complexity = complexity(formula, to_dnf=True)
-    #                 formulas.append(formula), exp_accuracies.append(exp_accuracy)
-    #                 exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
-    #                 # print(f"{class_to_explain} <-> {formula}")
-    #                 # print("Explanation accuracy", exp_accuracy)
-    #                 # print("Explanation complexity", explanation_complexity)
-    #
-    #         elif method == 'DTree':
-    #             model = XDecisionTreeClassifier(name=name, n_classes=n_classes, n_features=n_features)
-    #             try:
-    #                 model.load(device)
-    #                 print(f"Model {name} already trained")
-    #             except (ClassifierNotTrainedError, IncompatibleClassifierError):
-    #                 results = model.fit(train_data, val_data, metric=metric, save=True)
-    #             outputs, labels = model.predict(test_data, device=device)
-    #             accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-    #             print("Test model accuracy", accuracy)
-    #             formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
-    #             for i, class_to_explain in enumerate(dataset.classes):
-    #                 formula = model.get_global_explanation(i, concept_names)
-    #                 exp_accuracy = accuracy
-    #                 exp_fidelity = 100
-    #                 explanation_complexity = complexity(formula)
-    #                 formulas.append(formula), exp_accuracies.append(exp_accuracy)
-    #                 exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
-    #                 # print(f"{class_to_explain} <-> {formula}")
-    #                 # print("Explanation accuracy", exp_accuracy)
-    #                 # print("Explanation complexity", explanation_complexity)
-    #
-    #         elif method == 'Psi':
-    #             # Network structures
-    #             l1_weight = 1e-4
-    #             hidden_neurons = [10]  # [50, 20, 10]
-    #             fan_in = 4
-    #             print("Lr", l_r)
-    #             print("L1 weight", l1_weight)
-    #             print("Hidden neurons", hidden_neurons)
-    #             print("Fan in", fan_in)
-    #             model = PsiNetwork(n_classes, n_features, hidden_neurons, loss,
-    #                                l1_weight, name=name, fan_in=fan_in)
-    #             try:
-    #                 model.load(device)
-    #                 print(f"Model {name} already trained")
-    #             except (ClassifierNotTrainedError, IncompatibleClassifierError):
-    #                 results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
-    #                                     metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
-    #             outputs, labels = model.predict(test_data, device=device)
-    #             accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-    #             print("Test model accuracy", accuracy)
-    #             formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
-    #             for i, class_to_explain in enumerate(dataset.classes):
-    #                 formula = model.get_global_explanation(i, concept_names, simplify=simplify)
-    #                 exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
-    #                                                                  metric=F1Score(), concept_names=concept_names)
-    #                 exp_predictions = torch.as_tensor(exp_predictions)
-    #                 class_output = outputs.argmax(dim=1) == i
-    #                 exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
-    #                 explanation_complexity = complexity(formula, to_dnf=True)
-    #                 formulas.append(formula), exp_accuracies.append(exp_accuracy)
-    #                 exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
-    #                 # print(f"{class_to_explain} <-> {formula}")
-    #                 # print("Explanation accuracy", exp_accuracy)
-    #                 # print("Explanation complexity", explanation_complexity)
-    #
-    #         elif method == 'General':
-    #             # Network structures
-    #             lr_general = l_r
-    #             l1_weight = 1e-4
-    #             hidden_neurons = [20]
-    #             print("L1 weight", l1_weight)
-    #             print("Hidden neurons", hidden_neurons)
-    #             set_seed(seed)
-    #             model = XGeneralNN(n_classes=dataset.n_classes, n_features=n_features, hidden_neurons=hidden_neurons,
-    #                                loss=loss, l1_weight=l1_weight, fan_in=10, name=name)
-    #             try:
-    #                 model.load(device)
-    #                 print(f"Model {name} already trained")
-    #             except (ClassifierNotTrainedError, IncompatibleClassifierError):
-    #                 results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_general, metric=metric,
-    #                                     lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
-    #             outputs, labels = model.predict(test_data, device=device)
-    #             accuracy = model.evaluate(test_data, metric=F1Score(), outputs=outputs, labels=labels)
-    #             print("Test model accuracy", accuracy)
-    #             formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
-    #             for i, class_to_explain in enumerate(dataset.classes):
-    #                 formula = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
-    #                                                        topk_explanations=top_k_explanations,
-    #                                                        concept_names=concept_names)
-    #                 exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
-    #                                                                  metric=F1Score(), concept_names=concept_names)
-    #                 exp_predictions = torch.as_tensor(exp_predictions)
-    #                 class_output = outputs.argmax(dim=1) == i
-    #                 exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
-    #                 explanation_complexity = complexity(formula)
-    #                 formulas.append(formula), exp_accuracies.append(exp_accuracy)
-    #                 exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
-    #                 # print(f"{class_to_explain} <-> {formula}")
-    #                 # print("Explanation accuracy", exp_accuracy)
-    #                 # print("Explanation complexity", explanation_complexity)
-    #
-    #         elif method == 'Relu':
-    #             # Network structures
-    #             l1_weight = 1e-4
-    #             hidden_neurons = [200]
-    #             print("L1 weight", l1_weight)
-    #             print("Hidden neurons", hidden_neurons)
-    #             model = XReluNN(n_classes=n_classes, n_features=n_features, name=name,
-    #                             hidden_neurons=hidden_neurons, loss=loss, l1_weight=l1_weight)
-    #             try:
-    #                 model.load(device)
-    #                 print(f"Model {name} already trained")
-    #             except (ClassifierNotTrainedError, IncompatibleClassifierError):
-    #                 results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
-    #                                     metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
-    #             outputs, labels = model.predict(test_data, device=device)
-    #             accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-    #             print("Test model accuracy", accuracy)
-    #             formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
-    #             for i, class_to_explain in enumerate(dataset.classes):
-    #                 formula = model.get_global_explanation(x_val, y_val, i,
-    #                                                        topk_explanations=1,
-    #                                                        concept_names=concept_names,
-    #                                                        simplify=simplify)
-    #                 exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
-    #                                                                  metric=F1Score(), concept_names=concept_names)
-    #                 exp_predictions = torch.as_tensor(exp_predictions)
-    #                 class_output = outputs.argmax(dim=1) == i
-    #                 exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
-    #                 explanation_complexity = complexity(formula)
-    #                 formulas.append(formula), exp_accuracies.append(exp_accuracy)
-    #                 exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
-    #                 # print(f"{class_to_explain} <-> {formula}")
-    #                 # print("Explanation accuracy", exp_accuracy)
-    #                 # print("Explanation complexity", explanation_complexity)
-    #
-    #         elif method == 'LogisticRegression':
-    #             lr_lr = 1e-3
-    #             set_seed(seed)
-    #             model = XLogisticRegressionClassifier(name=name, n_classes=n_classes, n_features=n_features, loss=loss)
-    #             try:
-    #                 model.load(device)
-    #                 print(f"Model {name} already trained")
-    #             except (ClassifierNotTrainedError, IncompatibleClassifierError):
-    #                 results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_lr, metric=metric,
-    #                                     lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
-    #             accuracy = model.evaluate(test_data, metric=metric)
-    #             print("Test model accuracy", accuracy)
-    #             formulas, exp_accuracies, exp_fidelities, exp_complexities = [""], [0], [0], [0]
-    #         else:
-    #             raise NotImplementedError(f"{method} not implemented")
-    #
-    #         elapsed_time = time.time() - start_time
-    #
-    #         methods.append(method)
-    #         splits.append(seed)
-    #         explanations.append(formulas[0])
-    #         model_accuracies.append(accuracy)
-    #         elapsed_times.append(elapsed_time)
-    #         explanation_accuracies.append(np.mean(exp_accuracies))
-    #         explanation_fidelities.append(np.mean(exp_fidelities))
-    #         explanation_complexities.append(np.mean(exp_complexities))
-    #         print("Explanation time", elapsed_time)
-    #         print("Explanation accuracy mean", np.mean(exp_accuracies))
-    #         print("Explanation fidelity mean", np.mean(exp_fidelities))
-    #         print("Explanation complexity mean", np.mean(exp_complexities))
-    #
-    #     explanation_consistency = formula_consistency(explanations)
-    #     print(f'Consistency of explanations: {explanation_consistency:.4f}')
-    #
-    #     results = pd.DataFrame({
-    #         'method': methods,
-    #         'split': splits,
-    #         'explanation': explanations,
-    #         'model_accuracy': model_accuracies,
-    #         'explanation_accuracy': explanation_accuracies,
-    #         'explanation_fidelity': explanation_fidelities,
-    #         'explanation_complexity': explanation_complexities,
-    #         'explanation_consistency': explanation_consistency,
-    #         'elapsed_time': elapsed_times,
-    #     })
-    #     results.to_csv(os.path.join(results_dir, f'results_{method}.csv'))
-    #     print(results)
+    epochs = 200
+    l_r = 1e-2
+    lr_scheduler = True
+    top_k_explanations = 2
+    simplify = True
+    seeds = [*range(5)]
+    print("Seeds", seeds)
+    device = torch.device("cpu") if torch.cuda.is_available() else torch.device("cpu")
+    print("Device", device)
+
+    for method in method_list:
+
+        methods = []
+        splits = []
+        explanations = []
+        model_accuracies = []
+        explanation_accuracies = []
+        elapsed_times = []
+        explanation_fidelities = []
+        explanation_complexities = []
+
+        for seed in seeds:
+            set_seed(seed)
+            name = os.path.join(results_dir, f"{method}_{seed}")
+
+            train_data, val_data, test_data = get_splits_train_val_test(dataset, load=False)
+            x_val = torch.tensor(dataset.attributes[val_data.indices])
+            y_val = torch.tensor(dataset.targets[val_data.indices])
+            x_test = torch.tensor(dataset.attributes[test_data.indices])
+            y_test = torch.tensor(dataset.targets[test_data.indices])
+            print(train_data.indices)
+
+            # Setting device
+            print(f"Training {name} classifier...")
+            start_time = time.time()
+
+            if method == 'BRL':
+                model = XBRLClassifier(name=name, n_classes=n_classes, n_features=n_features,
+                                       feature_names=concept_names, class_names=dataset.classes, discretize=True)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except (ClassifierNotTrainedError, IncompatibleClassifierError):
+                    results = model.fit(val_data, metric=metric, save=True, verbose=False, eval=False)
+                outputs, labels = model.predict(test_data, device=device)
+                accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
+                print("Test model accuracy", accuracy)
+                formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
+                for i, class_to_explain in enumerate(dataset.classes):
+                    formula = model.get_global_explanation(i, concept_names)
+                    exp_accuracy = accuracy
+                    exp_fidelity = 100
+                    explanation_complexity = complexity(formula, to_dnf=True)
+                    formulas.append(formula), exp_accuracies.append(exp_accuracy)
+                    exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
+
+            elif method == 'DTree':
+                model = XDecisionTreeClassifier(name=name, n_classes=n_classes, n_features=n_features)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except (ClassifierNotTrainedError, IncompatibleClassifierError):
+                    results = model.fit(train_data, val_data, metric=metric, save=True)
+                outputs, labels = model.predict(test_data, device=device)
+                accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
+                print("Test model accuracy", accuracy)
+                formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
+                for i, class_to_explain in enumerate(dataset.classes):
+                    formula = model.get_global_explanation(i, concept_names)
+                    exp_accuracy = accuracy
+                    exp_fidelity = 100
+                    explanation_complexity = complexity(formula)
+                    formulas.append(formula), exp_accuracies.append(exp_accuracy)
+                    exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
+
+            elif method == 'Psi':
+                # Network structures
+                l1_weight = 1e-4
+                hidden_neurons = [10]  # [50, 20, 10]
+                fan_in = 4
+                print("Lr", l_r)
+                print("L1 weight", l1_weight)
+                print("Hidden neurons", hidden_neurons)
+                print("Fan in", fan_in)
+                model = PsiNetwork(n_classes, n_features, hidden_neurons, loss,
+                                   l1_weight, name=name, fan_in=fan_in)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except (ClassifierNotTrainedError, IncompatibleClassifierError):
+                    results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
+                                        metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
+                outputs, labels = model.predict(test_data, device=device)
+                accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
+                print("Test model accuracy", accuracy)
+                formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
+                for i, class_to_explain in enumerate(dataset.classes):
+                    formula = model.get_global_explanation(i, concept_names, simplify=simplify)
+                    exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
+                                                                     metric=F1Score(), concept_names=concept_names)
+                    exp_predictions = torch.as_tensor(exp_predictions)
+                    class_output = outputs.argmax(dim=1) == i
+                    exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
+                    explanation_complexity = complexity(formula, to_dnf=True)
+                    formulas.append(formula), exp_accuracies.append(exp_accuracy)
+                    exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
+
+            elif method == 'General':
+                # Network structures
+                lr_general = l_r
+                l1_weight = 1e-4
+                hidden_neurons = [20]
+                print("L1 weight", l1_weight)
+                print("Hidden neurons", hidden_neurons)
+                set_seed(seed)
+                model = XGeneralNN(n_classes=dataset.n_classes, n_features=n_features, hidden_neurons=hidden_neurons,
+                                   loss=loss, l1_weight=l1_weight, fan_in=10, name=name)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except (ClassifierNotTrainedError, IncompatibleClassifierError):
+                    results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_general, metric=metric,
+                                        lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
+                outputs, labels = model.predict(test_data, device=device)
+                accuracy = model.evaluate(test_data, metric=F1Score(), outputs=outputs, labels=labels)
+                print("Test model accuracy", accuracy)
+                formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
+                for i, class_to_explain in enumerate(dataset.classes):
+                    formula = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
+                                                           topk_explanations=top_k_explanations,
+                                                           concept_names=concept_names)
+                    exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
+                                                                     metric=F1Score(), concept_names=concept_names)
+                    exp_predictions = torch.as_tensor(exp_predictions)
+                    class_output = outputs.argmax(dim=1) == i
+                    exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
+                    explanation_complexity = complexity(formula)
+                    formulas.append(formula), exp_accuracies.append(exp_accuracy)
+                    exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
+
+            elif method == 'Relu':
+                # Network structures
+                l1_weight = 1e-4
+                hidden_neurons = [200]
+                print("L1 weight", l1_weight)
+                print("Hidden neurons", hidden_neurons)
+                model = XReluNN(n_classes=n_classes, n_features=n_features, name=name,
+                                hidden_neurons=hidden_neurons, loss=loss, l1_weight=l1_weight)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except (ClassifierNotTrainedError, IncompatibleClassifierError):
+                    results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
+                                        metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
+                outputs, labels = model.predict(test_data, device=device)
+                accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
+                print("Test model accuracy", accuracy)
+                formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
+                for i, class_to_explain in enumerate(dataset.classes):
+                    formula = model.get_global_explanation(x_val, y_val, i,
+                                                           topk_explanations=1,
+                                                           concept_names=concept_names,
+                                                           simplify=simplify)
+                    exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
+                                                                     metric=F1Score(), concept_names=concept_names)
+                    exp_predictions = torch.as_tensor(exp_predictions)
+                    class_output = outputs.argmax(dim=1) == i
+                    exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
+                    explanation_complexity = complexity(formula)
+                    formulas.append(formula), exp_accuracies.append(exp_accuracy)
+                    exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
+
+            elif method == 'LogisticRegression':
+                lr_lr = 1e-3
+                set_seed(seed)
+                model = XLogisticRegressionClassifier(name=name, n_classes=n_classes, n_features=n_features, loss=loss)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except (ClassifierNotTrainedError, IncompatibleClassifierError):
+                    results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_lr, metric=metric,
+                                        lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
+                accuracy = model.evaluate(test_data, metric=metric)
+                print("Test model accuracy", accuracy)
+                formulas, exp_accuracies, exp_fidelities, exp_complexities = [""], [0], [0], [0]
+            else:
+                raise NotImplementedError(f"{method} not implemented")
+
+            elapsed_time = time.time() - start_time
+
+            methods.append(method)
+            splits.append(seed)
+            explanations.append(formulas[0])
+            model_accuracies.append(accuracy)
+            elapsed_times.append(elapsed_time)
+            explanation_accuracies.append(np.mean(exp_accuracies))
+            explanation_fidelities.append(np.mean(exp_fidelities))
+            explanation_complexities.append(np.mean(exp_complexities))
+            print("Explanation time", elapsed_time)
+            print("Explanation accuracy mean", np.mean(exp_accuracies))
+            print("Explanation fidelity mean", np.mean(exp_fidelities))
+            print("Explanation complexity mean", np.mean(exp_complexities))
+
+        explanation_consistency = formula_consistency(explanations)
+        print(f'Consistency of explanations: {explanation_consistency:.4f}')
+
+        results = pd.DataFrame({
+            'method': methods,
+            'split': splits,
+            'explanation': explanations,
+            'model_accuracy': model_accuracies,
+            'explanation_accuracy': explanation_accuracies,
+            'explanation_fidelity': explanation_fidelities,
+            'explanation_complexity': explanation_complexities,
+            'explanation_consistency': explanation_consistency,
+            'elapsed_time': elapsed_times,
+        })
+        results.to_csv(os.path.join(results_dir, f'results_{method}.csv'))
+        print(results)
 
     # %% md
     ##Summary

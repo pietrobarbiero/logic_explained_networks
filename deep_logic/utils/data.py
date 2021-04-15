@@ -174,11 +174,13 @@ def clean_names(names: list) -> list:
     names = \
         [
             name.replace("::", "_")
+                .replace(":", "_")
+                .replace(".", "_")
+                .replace(" ", "_")
                 .replace("\n", "")
                 .replace("-", "")
                 .replace("(", "")
                 .replace(")", "")
-                .replace(" ", "_")
             for name in names
         ]
     return names

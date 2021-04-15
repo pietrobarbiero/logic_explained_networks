@@ -3,8 +3,6 @@ from typing import Tuple, List
 
 import torch
 import numpy as np
-import pyparsing
-from sklearn.metrics import accuracy_score
 from sympy import to_dnf
 
 from ..utils.base import to_categorical
