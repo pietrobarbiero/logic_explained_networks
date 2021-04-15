@@ -1,3 +1,5 @@
+from utils.data import clean_names
+
 if __name__ == "__main__":
     #%%
 
@@ -30,17 +32,22 @@ if __name__ == "__main__":
     ## Loading CellDiff data
     #%%
 
-    dataset_root = "./data/celldiff/"
+    dataset_root = "../data/celldiff/"
     print(dataset_root)
 
-    gene_expression_matrix = pd.read_csv('./data/celldiff/data_matrix.csv', index_col=0)
-    clustering_labels = pd.read_csv('./data/celldiff/cluster_labels.csv', index_col=0)
-    biomarkers = pd.read_csv('./data/celldiff/markers.csv', index_col=0)
+    gene_expression_matrix = pd.read_csv(os.path.join(dataset_root,
+                                                      'data_matrix.csv'), index_col=0)
+    clustering_labels = pd.read_csv(os.path.join(dataset_root,
+                                                 'cluster_labels.csv'), index_col=0)
+    biomarkers = pd.read_csv(os.path.join(dataset_root,
+                                          'markers.csv'), index_col=0)
 
     markers = []
     for _, row in biomarkers.iterrows():
         print(row)
         markers.extend(ast.literal_eval(row['markers']))
+    # get unique markers
+    markers = set(markers)
 
     x_np = gene_expression_matrix[markers].values
     y_np = clustering_labels.values
@@ -57,6 +64,7 @@ if __name__ == "__main__":
     dataset.classes = np.unique(y_np)
 
     concept_names = dataset.attribute_names
+    concept_names = clean_names(concept_names)
     print("Concept names", concept_names)
     n_features = dataset.n_attributes
     print("Number of features", n_features)
@@ -67,8 +75,8 @@ if __name__ == "__main__":
     ## Training Hyperparameters
     #%%
 
-    epochs = 100
-    l_r = 1e-3
+    epochs = 10000
+    l_r = 1e-4
     lr_scheduler = True
     simplify = True
     seeds = [*range(10)]
@@ -77,12 +85,12 @@ if __name__ == "__main__":
     device = torch.device("cpu") if torch.cuda.is_available() else torch.device("cpu")
     print("Device", device)
 
-    # %% md
+    #%% md
     ## Define methods, loss, metrics and saved metrics
-    # %%
+    #%%
 
-    method_list = ['Psi', 'General', 'Relu']
-    loss = MutualInformationLoss()
+    method_list = ['Relu', 'Psi', 'General']
+    loss = MutualInformationLoss(penalize_inactive=True)
     metric = ClusterAccuracy()
 
     for method in method_list:
@@ -115,12 +123,16 @@ if __name__ == "__main__":
             start_time = time.time()
 
             if method == 'Psi':
-                # Network structures
-                l1_weight = 1e-2
+                # Network structure
+                l1_weight = 1e-6
+                hidden_neurons = [10]
+                lr_psi = 1e-3
+                fan_in = 5
                 print("l1 weight", l1_weight)
-                hidden_neurons = []
-                fan_in = 2
-                lr_psi = 1e-2
+                print("hidden neurons", hidden_neurons)
+                print("lr_psi", lr_psi)
+                print("fan_in", fan_in)
+
                 model = PsiNetwork(n_clusters, n_features, hidden_neurons, loss,
                                    l1_weight, name=name, fan_in=fan_in)
                 try:
@@ -129,9 +141,6 @@ if __name__ == "__main__":
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
                     results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_psi, verbose=True,
                                         metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
-                outputs, labels = model.predict(test_data, device=device)
-                accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-                print("Test model accuracy", accuracy)
                 formulas, exp_predictions, exp_complexities = [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(i, concept_names, simplify=simplify)
@@ -143,14 +152,9 @@ if __name__ == "__main__":
                     exp_predictions.append(exp_prediction)
                     exp_complexities.append(explanation_complexity)
                     print(f"Formula {i}: {formula}")
-                    print("Explanation complexity", explanation_complexity)
-                outputs = outputs.argmax(dim=1)
-                exp_predictions = torch.stack(exp_predictions, dim=1)
-                exp_accuracy = accuracy_score(exp_predictions, labels, metric)
-                exp_fidelity = fidelity(exp_predictions, outputs, metric)
 
             elif method == 'General':
-                # Network structures
+                # Network structure
                 l1_weight = 1e-3
                 fan_in = None
                 hidden_neurons = [20, 10]
@@ -162,9 +166,6 @@ if __name__ == "__main__":
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
                     results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
                                         lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
-                outputs, labels = model.predict(test_data, device=device)
-                accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-                print("Test model accuracy", accuracy)
                 formulas, exp_predictions, exp_complexities = [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
@@ -178,15 +179,10 @@ if __name__ == "__main__":
                     exp_predictions.append(exp_prediction)
                     exp_complexities.append(explanation_complexity)
                     print(f"Formula {i}: {formula}")
-                    print("Explanation complexity", explanation_complexity)
-                outputs = outputs.argmax(dim=1)
-                exp_predictions = torch.stack(exp_predictions, dim=1)
-                exp_accuracy = accuracy_score(exp_predictions, labels, metric)
-                exp_fidelity = fidelity(exp_predictions, outputs, metric)
 
             elif method == 'Relu':
-                # Network structures
-                l1_weight = 1e-4
+                # Network structure
+                l1_weight = 1e-5
                 hidden_neurons = [50, 30]
                 model = XReluNN(n_classes=n_clusters, n_features=n_features, name=name,
                                 hidden_neurons=hidden_neurons, loss=loss, l1_weight=l1_weight)
@@ -196,9 +192,6 @@ if __name__ == "__main__":
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
                     results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
                                         metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
-                outputs, labels = model.predict(test_data, device=device)
-                accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-                print("Test model accuracy", accuracy)
                 formulas, exp_predictions, exp_complexities = [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
@@ -212,16 +205,24 @@ if __name__ == "__main__":
                     exp_predictions.append(exp_prediction)
                     exp_complexities.append(explanation_complexity)
                     print(f"Formula {i}: {formula}")
-                    print("Explanation complexity", explanation_complexity)
-                outputs = outputs.argmax(dim=1)
-                exp_predictions = torch.stack(exp_predictions, dim=1)
-                exp_accuracy = accuracy_score(exp_predictions, labels, metric)
-                exp_fidelity = fidelity(exp_predictions, outputs, metric)
 
             else:
                 raise NotImplementedError(f"{method} not implemented")
 
             elapsed_time = time.time() - start_time
+            outputs, labels = model.predict(test_data, device=device)
+            accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
+            outputs = outputs.argmax(dim=1)
+            exp_predictions = torch.stack(exp_predictions, dim=1)
+            exp_accuracy = accuracy_score(exp_predictions, labels, metric)
+            exp_fidelity = fidelity(exp_predictions, outputs, metric)
+            exp_complexity = np.mean(exp_complexities)
+            print("Test model accuracy", accuracy)
+            print("Explanation accuracy", exp_accuracy)
+            print("Explanation fidelity", exp_fidelity)
+            print("Explanation complexity", exp_complexity)
+            print("Elapsed time", elapsed_time)
+
             methods.append(method)
             splits.append(seed)
             explanations.append(formulas[0])
@@ -229,7 +230,7 @@ if __name__ == "__main__":
             explanation_accuracies.append(exp_accuracy)
             explanation_fidelities.append(exp_fidelity)
             elapsed_times.append(elapsed_time)
-            explanation_complexities.append(np.mean(exp_complexities))
+            explanation_complexities.append(exp_complexity)
 
         explanation_consistency = dl.logic.formula_consistency(explanations)
         print(f'Consistency of explanations: {explanation_consistency:.4f}')
@@ -248,9 +249,9 @@ if __name__ == "__main__":
         results.to_csv(os.path.join(results_dir, f'results_{method}.csv'))
         print(results)
 
-    # %% md
+    #%% md
     ##Summary
-    # %%
+    #%%
 
     cols = ['model_accuracy', 'explanation_accuracy', 'explanation_fidelity', 'explanation_complexity', 'elapsed_time',
             'explanation_consistency']

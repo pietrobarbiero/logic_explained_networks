@@ -1,8 +1,8 @@
 import collections
 from abc import ABC, abstractmethod
 from statistics import mean
-
 import torch
+import numpy as np
 from sklearn.metrics import f1_score
 
 from .loss import mutual_information
@@ -122,17 +122,24 @@ class ClusterAccuracy(Metric):
         assert len(targets.squeeze().shape) == 1, "Unsupervised metric require (N, 1) tensor labels"
         assert len(outputs.squeeze().shape) == 2, "Unsupervised metric require (N, C) tensor outputs"
         cluster_accuracies = []
+        prevalent_classes = []
+        target_counter = np.unique(targets.numpy(), return_counts=True)[1]
         for i in range(outputs.shape[1]):
             cluster_output = outputs[:, i]
             bool_cluster_output = cluster_output > 0.5
             class_cluster_output = targets[bool_cluster_output]
-            if class_cluster_output.shape[0] > 0:
-                class_counter = collections.Counter(class_cluster_output.numpy())
-                prevalent_class = class_counter.most_common(1)[0][0]
+            if class_cluster_output.shape[0] > 1:
+                cluster_counter = np.zeros_like(targets.unique())
+                for j in range(len(targets.unique())):
+                    cluster_counter[j] = (class_cluster_output == j).sum()
+                normalized_cluster_counter = cluster_counter/target_counter
+                prevalent_class = normalized_cluster_counter.argmax()
                 target_class = targets == prevalent_class
-                cluster_accuracy = bool_cluster_output.eq(target_class).to(float).mean() * 100
+                cluster_accuracy = f1_score(bool_cluster_output, target_class) * 100
             else:
                 cluster_accuracy = 0.
+                prevalent_class = None
+            prevalent_classes.append(prevalent_class)
             cluster_accuracies.append(cluster_accuracy)
 
         mean_accuracy = torch.as_tensor(cluster_accuracies).mean().item()

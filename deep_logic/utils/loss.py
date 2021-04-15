@@ -1,4 +1,5 @@
 import torch
+from sklearn.metrics import normalized_mutual_info_score
 
 eps = 1e-10
 
@@ -27,12 +28,19 @@ class MixedMultiLabelLoss(torch.nn.modules.loss._Loss):
 
 
 class MutualInformationLoss(torch.nn.modules.loss._Loss):
-    def __init__(self):
+    def __init__(self, penalize_inactive=False, inactive_weight=1e-2):
+        self.penalize_inactive = penalize_inactive
+        self.inactive_weight = inactive_weight
         super(MutualInformationLoss, self).__init__()
 
     def __call__(self, output, *args, **kwargs) -> torch.tensor:
         output_probability = torch.nn.Sigmoid()(output)
-        return 1 - mutual_information(output_probability, normalized=True)
+        mi_loss = 1 - mutual_information(output_probability, normalized=True)
+        if self.penalize_inactive:
+            mean_inactivation = (1 / torch.sum(output_probability, dim=0)) * output_probability.shape[0]
+            inactivation_loss = torch.sum(mean_inactivation) * self.inactive_weight
+            return mi_loss + inactivation_loss
+        return mi_loss
 
 
 def _conditional_probabilities(x):
@@ -76,8 +84,8 @@ def mutual_information(output: torch.Tensor, sample_probability=None, normalized
         n_samples = torch.as_tensor(output.shape[0])
         sample_probability = 1 / n_samples
     else:
-        assert sample_probability.shape.ndims == 1, "Wrong sample_probability. Should be an array (n_sample, 1), " \
-                                                    "received an array with shape " + sample_probability.shape
+        # assert sample_probability.shape.ndims == 1, "Wrong sample_probability. Should be an array (n_sample, 1), " \
+        #                                             "received an array with shape " + sample_probability.shape
         sample_probability = sample_probability / (torch.sum(sample_probability) + eps) + eps
         sample_probability = torch.reshape(sample_probability, shape=(sample_probability.shape[0], 1))
 
@@ -86,7 +94,9 @@ def mutual_information(output: torch.Tensor, sample_probability=None, normalized
     mutual_info_t = entropy_t - cond_entropy_t
 
     if normalized:
-        return mutual_info_t / entropy_t
+        normalized_mutual_info_t = mutual_info_t / entropy_t
+        scikit_nmi = normalized_mutual_info_score(output, )
+        return normalized_mutual_info_t
 
     return mutual_info_t
 

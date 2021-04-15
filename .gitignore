@@ -87,3 +87,4 @@ data/Shapes/
 *.zip
 experiments/.ipynb_checkpoints/
 req.txt
+data/celldiff/
