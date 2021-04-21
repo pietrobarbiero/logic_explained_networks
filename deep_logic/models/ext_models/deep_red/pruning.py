@@ -112,7 +112,7 @@ def prune_rules(dnf, class_condition, condition_example_dict, example_indexes, p
 	'''
 	n_rules = len(dnf)
 	# This stores the indexes of the rules that will be kept at the end
-	remaining_rules = range(n_rules)
+	remaining_rules = list(range(n_rules)) #ADDED list(...) range is no list in Python3
 	# This stores the indexes of the rules that are yet to be seen. They are ordered in terms of increasing certainty factor.
 	rules_to_explore = []
 	for r in range(n_rules):

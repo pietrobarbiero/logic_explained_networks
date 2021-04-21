@@ -3,21 +3,26 @@
 import numpy as np
 import matplotlib
 import itertools
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import time
 from operator import concat
 import copy
 import random
 
+import functools
+
+#tf.disable_v2_behavior()
+#tf.disable_eager_execution()
+
 
 def init_weights(shape, i):
 	weights_name = 'W'
-	weights_name += 'i'
+	weights_name += str(i)
 	return tf.Variable(tf.random_uniform(shape, -1, 1), name = weights_name)
 
 def init_bias(size, i):
 	bias_name = 'B'
-	bias_name += 'i'
+	bias_name += str(i)
 	return tf.Variable(tf.random_uniform([size], -1, 1), name = bias_name)
 
 def one_hot_code(hypothesis):
@@ -115,7 +120,8 @@ def train_network(data, model_name, hidden_nodes, iterations, function = 'tanh',
 	X_test = tf.placeholder(tf.float32, shape=[len(x_test),input_size])
 	Y_test = tf.placeholder(tf.float32, shape=[len(x_test),output_size])
 	
-	keep_prob = tf.placeholder(tf.float32)
+	rate = tf.placeholder(tf.float32)
+	#rate = 1 - keep_prob
 	
 	# Initial weights and bias are set
 	W = [None]*layers
@@ -127,12 +133,13 @@ def train_network(data, model_name, hidden_nodes, iterations, function = 'tanh',
 	masks[layers-1] = tf.ones([hidden_nodes[layers-2], output_size], dtype=tf.float32, name=None)
 	B[0] = init_bias(hidden_nodes[0], 0)
 	B[layers-1] = init_bias(output_size, layers-1)
+
 	for i in range(layers-2):
 		W[i+1] = init_weights([hidden_nodes[i], hidden_nodes[i+1]], i+1)
 		B[i+1] = init_bias(hidden_nodes[i+1], i+1)
 		masks[i+1] = tf.ones([hidden_nodes[i], hidden_nodes[i+1]], dtype=tf.float32, name=None)
 	
-	# Lists that store the activation values
+	# List that store the activation values
 	A_train = [None]*layers
 	A_test = [None]*layers
 	
@@ -146,7 +153,7 @@ def train_network(data, model_name, hidden_nodes, iterations, function = 'tanh',
 	for i in range(1,layers-1):
 		if function == 'tanh':
 			#A_train[i] = tf.tanh(tf.matmul(A_train[i-1], masks[i]*W[i]) + B[i])
-			A_train[i] = tf.tanh(tf.matmul(tf.nn.dropout(A_train[i-1], keep_prob), masks[i]*W[i]) + B[i])
+			A_train[i] = tf.tanh(tf.matmul(tf.nn.dropout(A_train[i-1], rate), masks[i]*W[i]) + B[i]) #ADDED rate for TF v2
 			A_test[i] = tf.tanh(tf.matmul(A_test[i-1], masks[i]*W[i]) + B[i])
 		else:
 			A_train[i] = tf.sigmoid(tf.matmul(A_train[i-1], masks[i]*W[i]) + B[i])
@@ -159,7 +166,7 @@ def train_network(data, model_name, hidden_nodes, iterations, function = 'tanh',
 		A_test[layers-1] = tf.nn.softmax(tf.matmul(A_test[layers-2], masks[layers-1]*W[layers-1]) + B[layers-1])
 		Hypothesis_train = A_train[layers-1]
 		Hypothesis_test = A_test[layers-1]
-		loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits, Y_train))
+		loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits, Y_train)) #ADD: added "_v2" newVersion
 	else:
 		if function == 'tanh':
 			A_train[layers-1] = tf.tanh(tf.matmul(A_train[layers-2], masks[layers-1]*W[layers-1]) + B[layers-1])
@@ -172,14 +179,14 @@ def train_network(data, model_name, hidden_nodes, iterations, function = 'tanh',
 		loss = tf.reduce_mean(tf.squared_difference(Hypothesis_train, Y_train))
 	
 	train_step = tf.train.AdamOptimizer().minimize(loss)
-
+	
 	# Add an op to initialize the variables
 	init = tf.initialize_all_variables()
 
 	# Add ops to save and restore all the variables.
 	saver = tf.train.Saver()
 	sess = tf.Session()
-	writer = tf.train.SummaryWriter("./logs/nn_logs", sess.graph)
+	#writer = tf.train.SummaryWriter("./logs/nn_logs", sess.graph)
 
 	sess.run(init)
 
@@ -188,16 +195,16 @@ def train_network(data, model_name, hidden_nodes, iterations, function = 'tanh',
 	for i in range(iterations):
 		x_train, y_train = x, y
 		if batch_size > 0:
-			batch_indexes = random.sample(xrange(len(x_train)), batch_size)
+			batch_indexes = random.sample(range(len(x_train)), batch_size)
 			x_train = [e for (j, e) in enumerate(x) if j in batch_indexes]
 			y_train = [e for (j, e) in enumerate(y) if j in batch_indexes]
-		sess.run(train_step, feed_dict={X_train: x_train, Y_train: y_train, keep_prob: 1})
+		sess.run(train_step, feed_dict={X_train: x_train, Y_train: y_train, rate: 1}) #ADDED rate for TF v2
 		if i % (iterations/10) == 0:
 			print('EPOCH ', i)
-			print('COST ', sess.run(loss, feed_dict={X_train: x_train, Y_train: y_train, keep_prob: 1}))
-			h_train = sess.run(Hypothesis_train, feed_dict={X_train: x_train, keep_prob: 1})
+			print('COST ', sess.run(loss, feed_dict={X_train: x_train, Y_train: y_train, rate: 1})) #ADDED rate for TF v2
+			h_train = sess.run(Hypothesis_train, feed_dict={X_train: x_train, rate: 1}) #ADDED rate for TF v2
 			print('TRAIN ACCURACY', accuracy(x_train, y_train, h_train))
-			h_test = sess.run(Hypothesis_test, feed_dict={X_test: x_test, keep_prob: 1})
+			h_test = sess.run(Hypothesis_test, feed_dict={X_test: x_test, rate: 1}) #ADDED rate for TF v2
 			print('TEST ACCURACY', accuracy(x_test, y_test, h_test))
 			if accuracy(x_test, y_test, h_test) == 1:
 				break
@@ -212,7 +219,7 @@ def train_network(data, model_name, hidden_nodes, iterations, function = 'tanh',
 	
 	tf.reset_default_graph()
 	
-	h_test = sess.run(Hypothesis_test, feed_dict={X_test: x_test, keep_prob: 1})
+	h_test = sess.run(Hypothesis_test, feed_dict={X_test: x_test, rate: 1}) #ADDED rate for TF v2
 	return accuracy(x_test, y_test, h_test)
 
 def execute_network(data, model_name, hidden_nodes, function = 'tanh', softmax=True):
@@ -300,7 +307,7 @@ def execute_network(data, model_name, hidden_nodes, function = 'tanh', softmax=T
 	# Add ops to save and restore all the variables.
 	saver = tf.train.Saver()
 	sess = tf.Session()
-	writer = tf.train.SummaryWriter("./logs/nn_logs", sess.graph)
+	#writer = tf.train.SummaryWriter("./logs/nn_logs", sess.graph)
 	
 	# Restore trained network
 	saver.restore(sess, 'models/'+model_name+'.ckpt')
@@ -311,8 +318,8 @@ def execute_network(data, model_name, hidden_nodes, function = 'tanh', softmax=T
 	h_train = sess.run(Hypothesis_train, feed_dict={X_train: x_train})
 	acc = accuracy(x_train, y_train, h_train)
 	print('TRAIN ACCURACY', acc)
-	#h_vali = sess.run(Hypothesis_vali, feed_dict={X_vali: x_vali})
-	#print('VALIDATION ACCURACY', accuracy(x_vali, y_vali, h_vali))
+	h_vali = sess.run(Hypothesis_vali, feed_dict={X_vali: x_vali}) #auskommentiert
+	print('VALIDATION ACCURACY', accuracy(x_vali, y_vali, h_vali)) # ...
 	h_test = sess.run(Hypothesis_test, feed_dict={X_test: x_test})
 	print('TEST ACCURACY', accuracy(x_test, y_test, h_test))
 
@@ -390,7 +397,7 @@ def weight_sparseness_pruning(data, model_name, new_model_name, hidden_nodes, it
 		the indexes to prune
 		rtype: list of (int, int, int) tuples
 		'''
-		return reduce(concat, [[(h, i, j) for (i, j) in 
+		return functools.reduce(concat, [[(h, i, j) for (i, j) in 
 		list(itertools.product(range(shapes[h][0]), range(shapes[h][1]))) 
 		if (i, j) not in indexes[h]] for h in to_prune])
 
@@ -487,7 +494,7 @@ def weight_sparseness_pruning(data, model_name, new_model_name, hidden_nodes, it
 		A_vali[layers-1] = tf.nn.softmax(tf.matmul(A_vali[layers-2], masks[layers-1]*W[layers-1]) + B[layers-1])
 		Hypothesis_train = A_train[layers-1]
 		Hypothesis_vali = A_vali[layers-1]
-		loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits, Y_train))
+		loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits, Y_train))
 	else:
 		if function == 'tanh':
 			A_train[layers-1] = tf.tanh(tf.matmul(A_train[layers-2], masks[layers-1]*W[layers-1]) + B[layers-1])
@@ -504,7 +511,7 @@ def weight_sparseness_pruning(data, model_name, new_model_name, hidden_nodes, it
 	# Add ops to save and restore all the variables.
 	saver = tf.train.Saver()
 	sess = tf.Session()
-	writer = tf.train.SummaryWriter("./logs/nn_logs", sess.graph)
+	#writer = tf.train.SummaryWriter("./logs/nn_logs", sess.graph)
 
 	# Restore trained network
 	#saver.restore(sess, model_name)	
@@ -564,11 +571,15 @@ def weight_sparseness_pruning(data, model_name, new_model_name, hidden_nodes, it
 		print('Left indexes: '+str(len(left_indexes)))
 		pos_ind = left_indexes
 		left_indexes = []
+		print(pos_ind)
+		print(row_count)
+		print(col_count)
 		# While there are still possible indexes to prune
 		while pos_ind:
 			# Sort possible indexes in order of increasing pruned connections
-			pos_ind.sort(key=lambda(m, i, j):row_count[(m, i)] + col_count[(m, j)])
-			#sorted_poss_ind = sorted(pos_ind, key=lambda(m, i, j):row_count[(m, i)] + col_count[(m, j)])
+			#pos_ind.sort(key=lambda m,i,j:row_count[(m, i)] + col_count[(m, j)])
+			#sorted_poss_ind = sorted(pos_ind, key=lambda m, i, j:row_count[(m, i)] + col_count[(m, j)])
+			#pos_ind = sorted_poss_ind
 			non_found = True
 			for i in range(len(pos_ind)):
 				selected_indexes = []
@@ -595,7 +606,7 @@ def weight_sparseness_pruning(data, model_name, new_model_name, hidden_nodes, it
 					for i in range(iterations):
 						x_train, y_train = x, y
 						if batch_size > 0:
-							batch_indexes = random.sample(xrange(len(x_train)), batch_size)
+							batch_indexes = random.sample(range(len(x_train)), batch_size)
 							x_train = [e for (j, e) in enumerate(x) if j in batch_indexes]
 							y_train = [e for (j, e) in enumerate(y) if j in batch_indexes]
 						placeholder_dict.update({X_train: x_train, Y_train: y_train})						
@@ -763,7 +774,7 @@ def rexren_input_prune(data, model_name, new_model_name, hidden_nodes, function,
 	# Add ops to save and restore all the variables.
 	saver = tf.train.Saver()
 	sess = tf.Session()
-	writer = tf.train.SummaryWriter("./logs/nn_logs", sess.graph)
+	#writer = tf.train.SummaryWriter("./logs/nn_logs", sess.graph)
 
 	# Restore trained network
 	sess = tf.Session()

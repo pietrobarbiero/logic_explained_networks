@@ -9,12 +9,12 @@ import time
 
 def init_weights(shape, i):
 	weights_name = 'W'
-	weights_name += `i`
+	weights_name += str(i)
 	return tf.Variable(tf.random_uniform(shape, -1, 1), name = weights_name)
 
 def init_bias(size, i):
 	bias_name = 'B'
-	bias_name += `i`
+	bias_name += str(i)
 	return tf.Variable(tf.random_uniform([size], -1, 1), name = bias_name)
 
 def accuracy(x, one_hot_y, hypothesis):
@@ -45,8 +45,8 @@ def construct_objects(data, model_name, hidden_nodes, weights, bias, softmax=Tru
 	B = [None]*layers
 
 	for i in range(layers):
-		weights_name = 'W' + `i`
-		bias_name = 'B' + `i`
+		weights_name = 'W' + str(i)
+		bias_name = 'B' + str(i)
 		print('i', i)
 		W[i] = tf.Variable(weights[i], dtype=tf.float32, name = weights_name)
 		B[i] = tf.Variable(bias[i], dtype=tf.float32, name = bias_name)

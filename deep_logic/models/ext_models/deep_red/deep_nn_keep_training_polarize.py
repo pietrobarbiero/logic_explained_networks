@@ -1,21 +1,23 @@
 import numpy as np
 import matplotlib
 import itertools
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import time
 from operator import concat
 import copy
 import random
 
+tf.disable_v2_behavior()
+tf.disable_eager_execution()
 
 def init_weights(shape, i):
 	weights_name = 'W'
-	weights_name += `i`
+	weights_name += str(i)
 	return tf.Variable(tf.random_uniform(shape, -1, 1), name = weights_name)
 
 def init_bias(size, i):
 	bias_name = 'B'
-	bias_name += `i`
+	bias_name += str(i)
 	return tf.Variable(tf.random_uniform([size], -1, 1), name = bias_name)
 
 def one_hot_code(hypothesis):
@@ -96,11 +98,11 @@ def retrain_network(data, model_name, new_model_name, hidden_nodes, iterations, 
 	RHO = tf.constant(0.99)
 	
 	def logfunc(x, x2):
-		return tf.mul( x, tf.log(tf.div(x,x2)))
+		return tf.multiply( x, tf.log(tf.divide(x,x2)))
 	
 	def KL_Div(rho, rho_hat):
-		invrho = tf.sub(tf.constant(1.), rho)
-		invrhohat = tf.sub(tf.constant(1.), rho_hat)
+		invrho = tf.subtract(tf.constant(1.), rho)
+		invrhohat = tf.subtract(tf.constant(1.), rho_hat)
 		logrho = tf.add(logfunc(rho,rho_hat), logfunc(invrho, invrhohat))
 		return logrho
 	
@@ -151,13 +153,13 @@ def retrain_network(data, model_name, new_model_name, hidden_nodes, iterations, 
 	A_train[0] = tf.tanh(tf.matmul(X_train, masks[0]*W[0]) + B[0])
 	A_test[0] = tf.tanh(tf.matmul(X_test, masks[0]*W[0]) + B[0])
 
-	rho_hat[0] = tf.div(tf.reduce_sum(tf.abs(A_train[0]),0),tf.constant(float(batch_size)))
+	rho_hat[0] = tf.divide(tf.reduce_sum(tf.abs(A_train[0]),0),tf.constant(float(batch_size)))
 	divergance[0] = tf.reduce_sum(KL_Div(RHO, rho_hat[0]))
 
 	for i in range(1,layers-1):
 		A_train[i] = tf.tanh(tf.matmul(tf.nn.dropout(A_train[i-1], keep_prob), masks[i]*W[i]) + B[i])
 		A_test[i] = tf.tanh(tf.matmul(A_test[i-1], masks[i]*W[i]) + B[i])
-		rho_hat[i] = tf.div(tf.reduce_sum(tf.abs(A_train[i]),0),tf.constant(float(batch_size)))
+		rho_hat[i] = tf.divide(tf.reduce_sum(tf.abs(A_train[i]),0),tf.constant(float(batch_size)))
 		divergance[i] = tf.reduce_sum(KL_Div(RHO, rho_hat[i]))
 			
 	# Softmax layer
@@ -166,9 +168,9 @@ def retrain_network(data, model_name, new_model_name, hidden_nodes, iterations, 
 	A_test[layers-1] = tf.nn.softmax(tf.matmul(A_test[layers-2], masks[layers-1]*W[layers-1]) + B[layers-1])
 	Hypothesis_train = A_train[layers-1]
 	Hypothesis_test = A_test[layers-1]
-	loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits, Y_train))
+	loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits, Y_train)) #ADDED v2 in TF 2.0
 	cost_sparse = tf.reduce_sum(divergance)
-	cost = tf.add(loss , tf.mul(BETA, cost_sparse))
+	cost = tf.add(loss , tf.multiply(BETA, cost_sparse))
 	train_step = tf.train.AdamOptimizer().minimize(cost)
 
 	# Add an op to initialize the variables
@@ -203,7 +205,7 @@ def retrain_network(data, model_name, new_model_name, hidden_nodes, iterations, 
 		print('BETA', bet)
 		for i in range(iterations):
 			if batch_size > 0:
-				batch_indexes = random.sample(xrange(len(x_train)), batch_size)
+				batch_indexes = random.sample(range(len(x_train)), batch_size)
 				x_train = [e for (j, e) in enumerate(x) if j in batch_indexes]
 				y_train = [e for (j, e) in enumerate(y) if j in batch_indexes]
 			sess.run(train_step, feed_dict={X_train: x_train, Y_train: y_train, keep_prob: 1, BETA: bet})
@@ -444,7 +446,7 @@ def keep_training_wsp_polarize(data, bet, model_name, new_model_name, hidden_nod
 		# While there are still possible indexes to prune
 		while pos_ind:
 			# Sort possible indexes in order of increasing pruned connections
-			pos_ind.sort(key=lambda(m, i, j):row_count[(m, i)] + col_count[(m, j)])
+			pos_ind.sort(key=lambda m, i, j:row_count[(m, i)] + col_count[(m, j)])
 			#sorted_poss_ind = sorted(pos_ind, key=lambda(m, i, j):row_count[(m, i)] + col_count[(m, j)])
 			non_found = True
 			for i in range(len(pos_ind)):

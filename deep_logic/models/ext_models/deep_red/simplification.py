@@ -20,6 +20,7 @@ def delete_redundant_terms(rule):
 	>>> delete_redundant_terms([(3, 1, 0.2, False), (3, 1, 0.4, False), (3, 1, 0.3, True), (3, 1, 0.1, True)], [])
 		None
 	'''
+	#print('del_redundant_terms')
 	neurons = set([(l, n) for (l, n, t, b) in rule])
 	new_rule = []
 	for (l_i, n_i) in neurons:
@@ -40,6 +41,7 @@ def is_gen(rule_1, rule_2):
 	'''
 	Checks if rule_2 is a specification of rule_1
 	'''
+	#print('is_gen_check')
 	if set(rule_1) != set(rule_2) and len(rule_1) <= len(rule_2):
 		n_1 = set(((l, n, b) for (l, n, t, b) in rule_1))
 		n_2 = set(((l, n, b) for (l, n, t, b) in rule_2))
@@ -74,6 +76,7 @@ def boolean_simplify_basic(rules):
 	>>> boolean_simplify_basic([r3, r4, r2])
 	[[(1, 7, 0.6, False)], [(1, 2, 0.5, True), (1, 2, 0.6, False), (1, 3, 0.5, False)]]
 	'''
+	#print('bool_simplify_basic')
 	rules = set(tuple(conj) for conj in rules)
 	return [list(conj) for conj in rules if not any(is_gen(r, conj) for r in rules)]
 	

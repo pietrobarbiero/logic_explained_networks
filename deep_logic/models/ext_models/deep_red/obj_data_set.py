@@ -11,12 +11,12 @@ class DataSet:
 		'''
 		Initializes a dataset
 		'''
-		file_name = 'data/'+dataset_name+'.csv'
+		file_name = '/home/lukas/Uni/AAThesis/DeepRED/data/'+dataset_name+'.csv'
 		with open(file_name,'r') as f:
 			data_iter = csv.reader(f, delimiter = ',')
 			data = [[float(attr) for attr in data] for data in data_iter]
 		# If the input and output columns are not defined, then all columns
-		# except the last are the input and the last column is the class value
+		# except the last are the input and the last column is the class value	
 		if not input_columns:
 			input_columns = range(len(data[0])-1)
 		if not output_column:

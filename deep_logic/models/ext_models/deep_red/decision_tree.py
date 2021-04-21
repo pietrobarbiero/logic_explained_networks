@@ -99,7 +99,7 @@ def get_dnfs(cond_layer, tree):
 	dnf[1] = []   
 	def return_rules(cond_layer, tree, conditions):
 		if tree.results!=None:
-			tree_class = max(tree.results.iteritems(), key=operator.itemgetter(1))[0]
+			tree_class = max(tree.results.items(), key=operator.itemgetter(1))[0] #ADDED iteritems -> items in Python3
 			simplified_rule = s.delete_redundant_terms(conditions)
 			if simplified_rule:
 				simplified_rule.sort()
@@ -158,7 +158,7 @@ def variance(rows):
 	variance=sum([(d-mean)**2 for d in data])/len(data)
 	return variance
 
-def buildtree(rows, split_points, scoref=entropy, class_dominance = 100, min_set_size = 0, max_depth = 10, root = False):
+def buildtree(rows, split_points, scoref=entropy, class_dominance = 98, min_set_size = 1, max_depth = 30, root = False):
   '''
   Builds a decision tree in a recursive manner
 
@@ -175,26 +175,24 @@ def buildtree(rows, split_points, scoref=entropy, class_dominance = 100, min_set
   the tree stops growing
   param param max_depth: is a set number outlying the maximal depth of the tree
   '''
-  #print('builtree')
+  print('buildtree')
+  #print('rows',rows)
   if len(rows)==0: return decisionnode()
   current_classification = uniquecounts(rows)
-  #print('current_classification', current_classification)
+  print('current_classification', current_classification)
   # If more than this number of examples belongs to the predicted class,
   # the tree is not further split
   for_class_dominance = (float(len(rows))*float(class_dominance))/100.0
   examples_mayority_class = max(current_classification.values())
   # If it is not the first split and one of the criteria has been reached
   if not root and (len(rows) <= min_set_size or max_depth == 0 or examples_mayority_class >= for_class_dominance):
-	  #if len(rows) <= min_set_size:
-		#  print('Return for lack of examples')
-	  #if max_depth == 0:
-		#  print('Return for reaching max depth')
-	  #if examples_mayority_class >= for_class_dominance:
-		#  print('Return for class dominance')
-	  #print('unique counts', current_classification) 
+	  if len(rows) <= min_set_size: print('Return for lack of examples')
+	  if max_depth == 0: print('Return for reaching max depth')
+	  if examples_mayority_class >= for_class_dominance: print('Return for class dominance')
+	  print('unique counts', current_classification) 
 	  return decisionnode(results=current_classification)
   current_score=scoref(rows)
-  # Best criteria
+  #best criteria
   best_gain=-1
   best_criteria=None
   best_sets=None
@@ -213,13 +211,12 @@ def buildtree(rows, split_points, scoref=entropy, class_dominance = 100, min_set
         best_gain=gain
         best_criteria=(col,value)
         best_sets=(set1,set2)
-  # sub branches  
+		
+  #sub tree 
   if (best_criteria and best_sets and len(best_sets[0])>min_set_size and len(best_sets[1])>min_set_size) or root:
-    trueBranch=buildtree(best_sets[0], split_points, scoref, class_dominance, min_set_size, max_depth-1, root = False)
-    falseBranch=buildtree(best_sets[1], split_points, scoref, class_dominance, min_set_size, max_depth-1, root = False)
-
-    return decisionnode(col=best_criteria[0],value=best_criteria[1],
-                        tb=trueBranch,fb=falseBranch)
+  	trueBranch=buildtree(best_sets[0], split_points, scoref, class_dominance, min_set_size, max_depth-1, root = False)
+  	falseBranch=buildtree(best_sets[1], split_points, scoref, class_dominance, min_set_size, max_depth-1, root = False)
+  	return decisionnode(col=best_criteria[0],value=best_criteria[1],tb=trueBranch,fb=falseBranch)
   else:
     return decisionnode(results=current_classification)
 

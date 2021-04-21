@@ -1,5 +1,5 @@
 import xlsxwriter
-#import pickle
+import pickle
 import evaluation_formulas as ef
 import os
 import time
@@ -334,7 +334,7 @@ def print_symbol_dict(data, output_condition, root_directory, BNN = None, BNNi =
 	for e in train_indexes + test_indexes:
 		current_format = get_format(e)
 		worksheet.write(row, example_column, e, current_format)
-		for k, c in symbol_columns.iteritems():
+		for k, c in symbol_columns.items(): #ADDED iteritems -> items in Python3
 			if len(k) == 2:
 				current_format = get_format(e)
 				worksheet.write(row, c, str(examples[e].values[0][k[1]]), current_format)

@@ -93,7 +93,7 @@ def cv_maintaining_class(dataset, k, train_indexes = None):
 			sys.exit("Error: Not enough examples so that each split has at least one instance of each class")
 		else:
 			random.shuffle(c)
-			pro_chunk = len(c)/k
+			pro_chunk = int(len(c)/k)
 			split_examples = [c[i:i + pro_chunk] for i in range(0, len(c), pro_chunk)]
 			for j in range(k):
 				splits[j] += split_examples[j]

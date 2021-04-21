@@ -140,8 +140,8 @@ def save_indexes(indexes, dataset_name, split_name):
 		pickle.dump(indexes, f, pickle.HIGHEST_PROTOCOL)
 
 def save_BNN_ecd_indexes(BNN, example_cond_dict, index_list, name):
-	# Last letter refers to the post-pruning configuration, which does not 
-	# affect any of these objects 
+	# Last letter refers to the post-pruning configuration, which does not
+	# affect any of these objects
 	with open('obj/BNN_'+ name + '.pkl', 'wb') as f:
 		pickle.dump(BNN, f, pickle.HIGHEST_PROTOCOL)
 	with open('obj/example_cond_dict_'+ name + '.pkl', 'wb') as f:

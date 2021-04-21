@@ -17,7 +17,7 @@ import warnings
 from scipy.cluster import vq
 
 
-def build_BNN(data, output_condition, cd = 98, mss = 1, md = 10, relevant_neuron_dictionary = {}, with_data = 0, discretization = 0, cluster_means = None):
+def build_BNN(data, output_condition, cd = 98, mss = 1, md = 30, relevant_neuron_dictionary = {}, with_data = 1, discretization = 0, cluster_means = None):
 	'''
 	Starting from the target condition and until the conditions with respect 
 	to the first hidden layer, it extracts a DNF that explains each condition
@@ -34,10 +34,16 @@ def build_BNN(data, output_condition, cd = 98, mss = 1, md = 10, relevant_neuron
 	BNN = {}
 	deep_layer = data.output_layer
 	target_class = [output_condition]
+	print('deep layer: ')
+	print(deep_layer)
+	print('targetclass: ')
+	print(target_class)
 	while deep_layer > 0:
 		target_split_values = set((l, n, t) for (l, n, t, u) in target_class)
+		print('target_split_values: ')
+		print(target_split_values)
 		if not target_split_values:
-			warnings.warn('Warning: no split points, returning current dictionary at layer: '+str(deep_layer))
+			warnings.warn('Warning: no split points, returning current dictionary at layer: ' + str(deep_layer))
 		print('Target split values', target_split_values)
 		used_shallow_conditions = set([])
 		current_data = temp_data(data, deep_layer-1, target_class)
@@ -67,7 +73,7 @@ def build_BNN(data, output_condition, cd = 98, mss = 1, md = 10, relevant_neuron
 			tree=None
 			if relevant_neuron_dictionary and discretization==0:
 				pruned_split_points = [_sp(j, i, split_points, relevant_neuron_dictionary) for j in range(len(split_points))]
-				print(pruned_split_points)
+				print('Pruned split points',pruned_split_points)
 				tree = dt.buildtree(i_data, pruned_split_points, class_dominance = cd, min_set_size = mss, max_depth = md, root = True)
 			else:
 				tree = dt.buildtree(i_data, split_points, class_dominance = cd, min_set_size = mss, max_depth = md, root = True)
@@ -84,6 +90,8 @@ def build_BNN(data, output_condition, cd = 98, mss = 1, md = 10, relevant_neuron
 			print('Tree is formed')
 			print('Time: ', time.time() - t)
 			dnfs = dt.get_dnfs(deep_layer-1, tree)
+			print('DNF:')
+			print(dnfs)
 			if (i[0], i[1], i[2], False) in target_class:
 				print('False case')
 				pruned = None

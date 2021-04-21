@@ -11,6 +11,7 @@ import itertools
 import time
 from sympy import *
 import sys
+from functools import reduce
 
 def handle_boolean_values(deep_rule, d):
 	'''
@@ -89,6 +90,7 @@ def get_bio(BNN, output_condition, example_cond_dict, dict_indexes, with_data = 
 		f = replace_rules(f, BNN)
 		if not isinstance(f, list):
 			return f
+		
 		print('\nReplaced terms')
 		#print('F number rules:',len(f))
 		#print('F number terms:',sum(len(r) for r in f))
