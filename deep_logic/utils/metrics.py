@@ -37,6 +37,7 @@ class Accuracy(Metric):
             # Multi-Label classification
             if len(targets.shape) > 1:
                 outputs = outputs > 0.5
+                targets = targets > 0.5
             # Multi-Class classification
             else:
                 outputs = outputs.argmax(dim=1)
@@ -89,6 +90,7 @@ class F1Score(Metric):
         # Multi-label or Binary classification
         else:
             discrete_output = outputs.cpu().numpy() > 0.5
+            targets = targets > 0.5
         targets = targets.cpu().numpy()
         f1_val = f1_score(discrete_output, targets, average=average, zero_division=0) * 100
         return f1_val

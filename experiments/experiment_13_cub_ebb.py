@@ -15,6 +15,7 @@ if __name__ == "__main__":
     from deep_logic.models.psi_nn import PsiNetwork
     from deep_logic.models.tree import XDecisionTreeClassifier
     from deep_logic.models.brl import XBRLClassifier
+    from deep_logic.models.black_box import BlackBox
     from deep_logic.models.logistic_regression import XLogisticRegressionClassifier
     from deep_logic.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
     from deep_logic.utils.metrics import Accuracy, F1Score
@@ -27,7 +28,7 @@ if __name__ == "__main__":
     from data.download_cub import download_cub
     from experiments.CUB_200_2011.concept_extractor_cub import concept_extractor_cub
 
-    results_dir = 'results/cub'
+    results_dir = 'results/cub_ebb'
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
 
@@ -44,7 +45,6 @@ if __name__ == "__main__":
     # %% md
     ## Extracting Concepts from images
     # %%
-
     if not os.path.isfile(os.path.join(dataset_root, f"{CUB200}_predictions.npy")):
         concept_extractor_cub(dataset_root)
     else:
@@ -62,16 +62,14 @@ if __name__ == "__main__":
     # %% md
     ## Define loss, metrics and methods
     # %%
-
     loss = torch.nn.CrossEntropyLoss()
     metric = Accuracy()
     method_list = ['General', 'Relu', 'Psi', 'DTree', 'BRL']
     print("Methods", method_list)
 
     #%% md
-    ## Training
+    ## Setting training hyperparameters
     #%%
-
     epochs = 200
     l_r = 1e-2
     lr_scheduler = True
@@ -81,6 +79,38 @@ if __name__ == "__main__":
     print("Seeds", seeds)
     device = torch.device("cpu") if torch.cuda.is_available() else torch.device("cpu")
     print("Device", device)
+
+    # %% md
+    ## Training Black box
+    # %%
+    set_seed(0)
+    train_data, val_data, test_data = get_splits_train_val_test(dataset, load=False)
+    lr_bb = 1e-3
+    hidden_neurons = [500, 200]
+    name = os.path.join(results_dir, "Black_box")
+    print(f"Training {name}")
+    print("Hidden neurons", hidden_neurons)
+    model = BlackBox(name=name, n_classes=n_classes, n_features=n_features,
+                     hidden_neurons=hidden_neurons, loss=loss)
+    try:
+        model.load(device)
+        print(f"Model {name} already trained")
+    except (ClassifierNotTrainedError, IncompatibleClassifierError):
+        results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_bb, verbose=True,
+                            metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
+    outputs, labels = model.predict(dataset, device=device)
+
+    # %% md
+    ## Using outputs of black box model as targets for other surrogate models
+    # %%
+    dataset.targets = outputs.detach()
+    print("Output predictions saved")
+    loss = torch.nn.BCEWithLogitsLoss()
+    metric = F1Score()
+
+    #%% md
+    ## Training
+    #%%
 
     for method in method_list:
 
@@ -99,9 +129,9 @@ if __name__ == "__main__":
 
             train_data, val_data, test_data = get_splits_train_val_test(dataset, load=False)
             x_val = torch.tensor(dataset.attributes[val_data.indices])
-            y_val = torch.tensor(dataset.targets[val_data.indices])
+            y_val = dataset.targets[val_data.indices].clone()
             x_test = torch.tensor(dataset.attributes[test_data.indices])
-            y_test = torch.tensor(dataset.targets[test_data.indices])
+            y_test = dataset.targets[test_data.indices].clone()
             print(train_data.indices)
 
             # Setting device
@@ -211,6 +241,9 @@ if __name__ == "__main__":
                     explanation_complexity = complexity(formula)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
+                    # print(f"{class_to_explain} <-> {formula}")
+                    # print("Explanation accuracy", exp_accuracy)
+                    # print("Explanation complexity", explanation_complexity)
 
             elif method == 'Relu':
                 # Network structures
@@ -243,6 +276,9 @@ if __name__ == "__main__":
                     explanation_complexity = complexity(formula)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
+                    # print(f"{class_to_explain} <-> {formula}")
+                    # print("Explanation accuracy", exp_accuracy)
+                    # print("Explanation complexity", explanation_complexity)
 
             elif method == 'LogisticRegression':
                 lr_lr = 1e-3

@@ -215,8 +215,7 @@ class BaseClassifier(torch.nn.Module):
                 scheduler.step(train_acc)
 
             # Save best model if early_stopping is True
-            if (val_acc > best_acc and epoch >= epochs // 4 or epochs <= 2) \
-                    and early_stopping and not self.need_pruning:
+            if val_acc > best_acc and early_stopping and not self.need_pruning:
                 best_acc = val_acc
                 best_epoch = epoch + 1
                 self.save()
