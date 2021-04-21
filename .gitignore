@@ -88,3 +88,13 @@ data/Shapes/
 experiments/.ipynb_checkpoints/
 req.txt
 data/celldiff/
+deep_logic/models/ext_models/deep_red/logs/nn_logs/
+*.index
+*.data-00000-of-00001
+*.meta
+*.pkl
+deep_logic/models/ext_models/deep_red/data/
+deep_logic/models/ext_models/deep_red/results/
+deep_logic/models/ext_models/deep_red_old/logs/
+deep_logic/models/ext_models/deep_red_old/
+deep_logic/models/ext_models/deep_red/.vscode/
