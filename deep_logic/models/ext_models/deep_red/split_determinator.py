@@ -125,13 +125,17 @@ def initial_splits(dataset, split_name, percentage = 50):
 	lr.save_train_indexes(train_indexes, dataset, split_name)
 	lr.save_test_indexes(test_indexes, dataset, split_name)
 
-def cross_validation_folds(dataset, k, train_vali_splits = [1]):
+def cross_validation_folds(dataset, k, train_vali_splits = [1], return_names=False):
 	splits = cv_maintaining_class(dataset, k)
 	if len(splits) != k:
 		sys.exit("Error: Different splits than k")
+	split_names = []
 	for i in range(k):
 		name_k = 'cv'+str(k)+'-'+str(i)
 		lr.save_indexes(splits[i], dataset, name_k)
+		split_names.append(name_k)
+	if return_names:
+		return split_names
 
 def extract_tv_for_100(dataset, train_vali_splits):
 	train_indexes, test_indexes, train_folds = lr.load_indexes('100', dataset)
