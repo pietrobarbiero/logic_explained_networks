@@ -1,13 +1,15 @@
-import split_determinator as sd
-import load_restore as lr
-import deep_nn_train as dnnt
-import deep_nn_keep_training_polarize as ktp
-import deep_nn_execute_stored as dnnes
-import evaluation_formulas as ef
-from obj_data_set import DataSet
-import decision_tree_induction as dti
-import printer
-import replacement as r
+import sys
+
+from . import split_determinator as sd
+from . import load_restore as lr
+from . import deep_nn_train as dnnt
+from . import deep_nn_keep_training_polarize as ktp
+from . import deep_nn_execute_stored as dnnes
+from . import evaluation_formulas as ef
+from .obj_data_set import DataSet
+from . import decision_tree_induction as dti
+from . import printer
+from . import replacement as r
 import time
 import math
 import os
@@ -174,7 +176,7 @@ def extract_model(dataset_name, split_name, model_name, hidden_nodes,
     BNN = dti.build_BNN(data, output_condition, cd=class_dominance, mss=min_size,
                         relevant_neuron_dictionary=rel_neuron_dict, with_data=rft_pruning_config,
                         discretization=dis_config, cluster_means=None)
-    lr.save_BNN_ecd_indexes(BNN, data.example_cond_dict, data.dict_indexes, dataset_name + '_' + split_name)
+    # lr.save_BNN_ecd_indexes(BNN, data.example_cond_dict, data.dict_indexes, dataset_name + '_' + split_name)
     print('\nBuilt BNN')
     print('Time: ', time.time() - t)
     print(BNN)
@@ -188,7 +190,7 @@ def extract_model(dataset_name, split_name, model_name, hidden_nodes,
     t = time.time()
     bio = r.get_bio(BNN, output_condition, data.example_cond_dict, data.dict_indexes, with_data=rep_pruning_config,
                     data=data)
-    lr.save_bio(bio, dataset_name + '_' + split_name)
+    # lr.save_bio(bio, dataset_name + '_' + split_name)
     print('\nBuilt bio')
     print('Time: ', time.time() - t)
 
@@ -220,26 +222,48 @@ def extract_model(dataset_name, split_name, model_name, hidden_nodes,
     return exp_accuracy[1], fidelity[1], complexity, bio
 
 
-def train_deepred(trainindx=None, testindx=None, model_name='novel_model_2', hidden_nodes=None, seed=0,
-                  dataset_name='breast-cancer-wisconsinBinary', classes=None):
-    if classes is None:
-        classes = [1]
-    if hidden_nodes is None:
-        hidden_nodes = [30, 16, 2]
-    split_name = str(seed)
+def transform_rules(rules, concept_names, n_features):
+    if concept_names is None:
+        concept_names = [f"feature{i:010}" for i in range(n_features)]
 
+    final_rules = []
+    for class_rule in rules:
+        final_rule = "("
+        for bio in class_rule:
+            for rule in bio:
+                if rule[3]:
+                    partial_rule = f"{concept_names[rule[1]]} > {rule[2]:.3f}"
+                else:
+                    partial_rule = f"{concept_names[rule[1]]} < {rule[2]:.3f}"
+                final_rule += partial_rule + " & "
+            final_rule = final_rule[:-3]
+            final_rule += ") | ("
+        final_rules.append(final_rule[:-4])
+
+    return final_rules
+
+
+def train_deepred(dataset_name, n_features, hidden_nodes, classes,
+                  trainindx=None, testindx=None, model_name='novel_model_2', seed=0, concept_names=None):
+
+    split_name = str(seed)
     if trainindx is None or testindx is None:
         set_split(dataset_name, split_name, 70)
     else:
+        # trainindx = [idx for idx in trainindx if idx < 1000]
+        # testindx = [idx for idx in testindx if idx < 1000]
         set_split_manually(dataset_name, split_name, train_indexes=trainindx, test_indexes=testindx)
     # set_cv_folds(dataset_name, 3)
 
+    # if not os.path.isfile(os.path.join("models", model_name + ".ckpt.index")):
     train_acc, test_acc = prepare_network(dataset_name, split_name, model_name, hidden_nodes,
                                           init_iterations=1000, wsp_iterations=100, wsp_accuracy_decrease=0.02,
                                           rxren_accuracy_decrease=5, function='tanh', softmax=True)
 
+    old_stdout = sys.stdout
+    sys.stdout = None
     exp_accuracies, fidelities, complexities, rules = [], [], [], []
-    for target_class in classes:
+    for target_class, _ in enumerate(classes):
         exp_accuracy, fidelity, complexity, bio = extract_model(dataset_name, split_name, model_name,
                                                                 hidden_nodes, target_class)
         exp_accuracies.append(exp_accuracy)
@@ -247,13 +271,13 @@ def train_deepred(trainindx=None, testindx=None, model_name='novel_model_2', hid
         complexities.append(complexity)
         rules.append(bio)
 
-    exp_accuracies = np.mean(exp_accuracies)
-    fidelities = np.mean(fidelities)
-    complexities = np.mean(complexities)
-    return train_acc, test_acc, exp_accuracies, fidelities, complexities
+    rules = transform_rules(rules, concept_names, n_features)
+    sys.stdout = old_stdout
+
+    return test_acc*100, exp_accuracies*100, fidelities*100, complexities*100, rules
 
 
 if __name__ == "__main__":
     # trainindx = list(range(64, 683))
     # testindx = list(range(64))
-    train_deepred()
+    train_deepred(dataset_name='breast-cancer-wisconsinBinary', n_features=90, hidden_nodes=[30, 16, 2], classes=[1])

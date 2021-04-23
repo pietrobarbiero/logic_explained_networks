@@ -15,6 +15,7 @@ class DataSet:
 		Initializes a dataset
 		'''
         file_name = os.path.join("data", dataset_name + '.csv')
+        # file_name = dataset_name + '.csv'
         with open(file_name, 'r') as f:
             data_iter = csv.reader(f, delimiter=',')
             data = [[float(attr) for attr in data] for data in data_iter]

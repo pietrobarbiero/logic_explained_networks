@@ -121,7 +121,6 @@ if __name__ == "__main__":
                     results = model.fit(train_data, metric=metric, save=True, verbose=False, eval=False)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-                print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(i, concept_names)
@@ -140,7 +139,6 @@ if __name__ == "__main__":
                     results = model.fit(train_data, val_data, metric=metric, save=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-                print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(i, concept_names)
@@ -159,10 +157,13 @@ if __name__ == "__main__":
                 test_idx = test_data.indices
                 model_name = method + str(seed)
                 dataset_name = MNIST
-                accuracy, exp_accuracies, exp_fidelities, exp_complexities, formulas = train_deepred(train_idx, test_idx,
-                                                                                                     model_name, hidden_nodes,
-                                                                                                     seed, dataset_name,
-                                                                                                     dataset.classes)
+                accuracy, exp_accuracies, exp_fidelities, exp_complexities, formulas = train_deepred(dataset_name,
+                                                                                                     n_features,
+                                                                                                     hidden_nodes,
+                                                                                                     dataset.classes,
+                                                                                                     train_idx, test_idx,
+                                                                                                     model_name, seed,
+                                                                                                     concept_names)
 
             elif method == 'Psi':
                 # Network structures
@@ -186,7 +187,6 @@ if __name__ == "__main__":
                                         metric=metric, lr_scheduler=lr_scheduler_psi, device=device, save=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-                print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(i, concept_names, simplify=simplify)
@@ -213,7 +213,6 @@ if __name__ == "__main__":
                                         lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-                print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
@@ -247,7 +246,6 @@ if __name__ == "__main__":
                                         metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-                print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(x_val, y_val, i,
@@ -275,7 +273,6 @@ if __name__ == "__main__":
                     results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r_lr, metric=metric,
                                         lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
                 accuracy = model.evaluate(test_data, metric=metric)
-                print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [""], [0], [0], [0]
             else:
                 raise NotImplementedError(f"{method} not implemented")
@@ -290,6 +287,7 @@ if __name__ == "__main__":
             explanation_accuracies.append(np.mean(exp_accuracies))
             explanation_fidelities.append(np.mean(exp_fidelities))
             explanation_complexities.append(np.mean(exp_complexities))
+            print("Test model accuracy", accuracy)
             print("Explanation time", elapsed_time)
             print("Explanation accuracy mean", np.mean(exp_accuracies))
             print("Explanation fidelity mean", np.mean(exp_fidelities))

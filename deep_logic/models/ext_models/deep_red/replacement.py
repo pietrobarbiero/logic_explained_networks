@@ -2,9 +2,9 @@
 # create the expression of the output activations with conditions that 
 # refer only to the dataset arguments
 
-import simplification as s
-import pruning as p
-import evaluation_formulas as ef
+from . import simplification as s
+from . import pruning as p
+from . import evaluation_formulas as ef
 from operator import concat
 import itertools
 #from sympy.logic.boolalg import is_dnf

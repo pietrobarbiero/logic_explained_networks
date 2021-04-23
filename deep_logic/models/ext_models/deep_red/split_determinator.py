@@ -1,7 +1,7 @@
 # Divides the data into train, validation and test sets, or determines the cross-validation splits. 
 # The indexes of the splits are stored so experiments can be reproduced.
 
-import load_restore as lr
+from . import load_restore as lr
 import csv
 import random
 import math
