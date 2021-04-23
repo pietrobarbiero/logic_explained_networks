@@ -16,6 +16,7 @@ if __name__ == "__main__":
     from deep_logic.models.tree import XDecisionTreeClassifier
     from deep_logic.models.brl import XBRLClassifier
     from deep_logic.models.logistic_regression import XLogisticRegressionClassifier
+    from deep_logic.models.ext_models.deep_red.main import train_deepred
     from deep_logic.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
     from deep_logic.utils.metrics import Accuracy
     from deep_logic.models.general_nn import XGeneralNN
@@ -59,6 +60,7 @@ if __name__ == "__main__":
     print("Class names", class_names)
     n_classes = dataset.n_classes
     print("Number of classes", n_classes)
+    dataset.save_as_csv("data")
 
     #%% md
     ## Define loss, metrics and methods
@@ -66,7 +68,7 @@ if __name__ == "__main__":
 
     loss = torch.nn.CrossEntropyLoss()
     metric = Accuracy()
-    method_list = ['General', 'Relu', 'Psi', 'DTree', 'BRL', ]  # TODO: 'LogisticRegression',
+    method_list = ['DeepRed']  # TODO: 'General', 'Relu', 'Psi', 'DTree', 'LogisticRegression',
     print(method_list)
 
     #%% md
@@ -75,8 +77,8 @@ if __name__ == "__main__":
 
     epochs = 200
     l_r = 1e-3
-    lr_scheduler = False
-    top_k_explanations = 5
+    lr_scheduler = True
+    top_k_explanations = 20
     simplify = True
     seeds = [*range(10)]
     print("Seeds", seeds)
@@ -128,9 +130,6 @@ if __name__ == "__main__":
                     explanation_complexity = complexity(formula, to_dnf=True)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
-                    # print(f"{class_to_explain} <-> {formula}")
-                    # print("Explanation accuracy", exp_accuracy)
-                    # print("Explanation complexity", explanation_complexity)
 
             elif method == 'DTree':
                 model = XDecisionTreeClassifier(name=name, n_classes=n_classes, n_features=n_features)
@@ -150,9 +149,20 @@ if __name__ == "__main__":
                     explanation_complexity = complexity(formula)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
-                    # print(f"{class_to_explain} <-> {formula}")
-                    # print("Explanation accuracy", exp_accuracy)
-                    # print("Explanation complexity", explanation_complexity)
+
+            elif method == 'DeepRed':
+                # Network structures from DEEP RED paper
+                hidden_nodes = [min(30, 2 * n_features),
+                                (n_features + n_classes) // 2,
+                                n_classes]
+                train_idx = train_data.indices
+                test_idx = test_data.indices
+                model_name = method + str(seed)
+                dataset_name = MNIST
+                accuracy, exp_accuracies, exp_fidelities, exp_complexities, formulas = train_deepred(train_idx, test_idx,
+                                                                                                     model_name, hidden_nodes,
+                                                                                                     seed, dataset_name,
+                                                                                                     dataset.classes)
 
             elif method == 'Psi':
                 # Network structures
@@ -188,9 +198,6 @@ if __name__ == "__main__":
                     explanation_complexity = complexity(formula, to_dnf=True)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
-                    # print(f"{class_to_explain} <-> {formula}")
-                    # print("Explanation accuracy", exp_accuracy)
-                    # print("Explanation complexity", explanation_complexity)
 
             elif method == 'General':
                 # Network structures
@@ -220,22 +227,23 @@ if __name__ == "__main__":
                     explanation_complexity = complexity(formula)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
-                    # print(f"{class_to_explain} <-> {formula}")
-                    # print("Explanation accuracy", exp_accuracy)
-                    # print("Explanation complexity", explanation_complexity)
 
             elif method == 'Relu':
                 # Network structures
-                l1_weight = 1e-3
+                lr_relu = 1e-3
+                # l1_weight = 1e-6
+                l1_weight = 0
+                hidden_neurons = [300, 100, 50, 20]
                 print("l1 weight", l1_weight)
-                hidden_neurons = [30, 10]
+                print("learning rate", lr_relu)
+                print("hidden neurons", hidden_neurons)
                 model = XReluNN(n_classes=1, n_features=n_features, name=name,
                                 hidden_neurons=hidden_neurons, loss=torch.nn.BCEWithLogitsLoss(), l1_weight=l1_weight)
                 try:
                     model.load(device)
                     print(f"Model {name} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
+                    results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_relu, verbose=True,
                                         metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
@@ -254,9 +262,6 @@ if __name__ == "__main__":
                     explanation_complexity = complexity(formula)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
-                    # print(f"{class_to_explain} <-> {formula}")
-                    # print("Explanation accuracy", exp_accuracy)
-                    # print("Explanation complexity", explanation_complexity)
 
             elif method == 'LogisticRegression':
                 l_r_lr = 1e-1

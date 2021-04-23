@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from collections import Callable
 
 import numpy as np
+import pandas as pd
 from sklearn.preprocessing import LabelBinarizer
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms
@@ -95,6 +96,18 @@ class ConceptToTaskDataset(ConceptDataset):
         target = self.targets[idx]
         attribute = self.attributes[idx]
         return attribute, target
+
+    def save_as_csv(self, folder=None):
+        if folder is None:
+            folder = self.root
+        csv_name = os.path.join(folder, self.dataset_name + ".csv")
+        if not os.path.isfile(csv_name):
+            attributes = {
+                concept_name: self.attributes[:, i] for i, concept_name in enumerate(self.attribute_names)
+            }
+            attributes.update({"output_class": self.targets})
+            df = pd.DataFrame(attributes)
+            df.to_csv(csv_name, index=False, header=False)
 
 
 class ImageToConceptDataset(ConceptDataset):
