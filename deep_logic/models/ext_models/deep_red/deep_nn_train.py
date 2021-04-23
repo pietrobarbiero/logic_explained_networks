@@ -178,7 +178,7 @@ def train_network(data, model_name, hidden_nodes, iterations, function='tanh', s
         Hypothesis_train = A_train[layers - 1]
         Hypothesis_test = A_test[layers - 1]
         loss = tf.reduce_mean(
-            tf.nn.softmax_cross_entropy_with_logits_v2(logits, Y_train))  # ADD: added "_v2" newVersion
+            tf.nn.softmax_cross_entropy_with_logits_v2(Y_train, logits))  # ADD: added "_v2" newVersion
     else:
         if function == 'tanh':
             A_train[layers - 1] = tf.tanh(
@@ -210,7 +210,7 @@ def train_network(data, model_name, hidden_nodes, iterations, function='tanh', s
 
     for i in range(iterations):
         x_train, y_train = x, y
-        if batch_size > 0:
+        if batch_size != len(x):
             batch_indexes = random.sample(range(len(x_train)), batch_size)
             x_train = [e for (j, e) in enumerate(x) if j in batch_indexes]
             y_train = [e for (j, e) in enumerate(y) if j in batch_indexes]
