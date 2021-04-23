@@ -1,6 +1,6 @@
 # Different methods to preslect the thresholds to divide the activation range of each neuron
 
-import decision_tree as dt
+from . import decision_tree as dt
 import numpy as np
 import heapq
 import itertools

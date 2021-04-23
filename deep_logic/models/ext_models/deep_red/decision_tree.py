@@ -3,7 +3,7 @@
 import sys
 import operator
 import math
-import simplification as s
+from . import simplification as s
 
 class decisionnode:
 	def __init__(self,col=-1,value=None,results=None,tb=None,fb=None):
@@ -77,7 +77,7 @@ def entropy(rows):
 
 	'''
 	from math import log
-	log2=lambda x:log(x)/log(2)  
+	log2=lambda x:log(x)/log(2)
 	results=uniquecounts(rows)
 	ent=0.0
 	for r in results.keys():
@@ -96,7 +96,7 @@ def get_dnfs(cond_layer, tree):
 	'''
 	dnf = [None] * 2
 	dnf[0] = []
-	dnf[1] = []   
+	dnf[1] = []
 	def return_rules(cond_layer, tree, conditions):
 		if tree.results!=None:
 			tree_class = max(tree.results.items(), key=operator.itemgetter(1))[0] #ADDED iteritems -> items in Python3
@@ -189,7 +189,7 @@ def buildtree(rows, split_points, scoref=entropy, class_dominance = 98, min_set_
 	  if len(rows) <= min_set_size: print('Return for lack of examples')
 	  if max_depth == 0: print('Return for reaching max depth')
 	  if examples_mayority_class >= for_class_dominance: print('Return for class dominance')
-	  print('unique counts', current_classification) 
+	  print('unique counts', current_classification)
 	  return decisionnode(results=current_classification)
   current_score=scoref(rows)
   #best criteria
@@ -211,8 +211,8 @@ def buildtree(rows, split_points, scoref=entropy, class_dominance = 98, min_set_
         best_gain=gain
         best_criteria=(col,value)
         best_sets=(set1,set2)
-		
-  #sub tree 
+
+  #sub tree
   if (best_criteria and best_sets and len(best_sets[0])>min_set_size and len(best_sets[1])>min_set_size) or root:
   	trueBranch=buildtree(best_sets[0], split_points, scoref, class_dominance, min_set_size, max_depth-1, root = False)
   	falseBranch=buildtree(best_sets[1], split_points, scoref, class_dominance, min_set_size, max_depth-1, root = False)
@@ -226,7 +226,7 @@ def decimals(x):
     magnitude = 1 if int_part == 0 else int(math.log10(int_part)) + 1
     if magnitude >= max_digits:
         return 0
-    frac_part = abs(x) - int_part    
+    frac_part = abs(x) - int_part
     multiplier = 10 ** (max_digits - magnitude)
     frac_digits = multiplier + int(multiplier * frac_part + 0.5)
     while frac_digits % 10 == 0:

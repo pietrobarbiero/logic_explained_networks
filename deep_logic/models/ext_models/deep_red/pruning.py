@@ -1,7 +1,7 @@
 # Performs post-pruning of a rule set by deleting rules that don't improve the training accuracy
 
-import simplification as s
-import evaluation_formulas as ef
+from . import simplification as s
+from . import evaluation_formulas as ef
 from operator import concat
 import time
 import math

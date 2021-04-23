@@ -4,11 +4,11 @@
 # is repeated with each of these conditions, and so on until the conditions 
 # are with respect to the network inputs.
 
-import discretization as dis
-import decision_tree as dt
-import simplification as s
-import pruning as p
-import evaluation_formulas as ef
+from . import discretization as dis
+from . import decision_tree as dt
+from . import simplification as s
+from . import pruning as p
+from . import evaluation_formulas as ef
 import numpy as np
 import itertools
 import time

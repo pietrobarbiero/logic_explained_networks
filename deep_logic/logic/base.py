@@ -28,7 +28,6 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
     if concept_names is not None:
         for i, concept_name in enumerate(concept_names):
             explanation = explanation.replace(concept_name, f"feature{i:010}")
-
     if explanation == '':
         local_predictions = [torch.tensor(np.empty_like(y))]
         predictions = torch.cat(local_predictions).eq(target_class).cpu().detach().numpy()

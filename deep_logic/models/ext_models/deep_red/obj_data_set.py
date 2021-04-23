@@ -2,7 +2,7 @@ import csv
 import os
 
 import numpy as np
-import load_restore as lr
+from . import load_restore as lr
 
 
 # A dataset is a collection of observations. Each observation is assigned

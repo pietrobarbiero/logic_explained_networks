@@ -1,6 +1,6 @@
 import xlsxwriter
 import pickle
-import evaluation_formulas as ef
+from . import evaluation_formulas as ef
 import os
 import time
 
