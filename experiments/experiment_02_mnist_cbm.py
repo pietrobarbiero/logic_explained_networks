@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
     loss = torch.nn.CrossEntropyLoss()
     metric = Accuracy()
-    method_list = ['DeepRed']  # TODO: 'General', 'Relu', 'Psi', 'DTree', 'LogisticRegression',
+    method_list = ['DeepRed']  # ['General', 'Relu', 'Psi', 'DTree', 'BRL', 'DeepRed']
     print(method_list)
 
     #%% md
