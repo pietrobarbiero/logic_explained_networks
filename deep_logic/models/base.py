@@ -74,7 +74,7 @@ class BaseClassifier(torch.nn.Module):
                    isinstance(loss, MutualInformationLoss), \
                    "Only CrossEntropyLoss, BCEWithLogitsLoss, MixedMultiLabelLoss or MutualInformationLoss available."
         self.loss = loss
-        self.activation = torch.nn.Sigmoid()  # torch.nn.Softmax(dim=1) if isinstance(loss, torch.nn.CrossEntropyLoss) else torch.nn.Sigmoid()
+        self.activation = torch.nn.Softmax(dim=1) if isinstance(loss, torch.nn.CrossEntropyLoss) else torch.nn.Sigmoid()
         self.name = name
         self.register_buffer("trained", torch.tensor(False))
         self.need_pruning = False
@@ -138,7 +138,7 @@ class BaseClassifier(torch.nn.Module):
         """
         pass
 
-    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = 1024, epochs: int = 20, num_workers: int = 0,
+    def fit(self, train_set: Subset, val_set: Subset, batch_size: int = None, epochs: int = 20, num_workers: int = 0,
             l_r: float = 0.01, lr_scheduler: bool = False, metric: Metric = TopkAccuracy(), early_stopping: bool = True,
             device: torch.device = torch.device("cpu"), verbose: bool = True, save: bool = True) -> pd.DataFrame:
         """
@@ -344,9 +344,10 @@ class BaseClassifier(torch.nn.Module):
         self.trained = torch.tensor(True)
 
     def _reinit(self):
-        for layer in self.model.children():
-            if hasattr(layer, 'reset_parameters'):
-                layer.reset_parameters()
+        if hasattr(self, "model"):
+            for layer in self.model.children():
+                if hasattr(layer, 'reset_parameters'):
+                    layer.reset_parameters()
 
 
 if __name__ == "__main__":
