@@ -10,7 +10,8 @@ from ..utils.metrics import Metric, Accuracy
 
 
 def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor,
-                     give_local: bool = False, metric: Metric = Accuracy(), concept_names: list = None) \
+                     give_local: bool = False, metric: Metric = Accuracy(), concept_names: list = None,
+                     inequalities=False) \
         -> Tuple[float, np.ndarray]:
     """
     Test explanation
@@ -20,6 +21,7 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
     :param x: input data
     :param y: input labels (categorical, NOT one-hot encoded)
     :param give_local: if true will return local predictions
+    :param inequalities: if true check when the inequalities are correct x > 0.2 instead of x > 0.5
     :return: Accuracy of the explanation and predictions
     """
 
@@ -40,19 +42,32 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
         local_predictions = [torch.tensor(np.zeros_like(y))]
         predictions = torch.cat(local_predictions).eq(target_class).cpu().detach().numpy()
     else:
-        explanation = to_dnf(explanation)
+        if not inequalities:
+            explanation = to_dnf(explanation)
+            x = x > 0.5
         minterms = str(explanation).split(' | ')
-        x = x > 0.5
         local_predictions = []
         for minterm in minterms:
             minterm = minterm.replace('(', '').replace(')', '').split(' & ')
             features = []
             for terms in minterm:
-                terms = terms.split('feature')
-                if terms[0] == '~':
-                    features.append(~x[:, int(terms[1])])
+                if inequalities:
+                    terms = terms.replace("feature", "").split(" ")
+                    feature_num = int(terms[0])
+                    sign = terms[1]
+                    threshold = float(terms[2])
+                    assert sign == ">" or sign == "<", f"Invalid sign {sign}"
+                    feature = x[:, feature_num] > threshold
+                    if sign == ">":
+                        features.append(feature)
+                    else:
+                        features.append(~feature)
                 else:
-                    features.append(x[:, int(terms[1])])
+                    terms = terms.split('feature')
+                    if terms[0] == '~':
+                        features.append(~x[:, int(terms[1])])
+                    else:
+                        features.append(x[:, int(terms[1])])
 
             local_prediction = torch.stack(features, dim=0).prod(dim=0)
             local_predictions.append(local_prediction)

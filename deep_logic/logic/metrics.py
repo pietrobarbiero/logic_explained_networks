@@ -25,6 +25,7 @@ def accuracy_score(y_formula: torch.Tensor, y_true: torch.Tensor, metric: callab
 def complexity(formula: str, to_dnf=False) -> float:
     if formula != "":
         if to_dnf:
+            assert "<" not in formula and ">" not in formula, "Cannot bring into DNF a formula with inequalities"
             formula = str(sympy.to_dnf(formula))
         return np.array([len(f.split(' & ')) for f in formula.split(' | ')]).sum()
     return 1

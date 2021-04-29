@@ -147,14 +147,14 @@ def tree_to_formula(tree: DecisionTreeClassifier, concept_names: List[str], targ
         if tree_.feature[node] != _tree.TREE_UNDEFINED:
             name = feature_name[node]
             threshold = tree_.threshold[node]
-            s = f'{name} <= {threshold:.2f}'
+            s = f'{name} < {threshold}'
             if node == 0:
                 pathto[node] = s
             else:
                 pathto[node] = pathto[parent] + ' & ' + s
 
             recurse(tree_.children_left[node], depth + 1, node)
-            s = f'{name} > {threshold:.2f}'
+            s = f'{name} > {threshold}'
             if node == 0:
                 pathto[node] = s
             else:
