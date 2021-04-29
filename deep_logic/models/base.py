@@ -171,10 +171,12 @@ class BaseClassifier(torch.nn.Module):
         # Training epochs
         best_acc, best_epoch = 0.0, -1
         train_accs, val_accs, tot_losses = [], [], []
-        train_loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=True, pin_memory=True,
-                                                   num_workers=num_workers,
-                                                   prefetch_factor=4 if num_workers != 0 else 2)
-
+        if batch_size is None:
+            batch_size = len(train_set)
+            train_loader = [DataLoader(train_set, batch_size).__iter__().next()]
+        else:
+            train_loader = DataLoader(train_set, batch_size, shuffle=True, pin_memory=True,
+                                      num_workers=num_workers, prefetch_factor=4 if num_workers != 0 else 2)
         torch.autograd.set_detect_anomaly(True)
         for epoch in range(epochs):
             tot_losses_i = []
@@ -273,7 +275,7 @@ class BaseClassifier(torch.nn.Module):
         self.train()
         return metric_val
 
-    def predict(self, dataset, batch_size: int = 1024, num_workers: int = 4,
+    def predict(self, dataset, batch_size: int = None, num_workers: int = 4,
                 device: torch.device = torch.device("cpu")) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Predict function to compute the prediction of the model on a certain dataset
@@ -286,7 +288,9 @@ class BaseClassifier(torch.nn.Module):
         """
         self.to(device)
         outputs, labels = [], []
-        loader = torch.utils.data.DataLoader(dataset, batch_size, num_workers=num_workers, pin_memory=True)
+        if batch_size is None:
+            batch_size = len(dataset)
+        loader = DataLoader(dataset, batch_size, num_workers=num_workers, pin_memory=True)
         for i, data in enumerate(loader):
             batch_data, batch_labels, = data[0].to(device), data[1].to(device)
             batch_outputs = self.forward(batch_data)
