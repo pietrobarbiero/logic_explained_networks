@@ -98,5 +98,6 @@ deep_logic/models/ext_models/deep_red/results/
 deep_logic/models/ext_models/deep_red_old/logs/
 deep_logic/models/ext_models/deep_red_old/
 deep_logic/models/ext_models/deep_red/.vscode/
-experiments/data/
-experiments/models/
+experiments/results/cub/data/
+experiments/results/cub/models/
+deep_logic/concept_extractor/50_epochs_complete_training/

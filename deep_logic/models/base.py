@@ -5,7 +5,7 @@ from typing import Tuple
 import pandas as pd
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Subset, DataLoader
 
 from deep_logic.utils.base import ClassifierNotTrainedError, IncompatibleClassifierError
 from deep_logic.utils.metrics import Metric, TopkAccuracy, Accuracy
@@ -78,6 +78,7 @@ class BaseClassifier(torch.nn.Module):
         self.name = name
         self.register_buffer("trained", torch.tensor(False))
         self.need_pruning = False
+        self.time = None
         self.to(device)
 
     def forward(self, x, logits=False):
