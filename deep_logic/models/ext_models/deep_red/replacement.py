@@ -92,8 +92,8 @@ def get_bio(BNN, output_condition, example_cond_dict, dict_indexes, with_data = 
 			return f
 		
 		print('\nReplaced terms')
-		#print('F number rules:',len(f))
-		#print('F number terms:',sum(len(r) for r in f))
+		print('F number rules:',len(f))
+		print('F number terms:',sum(len(r) for r in f))
 		end = time.time()
 		print('TIME: ', end-start)
 		if data:
@@ -105,15 +105,15 @@ def get_bio(BNN, output_condition, example_cond_dict, dict_indexes, with_data = 
 			f = s.boolean_simplify_complex(f)
 			end = time.time()
 			print('TIME:'+str(end-start))
-			#print('\nBasic boolean simplification')
-			#print('F number rules:',len(f))
-			#print('F number terms:',sum(len(r) for r in f))
-			#print('TIME: ', end-start)
+			print('\nBasic boolean simplification')
+			print('F number rules:',len(f))
+			print('F number terms:',sum(len(r) for r in f))
+			print('TIME: ', end-start)
 		if with_data == 2 and len(f)>1:
-			#print('TIME: ', end-start)
-			#start = time.time()
+			print('TIME: ', end-start)
+			start = time.time()
 			f = p.post_prune(f, output_condition, example_cond_dict, dict_indexes, data=data)
-			#end = time.time()
+			end = time.time()
 		condition_layer -= 1
 	return f
 

@@ -1,19 +1,19 @@
-import sys
-
-from . import split_determinator as sd
-from . import load_restore as lr
-from . import deep_nn_train as dnnt
-from . import deep_nn_keep_training_polarize as ktp
-from . import deep_nn_execute_stored as dnnes
-from . import evaluation_formulas as ef
-from .obj_data_set import DataSet
-from . import decision_tree_induction as dti
-from . import printer
-from . import replacement as r
-import time
 import math
 import os
+import sys
+import time
+from concurrent.futures.process import ProcessPoolExecutor
+
 import numpy as np
+
+from deep_logic.models.ext_models.deep_red import decision_tree_induction as dti
+from deep_logic.models.ext_models.deep_red import deep_nn_train as dnnt
+from deep_logic.models.ext_models.deep_red import evaluation_formulas as ef
+from deep_logic.models.ext_models.deep_red import load_restore as lr
+from deep_logic.models.ext_models.deep_red import printer
+from deep_logic.models.ext_models.deep_red import replacement as r
+from deep_logic.models.ext_models.deep_red import split_determinator as sd
+from deep_logic.models.ext_models.deep_red.obj_data_set import DataSet
 
 
 # Determine one or more splits of train and test data. Note that
@@ -49,13 +49,13 @@ def set_split(dataset_name, split_name, percentage):
 
 
 def set_cv_folds(dataset_name, k):
-    '''
+    """
 	Split data into different folds. The resulting split names have the
 	form cv_<k>-<i>, where i is the current folds used for testing.
 
 	param dataset_name: name of dataset without .csv
 	param k: number of folds
-	'''
+	"""
     return sd.cross_validation_folds(dataset_name, k, return_names=True)
 
 
@@ -167,39 +167,41 @@ def extract_model(dataset_name, split_name, model_name, hidden_nodes,
 
     # Extract a dictionary which links conditions of layer l with a dnf
     # using conditions of layer l-1 (and saves it to the 'obj' folder)
+    bnn_name = f"{dataset_name}_{split_name}_{target_class_index}"
     print('BNN extraction')
-    # if os.path.exists('obj/BNN_' + dataset_name + '_' + split_name + '.pkl'):
-    #     BNN, data.example_cond_dict, data.dict_indexes = lr.load_BNN_ecd_indexes(dataset_name + '_' + split_name)
-    #     print('\nLoaded BNN, example-condition-dict, indexes')
-    # else:
-    t = time.time()
-    BNN = dti.build_BNN(data, output_condition, cd=class_dominance, mss=min_size,
-                        relevant_neuron_dictionary=rel_neuron_dict, with_data=rft_pruning_config,
-                        discretization=dis_config, cluster_means=None)
-    # lr.save_BNN_ecd_indexes(BNN, data.example_cond_dict, data.dict_indexes, dataset_name + '_' + split_name)
-    print('\nBuilt BNN')
-    print('Time: ', time.time() - t)
-    print(BNN)
-    print('BNN extraction finished')
+    if os.path.exists('obj/BNN_' + bnn_name + '.pkl'):
+        BNN, data.example_cond_dict, data.dict_indexes = lr.load_BNN_ecd_indexes(bnn_name)
+        print('\nLoaded BNN, example-condition-dict, indexes')
+    else:
+        t = time.time()
+        BNN = dti.build_BNN(data, output_condition, cd=class_dominance, mss=min_size,
+                            relevant_neuron_dictionary=rel_neuron_dict, with_data=rft_pruning_config,
+                            discretization=dis_config, cluster_means=None)
+        lr.save_BNN_ecd_indexes(BNN, data.example_cond_dict, data.dict_indexes, bnn_name)
+        print('\nBuilt BNN')
+        print('Time: ', time.time() - t)
+        print(BNN)
+        print('BNN extraction finished')
 
+    bio_name = f"{dataset_name}_{split_name}_{target_class_index}"
     # Extract an expression of an output condition w.r.t the inputs
-    # if os.path.exists('obj/bio_' + dataset_name + '_' + split_name + '.pkl'):
-    #     bio = lr.load_bio(dataset_name + '_' + split_name)
-    #     print('\nLoaded bio')
-    # else:
-    t = time.time()
-    bio = r.get_bio(BNN, output_condition, data.example_cond_dict, data.dict_indexes, with_data=rep_pruning_config,
-                    data=data)
-    # lr.save_bio(bio, dataset_name + '_' + split_name)
-    print('\nBuilt bio')
-    print('Time: ', time.time() - t)
+    if os.path.exists('obj/bio_' + bio_name + '.pkl'):
+        bio = lr.load_bio(bio_name)
+        print('\nLoaded bio')
+    else:
+        t = time.time()
+        bio = r.get_bio(BNN, output_condition, data.example_cond_dict, data.dict_indexes, with_data=rep_pruning_config,
+                        data=data)
+        lr.save_bio(bio, bio_name)
+        print('\nBuilt bio')
+        print('Time: ', time.time() - t)
 
     if isinstance(bio, list):
         complexity = sum(len(r) for r in bio)
         print('Number rules:', len(bio))
         print('Number terms:', complexity)
     else:
-        complexity = None
+        complexity = 1
 
     fidelity = ef.accuracy_of_dnf(data, output_condition, bio, True, False, False, True)
     exp_accuracy = ef.class_accuracy(data, bio, target_class_index, False, True, False, True)
@@ -222,37 +224,49 @@ def extract_model(dataset_name, split_name, model_name, hidden_nodes,
     return exp_accuracy[1], fidelity[1], complexity, bio
 
 
-def transform_rules(rules, concept_names, n_features):
+def convert_rule(class_rule, concept_names, n_features):
     if concept_names is None:
         concept_names = [f"feature{i:010}" for i in range(n_features)]
 
+    if isinstance(class_rule, bool):
+        print("Deep Red failed in extracting rules")
+        return f"{class_rule}"
+
+    final_rule = "("
+    for bio in class_rule:
+        for rule in bio:
+            if rule[3]:
+                partial_rule = f"{concept_names[rule[1]]} > {rule[2]}"
+            else:
+                partial_rule = f"{concept_names[rule[1]]} < {rule[2]}"
+            final_rule += partial_rule + " & "
+        final_rule = final_rule[:-3]
+        final_rule += ") | ("
+    return final_rule[:-4]
+
+
+def convert_rules(rules, concept_names, n_features):
     final_rules = []
     for class_rule in rules:
-        final_rule = "("
-        for bio in class_rule:
-            for rule in bio:
-                if rule[3]:
-                    partial_rule = f"{concept_names[rule[1]]} > {rule[2]:.3f}"
-                else:
-                    partial_rule = f"{concept_names[rule[1]]} < {rule[2]:.3f}"
-                final_rule += partial_rule + " & "
-            final_rule = final_rule[:-3]
-            final_rule += ") | ("
-        final_rules.append(final_rule[:-4])
-
+        rule = convert_rule(class_rule, concept_names, n_features)
+        final_rules.append(rule)
     return final_rules
 
 
 def train_deepred(dataset_name, n_features, hidden_nodes, classes,
                   trainindx=None, testindx=None, model_name='novel_model_2', seed=0, concept_names=None):
 
+    model_name += "_" + dataset_name
     split_name = str(seed)
     if trainindx is None or testindx is None:
         set_split(dataset_name, split_name, 70)
+        trainindx, testindx = lr.load_indexes(dataset_name, split_name)
     else:
-        # trainindx = [idx for idx in trainindx if idx < 1000]
-        # testindx = [idx for idx in testindx if idx < 1000]
+        trainindx = np.random.choice(trainindx, size=len(trainindx)//100, replace=False)
+        # testindx = np.random.choice(testindx, size=10000, replace=False)
         set_split_manually(dataset_name, split_name, train_indexes=trainindx, test_indexes=testindx)
+    print("Train idx len:", len(trainindx))
+    print("Test idx len:", len(testindx))
     # set_cv_folds(dataset_name, 3)
 
     # if not os.path.isfile(os.path.join("models", model_name + ".ckpt.index")):
@@ -260,21 +274,26 @@ def train_deepred(dataset_name, n_features, hidden_nodes, classes,
                                           init_iterations=1000, wsp_iterations=100, wsp_accuracy_decrease=0.02,
                                           rxren_accuracy_decrease=5, function='tanh', softmax=True)
 
-    old_stdout = sys.stdout
-    sys.stdout = None
     exp_accuracies, fidelities, complexities, rules = [], [], [], []
     for target_class, _ in enumerate(classes):
+        old_stdout = sys.stdout
+        sys.stdout = None
+        t = time.time()
         exp_accuracy, fidelity, complexity, bio = extract_model(dataset_name, split_name, model_name,
                                                                 hidden_nodes, target_class)
+        sys.stdout = old_stdout
+        print(f"{target_class}/{len(classes)} rules extracted. Time: {time.time() - t}")
         exp_accuracies.append(exp_accuracy)
         fidelities.append(fidelity)
         complexities.append(complexity)
         rules.append(bio)
 
-    rules = transform_rules(rules, concept_names, n_features)
-    sys.stdout = old_stdout
+    print("Rules extracted. Starting converting...")
+    rules = convert_rules(rules, concept_names, n_features)
+    for i, rule in enumerate(rules):
+        print(f"{i}/{len(rules)} rule: {rule}")
 
-    return test_acc*100, exp_accuracies*100, fidelities*100, complexities*100, rules
+    return test_acc*100, exp_accuracies*100, fidelities*100, complexities, rules
 
 
 if __name__ == "__main__":

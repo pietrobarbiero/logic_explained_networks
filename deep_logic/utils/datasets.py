@@ -9,6 +9,7 @@ from sklearn.preprocessing import LabelBinarizer
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms
 from data import CUB200
+from deep_logic.utils.base import NotAvailableError
 
 
 class ConceptDataset(ImageFolder, ABC):
@@ -64,12 +65,17 @@ class ConceptDataset(ImageFolder, ABC):
     def __getitem__(self, idx):
         pass
 
+    @abstractmethod
+    def save_as_csv(self, folder=None):
+        pass
+
 
 class ConceptOnlyDataset(ConceptDataset):
     """
      Extension of ConceptDataset to use for Concept only analysis (e.g. clustering).
 
     """
+
     def __init__(self, root: str, predictions=True, **kwargs):
         super().__init__(root, predictions=predictions, multi_label=True, **kwargs)
 
@@ -77,6 +83,9 @@ class ConceptOnlyDataset(ConceptDataset):
         attribute = self.attributes[idx]
         target = self.targets[idx]
         return attribute, target
+
+    def save_as_csv(self, folder=None):
+        raise NotImplementedError()
 
 
 class ConceptToTaskDataset(ConceptDataset):
@@ -128,6 +137,9 @@ class ImageToConceptDataset(ConceptDataset):
         attribute = self.attributes[idx]
         return sample, attribute
 
+    def save_as_csv(self, folder=None):
+        raise NotAvailableError("Cannot save dataset as csv when working with images")
+
 
 class ImageToConceptAndTaskDataset(ConceptDataset):
     """
@@ -141,3 +153,6 @@ class ImageToConceptAndTaskDataset(ConceptDataset):
         sample, _ = ImageFolder.__getitem__(self, idx)
         attribute = self.attributes[idx]
         return sample, attribute
+
+    def save_as_csv(self, folder=None):
+        raise NotAvailableError("Cannot save dataset as csv when working with images")

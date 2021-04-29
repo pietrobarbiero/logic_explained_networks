@@ -7,8 +7,8 @@ from operator import concat
 import copy
 import random
 
-tf.disable_v2_behavior()
-tf.disable_eager_execution()
+# tf.disable_v2_behavior()
+# tf.disable_eager_execution()
 
 def init_weights(shape, i):
 	weights_name = 'W'

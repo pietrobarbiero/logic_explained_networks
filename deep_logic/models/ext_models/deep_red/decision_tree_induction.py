@@ -64,7 +64,7 @@ def build_BNN(data, output_condition, cd=98, mss=1, md=30, relevant_neuron_dicti
             else:
                 split_points = [[0] for l in range(len(current_data[0]) - 1)]
         print('Split points', [len(l) for l in split_points])
-        print(split_points)
+        # print(split_points)
 
         print('')
         for i in target_split_values:
@@ -76,7 +76,7 @@ def build_BNN(data, output_condition, cd=98, mss=1, md=30, relevant_neuron_dicti
             if relevant_neuron_dictionary and discretization == 0:
                 pruned_split_points = [_sp(j, i, split_points, relevant_neuron_dictionary) for j in
                                        range(len(split_points))]
-                print('Pruned split points', pruned_split_points)
+                # print('Pruned split points', pruned_split_points)
                 tree = dt.buildtree(i_data, pruned_split_points, class_dominance=cd, min_set_size=mss, max_depth=md,
                                     root=True)
             else:
@@ -100,9 +100,9 @@ def build_BNN(data, output_condition, cd=98, mss=1, md=30, relevant_neuron_dicti
                 print('False case')
                 pruned = None
                 if isinstance(dnfs[0], list):
-                    # print('Fidelity pre-pruning:', ef.accuracy_of_dnf(data, (i[0], i[1], i[2], False), dnfs[0], True, False, False, True))
-                    # print('Precision pre-pruning:', ef.precision_of_dnf(data, (i[0], i[1], i[2], False), dnfs[0], True, False, False, True))
-                    # print('Recall pre-pruning:', ef.recall_of_dnf(data, (i[0], i[1], i[2], False), dnfs[0], True, False, False, True))
+                    print('Fidelity pre-pruning:', ef.accuracy_of_dnf(data, (i[0], i[1], i[2], False), dnfs[0], True, False, False, True))
+                    print('Precision pre-pruning:', ef.precision_of_dnf(data, (i[0], i[1], i[2], False), dnfs[0], True, False, False, True))
+                    print('Recall pre-pruning:', ef.recall_of_dnf(data, (i[0], i[1], i[2], False), dnfs[0], True, False, False, True))
                     data.update_dictionary([(l, n, t) for conj in dnfs[0] for (l, n, t, u) in conj])
                     if with_data == 0:
                         pruned = s.boolean_simplify_basic(dnfs[0])
@@ -114,18 +114,18 @@ def build_BNN(data, output_condition, cd=98, mss=1, md=30, relevant_neuron_dicti
                     used_shallow_conditions.update(set(c for conj in pruned for c in conj))
                 else:
                     pruned = dnfs[0]
-                # print('Fidelity post-pruning:', ef.accuracy_of_dnf(data, (i[0], i[1], i[2], False), pruned, True, False, False, True))
-                # print('Precision post-pruning:', ef.precision_of_dnf(data, (i[0], i[1], i[2], False), pruned, True, False, False, True))
-                # print('Recall post-pruning:', ef.recall_of_dnf(data, (i[0], i[1], i[2], False), pruned, True, False, False, True))
+                print('Fidelity post-pruning:', ef.accuracy_of_dnf(data, (i[0], i[1], i[2], False), pruned, True, False, False, True))
+                print('Precision post-pruning:', ef.precision_of_dnf(data, (i[0], i[1], i[2], False), pruned, True, False, False, True))
+                print('Recall post-pruning:', ef.recall_of_dnf(data, (i[0], i[1], i[2], False), pruned, True, False, False, True))
                 BNN[(i[0], i[1], i[2], False)] = pruned
                 print((i[0], i[1], i[2], False), pruned)
             if (i[0], i[1], i[2], True) in target_class:
                 print('True case')
                 pruned = None
                 if isinstance(dnfs[1], list):
-                    # print('Fidelity pre-pruning:', ef.accuracy_of_dnf(data, (i[0], i[1], i[2], True), dnfs[1], True, False, False, True))
-                    # print('Precision pre-pruning:', ef.precision_of_dnf(data, (i[0], i[1], i[2], True), dnfs[1], True, False, False, True))
-                    # print('Recall pre-pruning:', ef.recall_of_dnf(data, (i[0], i[1], i[2], True), dnfs[1], True, False, False, True))
+                    print('Fidelity pre-pruning:', ef.accuracy_of_dnf(data, (i[0], i[1], i[2], True), dnfs[1], True, False, False, True))
+                    print('Precision pre-pruning:', ef.precision_of_dnf(data, (i[0], i[1], i[2], True), dnfs[1], True, False, False, True))
+                    print('Recall pre-pruning:', ef.recall_of_dnf(data, (i[0], i[1], i[2], True), dnfs[1], True, False, False, True))
                     data.update_dictionary([(l, n, t) for conj in dnfs[1] for (l, n, t, u) in conj])
                     if with_data == 0:
                         pruned = s.boolean_simplify_basic(dnfs[1])
@@ -137,9 +137,9 @@ def build_BNN(data, output_condition, cd=98, mss=1, md=30, relevant_neuron_dicti
                     used_shallow_conditions.update(set(c for conj in pruned for c in conj))
                 else:
                     pruned = dnfs[1]
-                # print('Fidelity post-pruning:', ef.accuracy_of_dnf(data, (i[0], i[1], i[2], True), pruned, True, False, False, True))
-                # print('Precision post-pruning:', ef.precision_of_dnf(data, (i[0], i[1], i[2], True), pruned, True, False, False, True))
-                # print('Recall post-pruning:', ef.recall_of_dnf(data, (i[0], i[1], i[2], True), pruned, True, False, False, True))
+                print('Fidelity post-pruning:', ef.accuracy_of_dnf(data, (i[0], i[1], i[2], True), pruned, True, False, False, True))
+                print('Precision post-pruning:', ef.precision_of_dnf(data, (i[0], i[1], i[2], True), pruned, True, False, False, True))
+                print('Recall post-pruning:', ef.recall_of_dnf(data, (i[0], i[1], i[2], True), pruned, True, False, False, True))
                 BNN[(i[0], i[1], i[2], True)] = pruned
                 print((i[0], i[1], i[2], True), pruned)
         deep_layer -= 1

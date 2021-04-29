@@ -11,9 +11,9 @@ import random
 
 import functools
 
-
-# tf.disable_v2_behavior()
-# tf.disable_eager_execution()
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+tf.disable_v2_behavior()
+tf.disable_eager_execution()
 
 
 def init_weights(shape, i):
