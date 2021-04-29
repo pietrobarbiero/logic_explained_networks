@@ -27,7 +27,8 @@ class XReluNN(BaseClassifier, BaseXModel):
      """
 
     def __init__(self, n_classes: int, n_features: int, hidden_neurons: list, loss: torch.nn.modules.loss,
-                 l1_weight: float = 1e-4, device: torch.device = torch.device('cpu'), name: str = "relu_net.pth"):
+                 dropout_rate: 0.0 = False, l1_weight: float = 1e-4, device: torch.device = torch.device('cpu'),
+                 name: str = "relu_net.pth"):
 
         super().__init__(loss, name, device)
         self.n_classes = n_classes
@@ -37,10 +38,12 @@ class XReluNN(BaseClassifier, BaseXModel):
         for i in range(len(hidden_neurons) + 1):
             input_nodes = hidden_neurons[i - 1] if i != 0 else n_features
             output_nodes = hidden_neurons[i] if i != len(hidden_neurons) else n_classes
-            layers.extend([
-                torch.nn.Linear(input_nodes, output_nodes),
-                torch.nn.ReLU() if i != len(hidden_neurons) else torch.nn.Identity()
-            ])
+            layers.append(torch.nn.Linear(input_nodes, output_nodes))
+            if i != len(hidden_neurons):
+                layers.extend([
+                    torch.nn.ReLU(),
+                    torch.nn.Dropout(dropout_rate)
+                ])
         self.model = torch.nn.Sequential(*layers)
         self.l1_weight = l1_weight
 
