@@ -11,11 +11,14 @@ if __name__ == "__main__":
     import torch
     import pandas as pd
     import numpy as np
+    from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss
+
     from deep_logic.models.relu_nn import XReluNN
     from deep_logic.models.psi_nn import PsiNetwork
     from deep_logic.models.tree import XDecisionTreeClassifier
     from deep_logic.models.brl import XBRLClassifier
     from deep_logic.models.logistic_regression import XLogisticRegressionClassifier
+    from deep_logic.models.deep_red import XDeepRedClassifier
     from deep_logic.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
     from deep_logic.utils.metrics import Accuracy, F1Score
     from deep_logic.models.general_nn import XGeneralNN
@@ -35,21 +38,22 @@ if __name__ == "__main__":
     ## Loading CUB data
     # %%
     dataset_root = "../data/CUB_200_2011/"
+    dataset_name = CUB200
     print(dataset_root)
     if not os.path.isdir(dataset_root):
         download_cub(dataset_root)
     else:
         print("Dataset already downloaded")
 
-    # %% md
-    ## Extracting Concepts from images
-    # %%
+    #%% md
+    ## Extracting concepts from images
+    #%%
 
-    if not os.path.isfile(os.path.join(dataset_root, f"{CUB200}_predictions.npy")):
+    if not os.path.isfile(os.path.join(dataset_root, f"{dataset_name}_predictions.npy")):
         concept_extractor_cub(dataset_root)
     else:
         print("Concepts already extracted")
-    dataset = ConceptToTaskDataset(dataset_root, predictions=True)
+    dataset = ConceptToTaskDataset(dataset_root, dataset_name=dataset_name, predictions=True)
     concept_names = dataset.attribute_names
     print("Concept names", concept_names)
     n_features = dataset.n_attributes
@@ -59,20 +63,20 @@ if __name__ == "__main__":
     n_classes = dataset.n_classes
     print("Number of classes", n_classes)
 
-    # %% md
+    #%% md
     ## Define loss, metrics and methods
-    # %%
+    #%%
 
-    loss = torch.nn.CrossEntropyLoss()
+    loss = CrossEntropyLoss()
     metric = Accuracy()
-    method_list = ['General', 'Relu', 'Psi', 'DTree', 'BRL']
+    method_list = ['DeepRed']  # ['General', 'Relu', 'Psi', 'DTree', 'BRL', 'DeepRed']
     print("Methods", method_list)
 
     #%% md
     ## Training
     #%%
 
-    epochs = 200
+    epochs = 1000
     l_r = 1e-2
     lr_scheduler = True
     top_k_explanations = 2
@@ -118,12 +122,15 @@ if __name__ == "__main__":
                     results = model.fit(val_data, metric=metric, save=True, verbose=False, eval=False)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-                print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(i, concept_names)
-                    exp_accuracy = accuracy
+                    exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test, metric=F1Score(),
+                                                                     concept_names=concept_names)
+                    exp_predictions = torch.as_tensor(exp_predictions)
+                    class_output = outputs.argmax(dim=1) == i
                     exp_fidelity = 100
+                    # exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
                     explanation_complexity = complexity(formula, to_dnf=True)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
@@ -137,15 +144,52 @@ if __name__ == "__main__":
                     results = model.fit(train_data, val_data, metric=metric, save=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-                print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(i, concept_names)
-                    exp_accuracy = accuracy
+                    exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test, metric=F1Score(),
+                                                                     concept_names=concept_names, inequalities=True)
+                    exp_predictions = torch.as_tensor(exp_predictions)
+                    class_output = outputs.argmax(dim=1) == i
                     exp_fidelity = 100
+                    # exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
                     explanation_complexity = complexity(formula)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
+
+            elif method == 'DeepRed':
+                train_idx = train_data.indices
+                test_idx = test_data.indices
+                train_sample_rate = 0.1
+                model = XDeepRedClassifier(n_classes, n_features, name=name)
+                model.prepare_data(dataset, dataset_name, str(seed), train_idx, test_idx, train_sample_rate)
+                try:
+                    model.load(device)
+                    print(f"Model {name} already trained")
+                except (ClassifierNotTrainedError, IncompatibleClassifierError):
+                    model.fit(epochs=epochs, seed=seed, metric=metric)
+                outputs, labels = model.predict(train=False, device=device)
+                accuracy = model.evaluate(train=False, metric=metric, outputs=outputs, labels=labels)
+                print("Test model accuracy", accuracy)
+                formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
+                print("Extracting rules...")
+                for i, class_to_explain in enumerate(dataset.classes):
+                    t = time.time()
+                    if len(model.rules) > i:
+                        formula = model.rules[i]
+                    else:
+                        formula = model.get_global_explanation(i, concept_names, simplify=simplify)
+                    exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test, metric=F1Score(),
+                                                                     concept_names=concept_names, inequalities=True)
+                    exp_predictions = torch.as_tensor(exp_predictions)
+                    class_output = outputs.argmax(dim=1) == i
+                    exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
+                    explanation_complexity = complexity(formula)
+                    formulas.append(formula), exp_accuracies.append(exp_accuracy)
+                    exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
+                    print(f"{i+1}/{len(dataset.classes)} Rules extracted. Time {time.time() - t}")
+                # To save also the formulas and to restore original folder
+                model.save(), model.finish()
 
             elif method == 'Psi':
                 # Network structures
@@ -166,7 +210,6 @@ if __name__ == "__main__":
                                         metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-                print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(i, concept_names, simplify=simplify)
@@ -197,7 +240,6 @@ if __name__ == "__main__":
                                         lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=F1Score(), outputs=outputs, labels=labels)
-                print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
@@ -228,7 +270,6 @@ if __name__ == "__main__":
                                         metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
-                print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(x_val, y_val, i,
@@ -255,13 +296,16 @@ if __name__ == "__main__":
                     results = model.fit(train_data, val_data, epochs=epochs, l_r=lr_lr, metric=metric,
                                         lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
                 accuracy = model.evaluate(test_data, metric=metric)
-                print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [""], [0], [0], [0]
             else:
                 raise NotImplementedError(f"{method} not implemented")
 
-            elapsed_time = time.time() - start_time
-
+            if model.time is None:
+                elapsed_time = time.time() - start_time
+                model.time = elapsed_time
+                model.save(device)
+            else:
+                elapsed_time = model.time
             methods.append(method)
             splits.append(seed)
             explanations.append(formulas[0])
@@ -270,6 +314,7 @@ if __name__ == "__main__":
             explanation_accuracies.append(np.mean(exp_accuracies))
             explanation_fidelities.append(np.mean(exp_fidelities))
             explanation_complexities.append(np.mean(exp_complexities))
+            print("Test model accuracy", accuracy)
             print("Explanation time", elapsed_time)
             print("Explanation accuracy mean", np.mean(exp_accuracies))
             print("Explanation fidelity mean", np.mean(exp_fidelities))
@@ -292,9 +337,9 @@ if __name__ == "__main__":
         results.to_csv(os.path.join(results_dir, f'results_{method}.csv'))
         print(results)
 
-    # %% md
+    #%% md
     ##Summary
-    # %%
+    #%%
 
     cols = ['model_accuracy', 'explanation_accuracy', 'explanation_fidelity', 'explanation_complexity', 'elapsed_time',
             'explanation_consistency']
