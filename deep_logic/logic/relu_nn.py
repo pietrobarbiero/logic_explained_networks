@@ -1,24 +1,29 @@
-from typing import Tuple, List, Optional
 import collections
+from typing import List
 
-import torch
 import numpy as np
+import torch
 from sympy import simplify_logic, to_dnf
 
 from .base import replace_names, test_explanation, simplify_formula
 from .psi_nn import _build_truth_table
 from ..utils.base import collect_parameters, to_categorical
+from ..utils.metrics import F1Score, Metric
 from ..utils.selection import rank_pruning, rank_weights, rank_lime
 
 
 def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor,
                                target_class: int, method: str, simplify: bool = True,
-                               topk_explanations: int = 2, concept_names: List = None,
+                               topk_explanations: int = None, concept_names: List = None,
                                device: torch.device = torch.device('cpu'), num_classes: int = None,
-                               return_accuracy: bool = False):
+                               return_accuracy: bool = False, metric: Metric = F1Score(),
+                               x_val: torch.tensor = None, y_val = None):
     """
     Generate a global explanation combining local explanations.
 
+    :param y_val:
+    :param x_val:
+    :param metric:
     :param model: pytorch model
     :param x: input samples
     :param y: target labels
@@ -33,7 +38,10 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     :param return_accuracy: whether to return also the accuracy of the explanations or not
     :return: Global explanation, predictions, and ranking of local explanations
     """
+    if x_val is None or y_val is None:
+        x_val, y_val = x, y
     y = to_categorical(y)
+    y_val = to_categorical(y_val)
     assert (y == target_class).any(), "Cannot get explanation if target class is not amongst target labels"
 
     # # collapse samples having the same boolean values and class label different from the target class
@@ -125,19 +133,32 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
     # get most frequent local explanations
     counter = collections.Counter(local_explanations)
-    if len(counter) < topk_explanations:
-        topk_explanations = len(counter)
-    most_common_explanations = []
-    for explanation, _ in counter.most_common(topk_explanations):
-        most_common_explanations.append(explanation)
-
     counter_translated = collections.Counter(local_explanations_translated)
+
+    if topk_explanations is not None:
+        if len(counter) < topk_explanations:
+            topk_explanations = len(counter)
+        most_common_explanations = []
+        for explanation, _ in counter.most_common(topk_explanations):
+            most_common_explanations.append(explanation)
+    # Heuristically determine the number of explanations to retain
+    else:
+        best_accuracy = 0
+        most_common_explanations = []
+        for explanation, _ in counter.most_common(topk_explanations):
+            most_common_explanations.append(explanation)
+            global_explanation = ' | '.join(most_common_explanations)
+            accuracy, predictions = test_explanation(global_explanation, target_class,
+                                                     x_val, y_val, metric=metric)
+            if accuracy <= best_accuracy:
+                most_common_explanations.remove(explanation)
+            else:
+                best_accuracy = accuracy
 
     # the global explanation is the disjunction of local explanations
     global_explanation = ' | '.join(most_common_explanations)
     if simplify:
-        global_explanation_simplified = simplify_logic(global_explanation, 'dnf', force=simplify)
-        global_explanation_simplified_str = str(global_explanation_simplified)
+        global_explanation_simplified_str = str(simplify_logic(global_explanation, 'dnf', force=simplify))
     else:
         global_explanation_simplified_str = str(to_dnf(global_explanation))
     if not global_explanation_simplified_str:
@@ -148,7 +169,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
     # predictions based on FOL formula
     accuracy, predictions = test_explanation(global_explanation_simplified_str, target_class,
-                                             x_validation, y_validation)
+                                             x_validation, y_validation, metric=metric)
 
     # replace concept names
     if concept_names is not None:
