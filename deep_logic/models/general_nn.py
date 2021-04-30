@@ -5,6 +5,7 @@ import torch
 from ..nn import XLinear
 from ..utils.general_nn import prune_features_fanin
 from ..utils.relu_nn import prune_features
+from ..utils.metrics import Metric, F1Score
 from ..logic.relu_nn import combine_local_explanations, explain_local
 from .base import BaseClassifier, BaseXModel
 
@@ -52,6 +53,10 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         self.fan_in = fan_in
         self.need_pruning = True
         self._target_class = None
+
+        if n_classes == 1:
+            n_classes = 2
+        self.explanations = ["" for _ in range(n_classes)]
 
     def get_loss(self, output: torch.Tensor, target: torch.Tensor, epoch: int = None, epochs: int = None)\
             -> torch.Tensor:
@@ -126,33 +131,38 @@ class XGeneralNN(BaseClassifier, BaseXModel):
         return explain_local(self, x, y, x_sample, target_class, method=method, simplify=simplify,
                              concept_names=concept_names, device=self.get_device(), num_classes=self.n_classes)
 
-    def get_global_explanation(self, x, y, target_class: int, topk_explanations: int = 2,
-                               concept_names: list = None, return_time=False, simplify: bool = True):
+    def get_global_explanation(self, x, y, target_class: int, top_k_explanations: int = None,
+                               concept_names: list = None, return_time=False, simplify: bool = True,
+                               metric: Metric = F1Score(), x_val=None, y_val=None):
         """
         Generate a global explanation combining local explanations.
 
+        :param x_val:
+        :param y_val:
+        :param metric:
         :param x: input samples
         :param y: target labels
         :param target_class: class ID
-        :param topk_explanations: number of most common local explanations to combine in a global explanation
+        :param top_k_explanations: number of most common local explanations to combine in a global explanation
                 (it controls the complexity of the global explanation)
         :param simplify: simplify local explanation
         :param concept_names: list containing the names of the input concepts
         :param return_time:
         """
-        method = "pruning"
         start_time = time.time()
-        # if self.n_classes == 2 and target_class == 0 and len(y.squeeze().shape) == 1:
-        #     target_class = 1
-        #     y = 1 - y
-        global_expl, _, _ = combine_local_explanations(self, x, y, target_class, method=method,
-                                                       simplify=simplify, topk_explanations=topk_explanations,
-                                                       concept_names=concept_names, device=self.get_device(),
-                                                       num_classes=1)
+        if self.explanations[target_class] != "":
+            explanation = self.explanations[target_class]
+        else:
+            explanation, _, _ = combine_local_explanations(self, x, y, target_class, method="pruning",
+                                                           simplify=simplify, topk_explanations=top_k_explanations,
+                                                           concept_names=concept_names, device=self.get_device(),
+                                                           num_classes=1, metric=metric, x_val=x_val, y_val=y_val)
+            self.explanations[target_class] = explanation
+
         elapsed_time = time.time() - start_time
         if return_time:
-            return global_expl, elapsed_time
-        return global_expl
+            return explanation, elapsed_time
+        return explanation
 
 
 if __name__ == "__main__":

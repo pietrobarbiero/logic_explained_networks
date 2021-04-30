@@ -79,6 +79,7 @@ class BaseClassifier(torch.nn.Module):
         self.register_buffer("trained", torch.tensor(False))
         self.need_pruning = False
         self.time = None
+        self.explanations = None
         self.to(device)
 
     def forward(self, x, logits=False):
@@ -310,7 +311,12 @@ class BaseClassifier(torch.nn.Module):
             name = self.name
         if set_trained:
             self._set_trained()
-        torch.save(self.state_dict(), name)
+        checkpoint = {
+            "model_dict": self.state_dict(),
+            "explanations": self.explanations,
+            "time": self.time
+        }
+        torch.save(checkpoint, name)
 
     def load(self, device, set_trained=False, name=None) -> None:
         """
@@ -325,7 +331,13 @@ class BaseClassifier(torch.nn.Module):
         if name is None:
             name = self.name
         try:
-            incompat_keys = self.load_state_dict(torch.load(name, map_location=torch.device(device)), strict=False)
+            checkpoint = torch.load(name, map_location=torch.device(device))
+            if "model_dict" in checkpoint:
+                incompat_keys = self.load_state_dict(checkpoint['model_dict'], strict=False)
+                self.explanations = checkpoint['explanations']
+                self.time = checkpoint['time']
+            else:
+                incompat_keys = self.load_state_dict(checkpoint, strict=False)
         except (FileNotFoundError, RuntimeError):
             raise ClassifierNotTrainedError()
         if set_trained:

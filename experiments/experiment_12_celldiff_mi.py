@@ -168,9 +168,8 @@ if __name__ == "__main__":
                                         lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
                 formulas, exp_predictions, exp_complexities = [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
-                    formula = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
-                                                           topk_explanations=top_k_explanations,
-                                                           concept_names=concept_names)
+                    formula = model.get_global_explanation(x_val, y_val, i, top_k_explanations=top_k_explanations,
+                                                           concept_names=concept_names, simplify=simplify)
                     _, exp_prediction = test_explanation(formula, i, x_test, y_test,
                                                          metric=F1Score(), concept_names=concept_names)
                     exp_prediction = torch.as_tensor(exp_prediction)
@@ -195,7 +194,7 @@ if __name__ == "__main__":
                 formulas, exp_predictions, exp_complexities = [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
-                                                           topk_explanations=top_k_explanations,
+                                                           top_k_explanations=top_k_explanations,
                                                            concept_names=concept_names)
                     _, exp_prediction = test_explanation(formula, i, x_test, y_test,
                                                          metric=F1Score(), concept_names=concept_names)

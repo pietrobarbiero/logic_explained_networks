@@ -49,10 +49,11 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
             self.model.append(model)
             self.class_names.append(class_name)
 
-        if feature_names is not None:
-            self.features_names = feature_names
-        else:
-            self.features_names = [f"f{i}" for i in range(n_features)]
+        self.features_names = feature_names if feature_names is not None else [f"f{i}" for i in range(n_features)]
+
+        if n_classes == 1:
+            n_classes = 2
+        self.explanations = ["" for _ in range(n_classes)]
 
     def forward(self, x, **kwargs) -> torch.Tensor:
         """
@@ -251,20 +252,22 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
     def get_local_explanation(self, **kwargs):
         raise NotAvailableError()
 
-    def get_global_explanation(self, class_to_explain: int, concept_names: list = None, *args,
+    def get_global_explanation(self, target_class: int, concept_names: list = None, *args,
                                return_time: bool = False, **kwargs):
         start_time = time.time()
 
-        # formula = str(self.model[class_to_explain])
-        formula = brl_extracting_formula(self.model[class_to_explain])
-
-        if concept_names is not None:
-            for i, name in enumerate(concept_names):
-                formula = formula.replace(f"ft{i}", name)
+        if self.explanations[target_class] != "":
+            explanation = self.explanations[target_class]
+        else:
+            explanation = brl_extracting_formula(self.model[target_class])
+            if concept_names is not None:
+                for i, name in enumerate(concept_names):
+                    explanation = explanation.replace(f"ft{i}", name)
+            self.explanations[target_class] = explanation
 
         if return_time:
-            return formula, time.time() - start_time
-        return formula
+            return explanation, time.time() - start_time
+        return explanation
 
 
 if __name__ == "__main__":

@@ -36,6 +36,10 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
 
         self.model = DecisionTreeClassifier(max_depth=max_depth)
 
+        if n_classes == 1:
+            n_classes = 2
+        self.explanations = ["" for _ in range(n_classes)]
+
     def forward(self, x, **kwargs) -> torch.Tensor:
         """
         forward method extended from Classifier. Here input data goes through the layer of the ReLU network.
@@ -162,15 +166,20 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
     def get_local_explanation(self, **kwargs):
         raise NotAvailableError()
 
-    def get_global_explanation(self, class_to_explain: int, concept_names: list = None, *args,
+    def get_global_explanation(self, target_class: int, concept_names: list = None, *args,
                                return_time: bool = False, **kwargs):
         if concept_names is None:
             concept_names = [f"f_{i}" for i in range(self.n_features)]
         start_time = time.time()
-        formula = tree_to_formula(self.model, concept_names, class_to_explain)
+        if self.explanations[target_class] != "":
+            explanation = self.explanations[target_class]
+        else:
+            explanation = tree_to_formula(self.model, concept_names, target_class)
+            self.explanations[target_class] = explanation
+
         if return_time:
-            return formula, time.time() - start_time
-        return formula
+            return explanation, time.time() - start_time
+        return explanation
 
 
 if __name__ == "__main__":

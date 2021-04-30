@@ -51,7 +51,10 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         self.l1_weight = l1_weight
         self.fan_in = fan_in
         self.need_pruning = True
-        self._explanations = None
+
+        if n_classes == 1:
+            n_classes = 2
+        self.explanations = ["" for _ in range(n_classes)]
 
     def get_loss(self, output: torch.Tensor, target: torch.Tensor, epoch: int = None, epochs: int = None) \
             -> torch.Tensor:
@@ -123,15 +126,16 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         """
         start_time = time.time()
         model = self.model[target_class]
-        explanations = generate_fol_explanations(model, self.get_device(), concept_names, simplify=True)
 
-        if len(explanations) > 1:
-            explanations = explanations[target_class]
+        if self.explanations[target_class] != "":
+            explanation = self.explanations[target_class]
         else:
-            explanations = explanations[0]
+            explanation = generate_fol_explanations(model, self.get_device(), concept_names, simplify=True)[0]
+            self.explanations[target_class] = explanation
+
         if return_time:
-            return explanations, time.time() - start_time
-        return explanations
+            return explanation, time.time() - start_time
+        return explanation
 
 
 if __name__ == "__main__":

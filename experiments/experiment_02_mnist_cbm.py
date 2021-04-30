@@ -19,7 +19,6 @@ if __name__ == "__main__":
     from deep_logic.models.brl import XBRLClassifier
     from deep_logic.models.logistic_regression import XLogisticRegressionClassifier
     from deep_logic.models.deep_red import XDeepRedClassifier
-    from deep_logic.models.ext_models.deep_red.main import train_deepred
     from deep_logic.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
     from deep_logic.utils.metrics import Accuracy, F1Score
     from deep_logic.models.general_nn import XGeneralNN
@@ -71,7 +70,8 @@ if __name__ == "__main__":
 
     loss = CrossEntropyLoss()
     metric = Accuracy()
-    method_list = ['Relu', 'General', 'Psi', 'DTree', 'BRL', 'DeepRed']  #
+    expl_metric = F1Score()
+    method_list = ['Psi']  # 'Relu', 'General', 'Psi', 'DTree', 'BRL', 'DeepRed']
     print("Methods", method_list)
 
     #%% md
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     epochs = 1000
     l_r = 1e-3
     lr_scheduler = False
-    top_k_explanations = 20
+    top_k_explanations = None
     simplify = True
     seeds = [*range(10)]
     print("Seeds", seeds)
@@ -104,6 +104,8 @@ if __name__ == "__main__":
             name = os.path.join(results_dir, f"{method}_{seed}")
 
             train_data, val_data, test_data = get_splits_train_val_test(dataset, load=False)
+            x_train = torch.tensor(dataset.attributes[train_data.indices])
+            y_train = torch.tensor(dataset.targets[train_data.indices])
             x_val = torch.tensor(dataset.attributes[val_data.indices])
             y_val = torch.tensor(dataset.targets[val_data.indices])
             x_test = torch.tensor(dataset.attributes[test_data.indices])
@@ -127,12 +129,12 @@ if __name__ == "__main__":
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(i, concept_names)
-                    exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test, metric=F1Score(),
+                    exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test, metric=expl_metric,
                                                                      concept_names=concept_names)
                     exp_predictions = torch.as_tensor(exp_predictions)
                     class_output = outputs.argmax(dim=1) == i
                     exp_fidelity = 100
-                    # exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
+                    # exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
                     explanation_complexity = complexity(formula, to_dnf=True)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
@@ -150,12 +152,12 @@ if __name__ == "__main__":
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(i, concept_names)
-                    exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test, metric=F1Score(),
+                    exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test, metric=expl_metric,
                                                                      concept_names=concept_names, inequalities=True)
                     exp_predictions = torch.as_tensor(exp_predictions)
                     class_output = outputs.argmax(dim=1) == i
                     exp_fidelity = 100
-                    # exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
+                    # exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
                     explanation_complexity = complexity(formula)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
@@ -181,17 +183,17 @@ if __name__ == "__main__":
                         formula = model.rules[i]
                     else:
                         formula = model.get_global_explanation(i, concept_names, simplify=simplify)
-                    exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test, metric=F1Score(),
+                    exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test, metric=expl_metric,
                                                                      concept_names=concept_names, inequalities=True)
                     exp_predictions = torch.as_tensor(exp_predictions)
                     class_output = outputs.argmax(dim=1) == i
-                    exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
+                    exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
                     explanation_complexity = complexity(formula)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
                     print(f"{i+1}/{len(dataset.classes)} Rules extracted")
-                # To save also the formulas and to restore original folder
-                model.save(), model.finish()
+                # To restore the original folder
+                model.finish()
 
             elif method == 'Psi':
                 # Network structures
@@ -219,10 +221,10 @@ if __name__ == "__main__":
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(i, concept_names, simplify=simplify)
                     exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
-                                                                     metric=F1Score(), concept_names=concept_names)
+                                                                     metric=expl_metric, concept_names=concept_names)
                     exp_predictions = torch.as_tensor(exp_predictions)
                     class_output = outputs.argmax(dim=1) == i
-                    exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
+                    exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
                     explanation_complexity = complexity(formula, to_dnf=True)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
@@ -240,17 +242,16 @@ if __name__ == "__main__":
                     results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
                                         lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
                 outputs, labels = model.predict(test_data, device=device)
-                accuracy = model.evaluate(test_data, metric=F1Score(), outputs=outputs, labels=labels)
+                accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
-                    formula = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
-                                                           topk_explanations=top_k_explanations,
-                                                           concept_names=concept_names)
+                    formula = model.get_global_explanation(x_val, y_val, i, top_k_explanations=top_k_explanations,
+                                                           concept_names=concept_names, simplify=simplify)
                     exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
-                                                                     metric=F1Score(), concept_names=concept_names)
+                                                                     metric=expl_metric, concept_names=concept_names)
                     exp_predictions = torch.as_tensor(exp_predictions)
                     class_output = outputs.argmax(dim=1) == i
-                    exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
+                    exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
                     explanation_complexity = complexity(formula)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
@@ -278,15 +279,15 @@ if __name__ == "__main__":
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
-                    formula = model.get_global_explanation(x_val, y_val, i,
-                                                           topk_explanations=top_k_explanations,
+                    formula = model.get_global_explanation(x_train, y_train, i,
+                                                           top_k_explanations=top_k_explanations,
                                                            concept_names=concept_names,
                                                            simplify=simplify)
                     exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
-                                                                     metric=F1Score(), concept_names=concept_names)
+                                                                     metric=expl_metric, concept_names=concept_names)
                     exp_predictions = torch.as_tensor(exp_predictions)
                     class_output = outputs.argmax(dim=1) == i
-                    exp_fidelity = fidelity(exp_predictions, class_output, F1Score())
+                    exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
                     explanation_complexity = complexity(formula)
                     formulas.append(formula), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
@@ -310,6 +311,7 @@ if __name__ == "__main__":
             if model.time is None:
                 elapsed_time = time.time() - start_time
                 model.time = elapsed_time
+                # To save the elapsed time and the explanations
                 model.save(device)
             else:
                 elapsed_time = model.time

@@ -230,9 +230,8 @@ if __name__ == "__main__":
                 print("Test model accuracy", accuracy)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
-                    formula = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
-                                                           topk_explanations=top_k_explanations,
-                                                           concept_names=concept_names)
+                    formula = model.get_global_explanation(x_val, y_val, i, top_k_explanations=top_k_explanations,
+                                                           concept_names=concept_names, simplify=simplify)
                     exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
                                                                      metric=F1Score(), concept_names=concept_names)
                     exp_predictions = torch.as_tensor(exp_predictions)
@@ -265,7 +264,7 @@ if __name__ == "__main__":
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
                     formula = model.get_global_explanation(x_val, y_val, i,
-                                                           topk_explanations=1,
+                                                           top_k_explanations=1,
                                                            concept_names=concept_names,
                                                            simplify=simplify)
                     exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,

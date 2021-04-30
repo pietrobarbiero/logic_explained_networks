@@ -56,8 +56,11 @@ class XDeepRedClassifier(BaseClassifier, BaseXModel):
         self._prepared_data = False
         self.dataset_name = None
         self.split_name = None
-        self.rules = []
         self._prepare_folders()
+
+        if n_classes == 1:
+            n_classes = 2
+        self.explanations = ["" for _ in range(n_classes)]
 
     @staticmethod
     def _prepare_folders():
@@ -214,19 +217,6 @@ class XDeepRedClassifier(BaseClassifier, BaseXModel):
 
         return torch.as_tensor(output), torch.as_tensor(labels)
 
-    def save(self, set_trained=False, name=None) -> None:
-        if name is None:
-            name = self.name
-        super().save(set_trained, name)
-        torch.save(self.rules, name + "_rules")
-
-    def load(self, device, set_trained=False, name=None) -> None:
-        assert device == torch.device('cpu'), "Deep Red models can be loaded and evaluated only on cpu."
-        if name is None:
-            name = self.name
-        super().load(device, set_trained, name)
-        self.rules = torch.load(name + "_rules")
-
     def finish(self):
         os.chdir(self._origin_folder)
 
@@ -236,23 +226,27 @@ class XDeepRedClassifier(BaseClassifier, BaseXModel):
     def get_local_explanation(self, **kwargs):
         raise NotAvailableError()
 
-    def get_global_explanation(self, class_to_explain: int, concept_names: list = None, *args,
+    def get_global_explanation(self, target_class: int, concept_names: list = None, *args,
                                return_time: bool = False, **kwargs):
 
         assert self.trained, "Model need to be trained before extracting explanations"
-        old_stdout = sys.stdout
-        sys.stdout = None
         t = time.time()
-        model_name = os.path.basename(self.name)
-        exp_accuracy, fidelity, complexity, bio = deep_red.main.extract_model(self.dataset_name, self.split_name,
-                                                                              model_name, self.hidden_nodes,
-                                                                              class_to_explain)
-        sys.stdout = old_stdout
-        rule = deep_red.main.convert_rule(bio, concept_names, self.n_features)
-        self.rules.append(rule)
+        if self.explanations[target_class] != "":
+            explanation = self.explanations[target_class]
+        else:
+            old_stdout = sys.stdout
+            sys.stdout = None
+            model_name = os.path.basename(self.name)
+            exp_accuracy, fidelity, complexity, bio = deep_red.main.extract_model(self.dataset_name, self.split_name,
+                                                                                  model_name, self.hidden_nodes,
+                                                                                  target_class)
+            sys.stdout = old_stdout
+            explanation = deep_red.main.convert_rule(bio, concept_names, self.n_features)
+            self.explanations[target_class] = explanation
+
         if return_time:
-            return rule, time.time() - t
-        return rule
+            return explanation, time.time() - t
+        return explanation
 
 
 if __name__ == "__main__":

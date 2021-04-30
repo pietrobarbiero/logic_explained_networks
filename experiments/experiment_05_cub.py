@@ -11,7 +11,7 @@ if __name__ == "__main__":
     import torch
     import pandas as pd
     import numpy as np
-    from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss
+    from torch.nn import CrossEntropyLoss
 
     from deep_logic.models.relu_nn import XReluNN
     from deep_logic.models.psi_nn import PsiNetwork
@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
     loss = CrossEntropyLoss()
     metric = Accuracy()
-    method_list = ['DeepRed']  # ['General', 'Relu', 'Psi', 'DTree', 'BRL', 'DeepRed']
+    method_list = ['General']  # ['General', 'Relu', 'Psi', 'DTree', 'BRL', 'DeepRed']
     print("Methods", method_list)
 
     #%% md
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     epochs = 1000
     l_r = 1e-2
     lr_scheduler = True
-    top_k_explanations = 2
+    top_k_explanations = None
     simplify = True
     seeds = [*range(5)]
     print("Seeds", seeds)
@@ -102,6 +102,8 @@ if __name__ == "__main__":
             name = os.path.join(results_dir, f"{method}_{seed}")
 
             train_data, val_data, test_data = get_splits_train_val_test(dataset, load=False)
+            x_train = torch.tensor(dataset.attributes[train_data.indices])
+            y_train = torch.tensor(dataset.targets[train_data.indices])
             x_val = torch.tensor(dataset.attributes[val_data.indices])
             y_val = torch.tensor(dataset.targets[val_data.indices])
             x_test = torch.tensor(dataset.attributes[test_data.indices])
@@ -242,9 +244,9 @@ if __name__ == "__main__":
                 accuracy = model.evaluate(test_data, metric=F1Score(), outputs=outputs, labels=labels)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
-                    formula = model.get_global_explanation(x_val, y_val, i, simplify=simplify,
-                                                           topk_explanations=top_k_explanations,
-                                                           concept_names=concept_names)
+                    formula = model.get_global_explanation(x_train, y_train, i, top_k_explanations=top_k_explanations,
+                                                           concept_names=concept_names, simplify=simplify,
+                                                           metric=F1Score(), x_val=x_val, y_val=y_val)
                     exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
                                                                      metric=F1Score(), concept_names=concept_names)
                     exp_predictions = torch.as_tensor(exp_predictions)
@@ -272,10 +274,10 @@ if __name__ == "__main__":
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
                 formulas, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i, class_to_explain in enumerate(dataset.classes):
-                    formula = model.get_global_explanation(x_val, y_val, i,
-                                                           topk_explanations=1,
-                                                           concept_names=concept_names,
-                                                           simplify=simplify)
+                    formula = model.get_global_explanation(x_train, y_train, i, simplify=simplify,
+                                                           concept_names=concept_names, metric=F1Score(),
+                                                           top_k_explanations=top_k_explanations,
+                                                           x_val=x_val, y_val=y_val)
                     exp_accuracy, exp_predictions = test_explanation(formula, i, x_test, y_test,
                                                                      metric=F1Score(), concept_names=concept_names)
                     exp_predictions = torch.as_tensor(exp_predictions)
