@@ -3,7 +3,7 @@ from typing import List
 
 import torch
 import numpy as np
-from sympy import sympify
+from sympy import sympify, to_dnf
 from sympy.logic import simplify_logic
 
 from ..utils.base import collect_parameters
@@ -61,6 +61,7 @@ def generate_fol_explanations(model: torch.nn.Module, device: torch.device = tor
 
         # the new feature names are the formulas we just computed
         feature_names = formulas
+    formulas = [str(to_dnf(formula, simplify=True, force=simplify)) for formula in formulas]
     return formulas
 
 
@@ -69,6 +70,7 @@ def compute_fol_formula(truth_table: np.array, predictions: np.array, feature_na
     """
     Compute First Order Logic formulas.
 
+    :param simplify:
     :param truth_table: input truth table.
     :param predictions: output predictions for the current neuron.
     :param feature_names: name of the input features.
