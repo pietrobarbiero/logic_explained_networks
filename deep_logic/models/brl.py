@@ -1,4 +1,5 @@
 import time
+import warnings
 from concurrent.futures.process import ProcessPoolExecutor
 from typing import Tuple
 
@@ -126,14 +127,15 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         """
         return torch.device("cpu")
 
-    def fit(self, train_set: Dataset, val_set: Dataset = None, metric: Metric = Accuracy(),
-            verbose: bool = True, save=True, eval=True, **kwargs) -> pd.DataFrame:
+    def fit(self, train_set: Dataset, val_set: Dataset = None, train_sample_rate: float = 0.1,
+            metric: Metric = Accuracy(), verbose: bool = True, save=True, eval=True, **kwargs) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.
         Adam optimizer is always employed
 
         :param train_set: training set on which to train
         :param val_set: validation set used for early stopping
+        :param train_sample_rate:
         :param metric: metric to evaluate the predictions of the network
         :param verbose: whether to output or not epoch metrics
         :param save: whether to save the model or not
@@ -142,12 +144,16 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         """
 
         # Loading dataset
-        train_loader = torch.utils.data.DataLoader(train_set, 1024)
+        train_loader = torch.utils.data.DataLoader(train_set, len(train_set))
         train_data, train_labels = [], []
         for data in train_loader:
             train_data.append(data[0]), train_labels.append(data[1])
         train_data = torch.cat(train_data).numpy()
+        train_sample = int(len(train_data) * train_sample_rate)
+        train_idx = np.random.choice(range(len(train_data)), size=train_sample, replace=False)
+        train_data = train_data[train_idx]
         train_labels = torch.cat(train_labels).numpy()
+        train_labels = train_labels[train_idx]
         train_labels = self._binarize_labels(train_labels)
 
         if self.discretize:
@@ -221,28 +227,43 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         outputs = np.vstack(outputs)
         return torch.FloatTensor(outputs), torch.FloatTensor(labels)
 
-    def save(self, name=None, **kwargs) -> None:
+    def save(self, device=torch.device("cpu"), name=None, **kwargs) -> None:
         """
         Save model on a file named with the name of the model if parameter name is not set.
 
+        :param device:
         :param name: Save the model with a name different from the one assigned in the __init__
         """
         from joblib import dump
         if name is None:
             name = self.name
-        dump(self.model, name)
+        checkpoint = {
+            "model": self.model,
+            "explanations": self.explanations,
+            "time": self.time
+        }
+        dump(checkpoint, name)
 
     def load(self, device=torch.device("cpu"), name=None, **kwargs) -> None:
-        from joblib import load
         """
-        Load BRL model.
+        Load decision tree model.
 
+        :param device:
         :param name: Load a model with a name different from the one assigned in the __init__
         """
+        from joblib import load
         if name is None:
             name = self.name
         try:
-            self.model = load(name)
+            checkpoint = load(name)
+            if 'model' in checkpoint:
+                self.model = checkpoint['model']
+                self.explanations = checkpoint['explanations']
+                self.time = checkpoint['time']
+            else:
+                self.model = checkpoint
+                warnings.warn("Loaded model does not have time or explanations. "
+                              "They need to be recalculated but time will only consider rule extraction time.")
         except FileNotFoundError:
             raise ClassifierNotTrainedError() from None
 

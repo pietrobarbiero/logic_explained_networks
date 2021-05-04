@@ -1,5 +1,5 @@
-import os
 import time
+import warnings
 from typing import Tuple
 
 import numpy as np
@@ -135,28 +135,43 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         outputs = np.vstack(outputs)
         return torch.FloatTensor(outputs), torch.FloatTensor(labels)
 
-    def save(self, name=None, **kwargs) -> None:
+    def save(self, device=torch.device("cpu"), name=None, **kwargs) -> None:
         """
         Save model on a file named with the name of the model if parameter name is not set.
 
+        :param device:
         :param name: Save the model with a name different from the one assigned in the __init__
         """
         from joblib import dump
         if name is None:
             name = self.name
-        dump(self.model, name)
+        checkpoint = {
+            "model": self.model,
+            "explanations": self.explanations,
+            "time": self.time
+        }
+        dump(checkpoint, name)
 
     def load(self, device=torch.device("cpu"), name=None, **kwargs) -> None:
-        from joblib import load
         """
         Load decision tree model.
 
+        :param device:
         :param name: Load a model with a name different from the one assigned in the __init__
         """
+        from joblib import load
         if name is None:
             name = self.name
         try:
-            self.model = load(name)
+            checkpoint = load(name)
+            if 'model' in checkpoint:
+                self.model = checkpoint['model']
+                self.explanations = checkpoint['explanations']
+                self.time = checkpoint['time']
+            else:
+                self.model = checkpoint
+                warnings.warn("Loaded model does not have time or explanations. "
+                              "They need to be recalculated but time will only consider rule extraction time.")
         except FileNotFoundError:
             raise ClassifierNotTrainedError() from None
 
