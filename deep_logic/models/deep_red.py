@@ -81,12 +81,12 @@ class XDeepRedClassifier(BaseClassifier, BaseXModel):
             os.mkdir(indexes_folder)
             print("Created index folder")
 
-    def prepare_data(self, dataset: ConceptDataset, dataset_name: str, split_name: str, train_idx=None, test_idx=None,
+    def prepare_data(self, dataset: ConceptDataset, dataset_name: str, seed: int, train_idx=None, test_idx=None,
                      train_sample_rate=0.1):
         """
         :param dataset:
         :param dataset_name:
-        :param split_name:
+        :param seed:
         :param train_idx:
         :param test_idx:
         :param train_sample_rate:
@@ -94,7 +94,7 @@ class XDeepRedClassifier(BaseClassifier, BaseXModel):
 
         dataset.save_as_csv("data")
         self.dataset_name = dataset_name
-        self.split_name = split_name
+        self.split_name = f"{seed}_{train_sample_rate}"
 
         if train_idx is None or test_idx is None:
             deep_red.main.set_split(self.dataset_name, self.split_name, 90)

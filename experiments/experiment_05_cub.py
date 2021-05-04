@@ -71,7 +71,7 @@ if __name__ == "__main__":
     loss = CrossEntropyLoss()
     metric = Accuracy()
     expl_metric = F1Score()
-    method_list = ['General', 'Relu', 'Psi', 'DTree', 'BRL', 'DeepRed']
+    method_list = ['Relu', 'General', 'Psi', 'DTree', 'BRL', 'DeepRed']
     print("Methods", method_list)
 
     #%% md
@@ -79,6 +79,7 @@ if __name__ == "__main__":
     #%%
 
     epochs = 1000
+    timeout = 60 * 60  # 1 h timeout
     l_r = 1e-3
     lr_scheduler = False
     top_k_explanations = None
@@ -123,7 +124,7 @@ if __name__ == "__main__":
                     model.load(device)
                     print(f"Model {name} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    results = model.fit(train_data, val_data, metric=metric, save=True)
+                    model.fit(train_data, val_data, metric=metric, save=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
@@ -131,9 +132,9 @@ if __name__ == "__main__":
                     explanation = model.get_global_explanation(i, concept_names)
                     exp_accuracy, exp_predictions = test_explanation(explanation, i, x_test, y_test, metric=expl_metric,
                                                                      concept_names=concept_names, inequalities=True)
-                    exp_predictions = torch.as_tensor(exp_predictions)
-                    class_output = outputs.argmax(dim=1) == i
                     exp_fidelity = 100
+                    # exp_predictions = torch.as_tensor(exp_predictions)
+                    # class_output = outputs.argmax(dim=1) == i
                     # exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
                     explanation_complexity = complexity(explanation)
                     explanations.append(explanation), exp_accuracies.append(exp_accuracy)
@@ -147,8 +148,7 @@ if __name__ == "__main__":
                     model.load(device)
                     print(f"Model {name} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    results = model.fit(train_data, metric=metric, save=True,
-                                        train_sample_rate=train_sample_rate, verbose=False, eval=False)
+                    model.fit(train_data, metric=metric, train_sample_rate=train_sample_rate, verbose=False, eval=False)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
@@ -156,9 +156,9 @@ if __name__ == "__main__":
                     explanation = model.get_global_explanation(i, concept_names)
                     exp_accuracy, exp_predictions = test_explanation(explanation, i, x_test, y_test, metric=expl_metric,
                                                                      concept_names=concept_names)
-                    exp_predictions = torch.as_tensor(exp_predictions)
-                    class_output = outputs.argmax(dim=1) == i
                     exp_fidelity = 100
+                    # exp_predictions = torch.as_tensor(exp_predictions)
+                    # class_output = outputs.argmax(dim=1) == i
                     # exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
                     explanation_complexity = complexity(explanation, to_dnf=True)
                     explanations.append(explanation), exp_accuracies.append(exp_accuracy)
@@ -168,9 +168,8 @@ if __name__ == "__main__":
                 train_idx = train_data.indices
                 test_idx = test_data.indices
                 train_sample_rate = 0.1
-                split_name = f"{seed}_{train_sample_rate}"
                 model = XDeepRedClassifier(n_classes, n_features, name=name)
-                model.prepare_data(dataset, dataset_name, split_name, train_idx, test_idx, train_sample_rate)
+                model.prepare_data(dataset, dataset_name, seed, train_idx, test_idx, train_sample_rate)
                 try:
                     model.load(device)
                     print(f"Model {name} already trained")
@@ -180,8 +179,8 @@ if __name__ == "__main__":
                 accuracy = model.evaluate(train=False, metric=metric, outputs=outputs, labels=labels)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 print("Extracting rules...")
+                t = time.time()
                 with ProcessPoolExecutor(8) as executor:
-                    t = time.time()
                     futures = []
                     for i, class_to_explain in enumerate(dataset.classes):
                         args = {"self": model,
@@ -191,7 +190,12 @@ if __name__ == "__main__":
                                 }
                         futures.append(executor.submit(XDeepRedClassifier.get_global_explanation, **args))
                     for i, class_to_explain in enumerate(dataset.classes):
-                        explanation = futures[i].result()
+                        try:
+                            # explanation are waited only until timeout, otherwise they return false
+                            explanation = futures[i].result(timeout=timeout)
+                        except TimeoutError:
+                            explanation = "False"
+                            print(f"{method} failed to return within {timeout} s an explanation.")
                         # explanation = model.get_global_explanation(i, concept_names, simplify=simplify)
                         exp_accuracy, exp_predictions = test_explanation(explanation, i, x_test, y_test,
                                                                          metric=expl_metric,
@@ -220,8 +224,8 @@ if __name__ == "__main__":
                     model.load(device)
                     print(f"Model {name} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
-                                        metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
+                    model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
+                              metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
@@ -249,8 +253,8 @@ if __name__ == "__main__":
                     model.load(device)
                     print(f"Model {name} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
-                                        lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
+                    model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
+                              lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
@@ -280,8 +284,8 @@ if __name__ == "__main__":
                     model.load(device)
                     print(f"Model {name} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
-                                        metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
+                    model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
+                              metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
@@ -307,8 +311,8 @@ if __name__ == "__main__":
                     model.load(device)
                     print(f"Model {name} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    results = model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
-                                        lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
+                    model.fit(train_data, val_data, epochs=epochs, l_r=l_r, metric=metric,
+                              lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
                 accuracy = model.evaluate(test_data, metric=metric)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [""], [0], [0], [0]
             else:
@@ -321,9 +325,10 @@ if __name__ == "__main__":
                 model.save(device)
             else:
                 elapsed_time = model.time
+
             methods.append(method)
             splits.append(seed)
-            model_explanations.append(model_explanations[0])
+            model_explanations.append(explanations[0])
             model_accuracies.append(accuracy)
             elapsed_times.append(elapsed_time)
             explanation_accuracies.append(np.mean(exp_accuracies))
@@ -346,7 +351,7 @@ if __name__ == "__main__":
             'explanation_accuracy': explanation_accuracies,
             'explanation_fidelity': explanation_fidelities,
             'explanation_complexity': explanation_complexities,
-            'explanation_consistency': explanation_consistency,
+            'explanation_consistency': [explanation_consistency] * len(seeds),
             'elapsed_time': elapsed_times,
         })
         results.to_csv(os.path.join(results_dir, f'results_{method}.csv'))
@@ -361,23 +366,23 @@ if __name__ == "__main__":
     mean_cols = [f'{c}_mean' for c in cols]
     sem_cols = [f'{c}_sem' for c in cols]
 
-    results = {}
+    results_df = {}
     summaries = {}
-    for method in method_list:
-        results[method] = pd.read_csv(os.path.join(results_dir, f"results_{method}.csv"))
-        df_mean = results[method][cols].mean()
-        df_sem = results[method][cols].sem()
+    for m in method_list:
+        results_df[m] = pd.read_csv(os.path.join(results_dir, f"results_{m}.csv"))
+        df_mean = results_df[m][cols].mean()
+        df_sem = results_df[m][cols].sem()
         df_mean.columns = mean_cols
         df_sem.columns = sem_cols
-        summaries[method] = pd.concat([df_mean, df_sem])
-        summaries[method].name = method
+        summaries[m] = pd.concat([df_mean, df_sem])
+        summaries[m].name = m
 
-    results = pd.concat([results[method] for method in method_list], axis=1).T
-    results.to_csv(os.path.join(results_dir, f'results.csv'))
+    results_df = pd.concat([results_df[method] for method in method_list], axis=1).T
+    results_df.to_csv(os.path.join(results_dir, f'results.csv'))
 
     summary = pd.concat([summaries[method] for method in method_list], axis=1).T
     summary.columns = mean_cols + sem_cols
     summary.to_csv(os.path.join(results_dir, 'summary.csv'))
     print(summary)
 
-    # %%
+    #%%
