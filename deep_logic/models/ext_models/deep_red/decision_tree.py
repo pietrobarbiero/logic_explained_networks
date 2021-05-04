@@ -2,7 +2,6 @@
 
 import operator
 import math
-from concurrent.futures.process import ProcessPoolExecutor
 
 from . import simplification as s
 
@@ -211,24 +210,12 @@ def buildtree(rows, split_points, scoref=entropy, class_dominance=98, min_set_si
     best_criteria = None
     best_sets = None
     column_count = len(rows[0]) - 1
-    with ProcessPoolExecutor(8) as executor:
-        futures = []
-        for col in range(0, column_count):
-            args = {
-                "split_points": split_points,
-                "col": col,
-                "rows": rows,
-                "current_score": current_score,
-                "scoref": scoref
-            }
-            futures.append(executor.submit(column_wise_split, **args))
-        for col in range(0, column_count):
-            cur_sets, gain, cur_criteria = futures[col].result()
-            # cur_sets, gain, cur_criteria = column_wise_split(split_points, col, rows, current_score, scoref)
-            if gain >= best_gain:
-                best_gain = gain
-                best_criteria = cur_criteria
-                best_sets = cur_sets
+    for col in range(0, column_count):
+        cur_sets, gain, cur_criteria = column_wise_split(split_points, col, rows, current_score, scoref)
+        if gain >= best_gain:
+            best_gain = gain
+            best_criteria = cur_criteria
+            best_sets = cur_sets
 
     # sub tree
     if (best_criteria and best_sets and len(best_sets[0]) > min_set_size and len(best_sets[1]) > min_set_size) or root:

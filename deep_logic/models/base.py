@@ -1,6 +1,7 @@
 import os
 from abc import abstractmethod, ABC
 from typing import Tuple
+import warnings
 
 import pandas as pd
 import torch
@@ -177,7 +178,7 @@ class BaseClassifier(torch.nn.Module):
             batch_size = len(train_set)
             train_loader = [DataLoader(train_set, batch_size).__iter__().next()]
         else:
-            train_loader = DataLoader(train_set, batch_size, shuffle=True, pin_memory=True,
+            train_loader = DataLoader(train_set, batch_size, shuffle=True, pin_memory=device != torch.device("cpu"),
                                       num_workers=num_workers, prefetch_factor=4 if num_workers != 0 else 2)
         torch.autograd.set_detect_anomaly(True)
         for epoch in range(epochs):
@@ -292,7 +293,7 @@ class BaseClassifier(torch.nn.Module):
         outputs, labels = [], []
         if batch_size is None:
             batch_size = len(dataset)
-        loader = DataLoader(dataset, batch_size, num_workers=num_workers, pin_memory=True)
+        loader = DataLoader(dataset, batch_size, num_workers=num_workers, pin_memory=device != torch.device("cpu"))
         for i, data in enumerate(loader):
             batch_data, batch_labels, = data[0].to(device), data[1].to(device)
             batch_outputs = self.forward(batch_data)
@@ -332,12 +333,16 @@ class BaseClassifier(torch.nn.Module):
             name = self.name
         try:
             checkpoint = torch.load(name, map_location=torch.device(device))
-            if "model_dict" in checkpoint:
-                incompat_keys = self.load_state_dict(checkpoint['model_dict'], strict=False)
+            if 'model_dict' in checkpoint:
+                state_dict = checkpoint['model_dict']
                 self.explanations = checkpoint['explanations']
                 self.time = checkpoint['time']
             else:
-                incompat_keys = self.load_state_dict(checkpoint, strict=False)
+                state_dict = checkpoint
+            if self.time is None or self.explanations[0] == "":
+                warnings.warn("Loaded model does not have time or explanations. "
+                              "They need to be recalculated but time will only consider rule extraction time.")
+            incompat_keys = self.load_state_dict(state_dict, strict=False)
         except (FileNotFoundError, RuntimeError):
             raise ClassifierNotTrainedError()
         if set_trained:
@@ -348,7 +353,7 @@ class BaseClassifier(torch.nn.Module):
         if len(incompat_keys.missing_keys) > 0 or len(incompat_keys.unexpected_keys) > 0:
             if self.need_pruning:
                 self.prune()
-                incompat_keys = self.load_state_dict(torch.load(name, map_location=torch.device(device)), strict=False)
+                incompat_keys = self.load_state_dict(state_dict, strict=False)
                 if len(incompat_keys.missing_keys) > 0 or len(incompat_keys.unexpected_keys) > 0:
                     raise IncompatibleClassifierError(incompat_keys.missing_keys, incompat_keys.unexpected_keys)
             else:

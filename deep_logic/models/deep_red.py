@@ -81,7 +81,8 @@ class XDeepRedClassifier(BaseClassifier, BaseXModel):
             os.mkdir(indexes_folder)
             print("Created index folder")
 
-    def prepare_data(self, dataset: ConceptDataset, dataset_name: str, split_name: str, train_idx=None, test_idx=None, train_sample_rate=0.1):
+    def prepare_data(self, dataset: ConceptDataset, dataset_name: str, split_name: str, train_idx=None, test_idx=None,
+                     train_sample_rate=0.1):
         """
         :param dataset:
         :param dataset_name:
@@ -90,12 +91,13 @@ class XDeepRedClassifier(BaseClassifier, BaseXModel):
         :param test_idx:
         :param train_sample_rate:
         """
+
         dataset.save_as_csv("data")
         self.dataset_name = dataset_name
         self.split_name = split_name
 
         if train_idx is None or test_idx is None:
-            deep_red.main.set_split(self.dataset_name, self.split_name, 70)
+            deep_red.main.set_split(self.dataset_name, self.split_name, 90)
             train_idx, test_idx = deep_red.lr.load_indexes(self.dataset_name, self.split_name)
         else:
             train_sample = int(len(train_idx) * train_sample_rate)
@@ -138,7 +140,8 @@ class XDeepRedClassifier(BaseClassifier, BaseXModel):
         """
         return torch.device("cpu")
 
-    def fit(self, epochs: int = 1000, metric: Metric = Accuracy(), verbose: bool = True, save=True, **kwargs) -> pd.DataFrame:
+    def fit(self, epochs: int = 1000, metric: Metric = Accuracy(), verbose: bool = True, save=True,
+            **kwargs) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.
         Adam optimizer is always employed

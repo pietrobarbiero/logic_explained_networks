@@ -38,8 +38,11 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     :param return_accuracy: whether to return also the accuracy of the explanations or not
     :return: Global explanation, predictions, and ranking of local explanations
     """
-    if x_val is None or y_val is None:
-        x_val, y_val = x, y
+    assert topk_explanations is not None or (x_val is not None and y_val is not None), \
+        "validation data need to be passed when the number of top explanations to retain is not specified"
+
+    # if x_val is None or y_val is None:
+    #     x_val, y_val = x, y
     y = to_categorical(y)
     y_val = to_categorical(y_val)
     assert (y == target_class).any(), "Cannot get explanation if target class is not amongst target labels"
