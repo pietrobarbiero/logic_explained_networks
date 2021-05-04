@@ -1,10 +1,11 @@
 import time
 
 import torch
+import numpy as np
 
 from ..utils.base import NotAvailableError
 from ..utils.psi_nn import prune_equal_fanin
-from ..logic.psi_nn import generate_fol_explanations
+from ..logic.psi_nn import generate_fol_explanations, generate_fol_explanations_from_data
 from .base import BaseClassifier, BaseXModel
 
 
@@ -114,10 +115,11 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         raise NotAvailableError()
 
     def get_global_explanation(self, target_class: int, concept_names: list = None, simplify: bool = True,
-                               return_time: bool = False, **kwargs):
+                               x_train: torch.tensor = None, return_time: bool = False, **kwargs):
         """
         Generate explanations.
 
+        :param x_train:
         :param target_class:
         :param concept_names:
         :param simplify:
@@ -130,7 +132,11 @@ class PsiNetwork(BaseClassifier, BaseXModel):
         if self.explanations[target_class] != "":
             explanation = self.explanations[target_class]
         else:
-            explanation = generate_fol_explanations(model, self.get_device(), concept_names, simplify=True)[0]
+            if x_train is not None:
+                explanation = generate_fol_explanations_from_data(model, x_train, True, concept_names,
+                                                                  self.get_device())[0]
+            else:
+                explanation = generate_fol_explanations(model, self.get_device(), concept_names, simplify=True)[0]
             self.explanations[target_class] = explanation
 
         if return_time:

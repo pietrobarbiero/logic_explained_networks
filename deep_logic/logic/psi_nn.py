@@ -65,8 +65,77 @@ def generate_fol_explanations(model: torch.nn.Module, device: torch.device = tor
     return formulas
 
 
+def generate_fol_explanations_from_data(model: torch.nn.Module, x_train: torch.tensor = None, simplify: bool = True,
+                                        concept_names: list = None, device: torch.device = torch.device('cpu')) \
+        -> List[str]:
+    """
+    Generate the FOL formulas corresponding to the parameters of a reasoning network.
+
+    :param x_train:
+    :param simplify:
+    :param model: pytorch model
+    :param device: cpu or cuda device
+    :param concept_names: list of names of the input features
+    :return: first-order logic formulas
+    """
+
+    weights, bias = collect_parameters(model, device)
+    assert len(weights) == len(bias)
+
+    # count number of layers of the reasoning network
+    n_layers = len(weights)
+    fan_in = np.count_nonzero((weights[0])[0, :])
+    n_features = np.shape(weights[0])[1]
+
+    # create fancy feature names
+    if concept_names is not None:
+        assert len(concept_names) == n_features, "Concept names need to be as much as network input nodes"
+        feature_names = concept_names
+    else:
+        feature_names = list()
+        for k in range(n_features):
+            feature_names.append(f'feature{k:010}')
+
+    # count the number of hidden neurons for each layer
+    neuron_list = _count_neurons(weights)
+    # get the position of non-pruned weights
+    nonpruned_positions = _get_nonpruned_positions(weights, neuron_list)
+
+    # neurons activation are calculated on real data
+    x_real = x_train.numpy()
+
+    # simulate a forward pass using non-pruned weights only
+    predictions_r = list()
+    input_matrices = list()
+    for j in range(n_layers):
+        X1 = [x_real[:, nonpruned_positions[j][i][0]] for i in range(neuron_list[j])]
+        weights_active = _get_nonpruned_weights(weights[j], fan_in)
+
+        # with real data we calculate the predictions neuron by neuron
+        # since the input to each neuron may differ (does not happen with truth table)
+        y_pred_r = [_forward(X1[i], weights_active[i, :], bias[j][i]) for i in range(neuron_list[j])]
+        y_pred_r = np.asarray(y_pred_r)
+        x_real = np.transpose(y_pred_r)
+        predictions_r.append(y_pred_r)
+        input_matrices.append(np.asarray(X1) > 0.5)
+
+    formulas_r = None
+    feature_names_r = feature_names
+    for j in range(n_layers):
+        formulas_r = list()
+        for i in range(neuron_list[j]):
+            formula_r = compute_fol_formula(input_matrices[j][i], predictions_r[j][i], feature_names_r,
+                                            nonpruned_positions[j][i][0], simplify=simplify, fan_in=fan_in)
+            formulas_r.append(f'({formula_r})')
+        # the new feature names are the formulas we just computed
+        feature_names_r = formulas_r
+    formulas_r = [str(to_dnf(formula, simplify=True, force=simplify)) for formula in formulas_r]
+
+    return formulas_r
+
+
 def compute_fol_formula(truth_table: np.array, predictions: np.array, feature_names: List[str],
-                        nonpruned_positions: List[np.array], simplify=True) -> str:
+                        nonpruned_positions: List[np.array], simplify: bool = True, fan_in: int = None) -> str:
     """
     Compute First Order Logic formulas.
 
@@ -75,8 +144,10 @@ def compute_fol_formula(truth_table: np.array, predictions: np.array, feature_na
     :param predictions: output predictions for the current neuron.
     :param feature_names: name of the input features.
     :param nonpruned_positions: position of non-pruned weights
+    :param fan_in:
     :return: first-order logic formula
     """
+
     # select the rows of the input truth table for which the output is true
     X = truth_table[np.nonzero(predictions)]
 
@@ -85,6 +156,9 @@ def compute_fol_formula(truth_table: np.array, predictions: np.array, feature_na
 
     # if the output is never false, then return true
     if np.shape(X)[0] == np.shape(truth_table)[0]: return "True"
+
+    # filter common rows
+    X, indices = np.unique(X, axis=0, return_index=True)
 
     # compute the formula
     formula = ''
@@ -157,21 +231,26 @@ def _get_nonpruned_weights(weight_matrix: np.array, fan_in: int) -> np.array:
     return weights_active
 
 
-def _build_truth_table(fan_in: int) -> np.array:
+def _build_truth_table(fan_in: int, x_train: torch.tensor = None, nonpruned_positions: np.asarray = None) -> np.array:
     """
     Build the truth table taking into account non-pruned features only,
 
     :param fan_in: number of incoming active weights for each neuron in the network.
     :return: truth table
     """
-    items = []
-    for i in range(fan_in):
-        items.append([0, 1])
-    truth_table = list(product(*items))
-    return np.array(truth_table)
+    if x_train is None:
+        items = []
+        for i in range(fan_in):
+            items.append([0, 1])
+        truth_table = np.array(list(product(*items)))
+    else:
+        x_train = x_train.numpy() > 0.5
+        truth_table = np.unique(x_train, axis=0)
+        truth_table = truth_table[:, nonpruned_positions]
+    return truth_table
 
 
-def _get_nonpruned_positions(weights: List[np.array], neuron_list: List[int]) -> List:
+def _get_nonpruned_positions(weights: List[np.array], neuron_list: np.ndarray) -> List[List]:
     """
     Get the list of the position of non-pruned weights.
 
@@ -189,7 +268,7 @@ def _get_nonpruned_positions(weights: List[np.array], neuron_list: List[int]) ->
     return nonpruned_positions
 
 
-def _count_neurons(weights: List[np.array]) -> List[int]:
+def _count_neurons(weights: List[np.array]) -> np.ndarray:
     """
     Count the number of neurons for each layer of the neural network.
 
