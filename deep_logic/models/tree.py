@@ -86,15 +86,14 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         """
 
         # Loading dataset
-        train_loader = torch.utils.data.DataLoader(train_set, 1024)
-        train_data, train_labels = [], []
-        for data in train_loader:
-            train_data.append(data[0]), train_labels.append(data[1])
-        train_data, train_labels = torch.cat(train_data).numpy(), torch.cat(train_labels).numpy()
+        train_loader = torch.utils.data.DataLoader(train_set, len(train_set))
+        train_data, train_labels = train_loader.__iter__().next()
+
+        # Checking labels: if multi class (but not multilabel) reduce to a single array
+        if len(train_labels.squeeze().shape) > 1 and train_labels.sum() == train_labels.shape[0]:
+            train_labels = np.argmax(train_labels, axis=1)
 
         # Fitting decision tree
-        if len(train_labels.squeeze().shape) > 1:
-            train_labels = np.argmax(train_labels, axis=1)
         self.model = self.model.fit(X=train_data, y=train_labels)
 
         # Compute accuracy, f1 and constraint_loss on the whole train, validation dataset
@@ -124,16 +123,14 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         :param dataset: dataset on which to test
         :return: a tuple containing the outputs computed on the dataset and the labels
         """
-        outputs, labels = [], []
-        loader = torch.utils.data.DataLoader(dataset, 1024)
-        for data in loader:
-            batch_data = data[0]
-            batch_output = self.forward(batch_data)
-            outputs.append(batch_output)
-            labels.append(data[1].numpy())
-        labels = np.concatenate(labels)
-        outputs = np.vstack(outputs)
-        return torch.FloatTensor(outputs), torch.FloatTensor(labels)
+        train_loader = torch.utils.data.DataLoader(dataset, len(dataset))
+        data = train_loader.__iter__().next()
+        output = self.model.predict(data[0])
+        # multilabel output
+        if isinstance(output, list):
+            output = np.asarray(output).reshape((data[1].shape + (-1,))).argmax(axis=2)
+        labels = data[1].numpy()
+        return torch.FloatTensor(output), torch.FloatTensor(labels)
 
     def save(self, device=torch.device("cpu"), name=None, **kwargs) -> None:
         """

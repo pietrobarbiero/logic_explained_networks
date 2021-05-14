@@ -1,16 +1,17 @@
 import os
+import warnings
 from abc import abstractmethod, ABC
 from typing import Tuple
-import warnings
 
 import pandas as pd
 import torch
+from sklearn.model_selection import StratifiedKFold
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.utils.data import Dataset, Subset, DataLoader
+from torch.utils.data import Dataset, DataLoader
 
 from deep_logic.utils.base import ClassifierNotTrainedError, IncompatibleClassifierError
-from deep_logic.utils.metrics import Metric, TopkAccuracy, Accuracy
 from deep_logic.utils.loss import MutualInformationLoss, MixedMultiLabelLoss
+from deep_logic.utils.metrics import Metric, TopkAccuracy, Accuracy
 
 
 class BaseXModel(ABC):
@@ -141,7 +142,7 @@ class BaseClassifier(torch.nn.Module):
         """
         pass
 
-    def fit(self, train_set: Subset, val_set: Subset, batch_size: int = None, epochs: int = 20, num_workers: int = 0,
+    def fit(self, train_set: Dataset, val_set: Dataset, batch_size: int = None, epochs: int = 20, num_workers: int = 0,
             l_r: float = 0.01, lr_scheduler: bool = False, metric: Metric = TopkAccuracy(), early_stopping: bool = True,
             device: torch.device = torch.device("cpu"), verbose: bool = True, save: bool = True) -> pd.DataFrame:
         """
@@ -176,10 +177,13 @@ class BaseClassifier(torch.nn.Module):
         train_accs, val_accs, tot_losses = [], [], []
         if batch_size is None:
             batch_size = len(train_set)
-            train_loader = [DataLoader(train_set, batch_size).__iter__().next()]
+            # print(f"Batch size {batch_size}")
+            train_loader = [item for item in DataLoader(train_set, batch_size)]
         else:
             train_loader = DataLoader(train_set, batch_size, shuffle=True, pin_memory=device != torch.device("cpu"),
-                                      num_workers=num_workers, prefetch_factor=4 if num_workers != 0 else 2)
+                                      num_workers=num_workers, prefetch_factor=4, persistent_workers=True)
+        # print(f"Data loader created")
+
         torch.autograd.set_detect_anomaly(True)
         for epoch in range(epochs):
             tot_losses_i = []
@@ -255,7 +259,7 @@ class BaseClassifier(torch.nn.Module):
         performance_df = pd.DataFrame(performance_dict)
         return performance_df
 
-    def evaluate(self, dataset: Dataset, batch_size: int = 1024,
+    def evaluate(self, dataset: Dataset, batch_size: int = None,
                  metric: Metric = Accuracy(), num_workers: int = 0,
                  device: torch.device = torch.device("cpu"), outputs=None, labels=None) -> float:
         """
@@ -270,7 +274,7 @@ class BaseClassifier(torch.nn.Module):
         :param labels: to be passed together with outputs
         :return: metric evaluated on the dataset
         """
-        self.eval(), self.to(device)
+        self.eval()
         with torch.no_grad():
             if outputs is None or labels is None:
                 outputs, labels = self.predict(dataset, batch_size, num_workers, device)
@@ -278,7 +282,7 @@ class BaseClassifier(torch.nn.Module):
         self.train()
         return metric_val
 
-    def predict(self, dataset, batch_size: int = None, num_workers: int = 4,
+    def predict(self, dataset, batch_size: int = None, num_workers: int = 0,
                 device: torch.device = torch.device("cpu")) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Predict function to compute the prediction of the model on a certain dataset
