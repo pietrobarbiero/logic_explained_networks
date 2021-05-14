@@ -4,6 +4,7 @@ from typing import List
 import numpy as np
 import torch
 from sympy import simplify_logic, to_dnf
+from torch.nn import ModuleList
 
 from .base import replace_names, test_explanation, simplify_formula
 from .psi_nn import _build_truth_table
@@ -41,6 +42,9 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     assert topk_explanations is not None or (x_val is not None and y_val is not None), \
         "validation data need to be passed when the number of top explanations to retain is not specified"
 
+    x, y = x.to(device), y.to(device)
+    if x_val is not None and y_val is not None:
+        x_val, y_val = x_val.to(device), y_val.to(device)
     # if x_val is None or y_val is None:
     #     x_val, y_val = x, y
     y = to_categorical(y)
@@ -48,16 +52,22 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     assert (y == target_class).any(), "Cannot get explanation if target class is not amongst target labels"
 
     # # collapse samples having the same boolean values and class label different from the target class
-    # w, b = collect_parameters(model, device)
-    # feature_weights = w[0]
-    # feature_used_bool = np.sum(np.abs(feature_weights), axis=0) > 0
-    # feature_used = np.sort(np.nonzero(feature_used_bool)[0])
-    # _, idx = np.unique((x[:, feature_used][y == target_class] >= 0.5).cpu().detach().numpy(), axis=0, return_index=True)
+    if hasattr(model, "model"):
+        target_model = model.model
+        if isinstance(target_model, ModuleList):
+            target_model = target_model[target_class]
+    else:
+        target_model = model
+    w, b = collect_parameters(target_model, device)
+    feature_weights = w[0]
+    feature_used_bool = np.sum(np.abs(feature_weights), axis=0) > 0
+    feature_used = np.sort(np.nonzero(feature_used_bool)[0])
+    _, idx = np.unique((x[:, feature_used][y == target_class] >= 0.5).cpu().detach().numpy(), axis=0, return_index=True)
     # _, idx = np.unique((x[y == target_class] >= 0.5).cpu().detach().numpy(), axis=0, return_index=True)
-    # x_target = x[y == target_class][idx]
-    # y_target = y[y == target_class][idx]
-    x_target = x[y == target_class]
-    y_target = y[y == target_class]
+    x_target = x[y == target_class][idx]
+    y_target = y[y == target_class][idx]
+    # x_target = x[y == target_class]
+    # y_target = y[y == target_class]
     # print(len(y_target))
 
     # get model's predictions
@@ -70,11 +80,11 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     y_target_correct = y_target[correct_mask]
 
     # collapse samples having the same boolean values and class label different from the target class
-    # _, idx = np.unique((x[y != target_class] > 0.5).cpu().detach().numpy(), axis=0, return_index=True)
-    # x_reduced_opposite = x[y != target_class][idx]
-    # y_reduced_opposite = y[y != target_class][idx]
-    x_reduced_opposite = x[y != target_class]
-    y_reduced_opposite = y[y != target_class]
+    _, idx = np.unique((x[:, feature_used][y != target_class] > 0.5).cpu().detach().numpy(), axis=0, return_index=True)
+    x_reduced_opposite = x[y != target_class][idx]
+    y_reduced_opposite = y[y != target_class][idx]
+    # x_reduced_opposite = x[y != target_class]
+    # y_reduced_opposite = y[y != target_class]
     preds_opposite = model(x_reduced_opposite)
     if len(preds_opposite.squeeze(-1).shape) > 1:
         preds_opposite = torch.argmax(preds_opposite, dim=1)
@@ -108,10 +118,10 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
         if local_explanation_raw in local_explanations_raw:
             local_explanation = local_explanations_raw[local_explanation_raw]
-        elif simplify:
-            local_explanation = simplify_formula(local_explanation_raw, model,
-                                                 x_validation, y_validation,
-                                                 xi, target_class)
+        # elif simplify:
+        #     local_explanation = simplify_formula(local_explanation_raw, model,
+        #                                          x_validation, y_validation,
+        #                                          xi, target_class)
         else:
             local_explanation = local_explanation_raw
 
@@ -148,7 +158,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     else:
         best_accuracy = 0
         most_common_explanations = []
-        for explanation, _ in counter.most_common(topk_explanations):
+        for explanation, _ in counter.most_common():
             most_common_explanations.append(explanation)
             global_explanation = ' | '.join(most_common_explanations)
             accuracy, predictions = test_explanation(global_explanation, target_class,
