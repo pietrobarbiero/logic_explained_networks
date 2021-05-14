@@ -362,6 +362,23 @@ class BaseClassifier(torch.nn.Module):
                     raise IncompatibleClassifierError(incompat_keys.missing_keys, incompat_keys.unexpected_keys)
             else:
                 raise IncompatibleClassifierError(incompat_keys.missing_keys, incompat_keys.unexpected_keys)
+        self.to(device)
+        assert self.get_device().type == device.type, "Error in loading model to the correct device"
+
+    @staticmethod
+    def _random_sample_data(sample_rate: float, x: torch.Tensor, y: torch.Tensor, return_idx=False) -> \
+            (torch.Tensor, torch.Tensor):
+        splits = int(1/sample_rate)
+        if splits > 1:
+            skf = StratifiedKFold(n_splits=splits)
+            _, idx = next(skf.split(x, y))
+        else:
+            idx = range(len(y))
+        if return_idx:
+            return idx
+        x = x[idx, :]
+        y = y[idx]
+        return x, y
 
     def _set_trained(self) -> None:
         """

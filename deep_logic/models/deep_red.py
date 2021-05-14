@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from deep_logic.utils.datasets import MyDataset
 from deep_logic.utils.data import ConceptDataset
 from deep_logic.models.base import BaseClassifier, BaseXModel
 from deep_logic.models.ext_models import deep_red
@@ -81,8 +82,8 @@ class XDeepRedClassifier(BaseClassifier, BaseXModel):
             os.mkdir(indexes_folder)
             print("Created index folder")
 
-    def prepare_data(self, dataset: ConceptDataset, dataset_name: str, seed: int, train_idx=None, test_idx=None,
-                     train_sample_rate=0.1):
+    def prepare_data(self, dataset: MyDataset, dataset_name: str, seed: int, train_idx=None, test_idx=None,
+                     train_sample_rate=1.):
         """
         :param dataset:
         :param dataset_name:
@@ -97,11 +98,12 @@ class XDeepRedClassifier(BaseClassifier, BaseXModel):
         self.split_name = f"{seed}_{train_sample_rate}"
 
         if train_idx is None or test_idx is None:
-            deep_red.main.set_split(self.dataset_name, self.split_name, 90)
+            deep_red.main.set_split(self.dataset_name, self.split_name, (100 - int(1/train_sample_rate)*100))
             train_idx, test_idx = deep_red.lr.load_indexes(self.dataset_name, self.split_name)
         else:
-            train_sample = int(len(train_idx) * train_sample_rate)
-            train_idx = np.random.choice(train_idx, size=train_sample, replace=False)
+            data, labels = next(torch.utils.data.DataLoader(dataset, len(dataset)).__iter__())
+            train_data, train_labels = data[train_idx], labels[train_idx]
+            train_idx = self._random_sample_data(train_sample_rate, train_data, train_labels, return_idx=True)
             deep_red.main.set_split_manually(self.dataset_name, self.split_name,
                                              train_indexes=train_idx, test_indexes=test_idx)
         self.data = deep_red.obj_data_set.DataSet(self.dataset_name, self.hidden_nodes)
@@ -140,7 +142,7 @@ class XDeepRedClassifier(BaseClassifier, BaseXModel):
         """
         return torch.device("cpu")
 
-    def fit(self, epochs: int = 1000, metric: Metric = Accuracy(), verbose: bool = True, save=True,
+    def fit(self, epochs: int = 1000, metric: Metric = Accuracy(), verbose: bool = False, save=True,
             **kwargs) -> pd.DataFrame:
         """
         fit function that execute many of the common operation generally performed by many method during training.
@@ -230,15 +232,17 @@ class XDeepRedClassifier(BaseClassifier, BaseXModel):
         raise NotAvailableError()
 
     def get_global_explanation(self, target_class: int, concept_names: list = None, *args,
-                               return_time: bool = False, **kwargs):
+                               return_time: bool = False, verbose=False, **kwargs):
 
+        print(f"Extracting explanation for class {target_class}")
         assert self.trained, "Model need to be trained before extracting explanations"
         t = time.time()
         if self.explanations[target_class] != "":
             explanation = self.explanations[target_class]
         else:
             old_stdout = sys.stdout
-            sys.stdout = None
+            if not verbose:
+                sys.stdout = None
             model_name = os.path.basename(self.name)
             exp_accuracy, fidelity, complexity, bio = deep_red.main.extract_model(self.dataset_name, self.split_name,
                                                                                   model_name, self.hidden_nodes,
@@ -247,6 +251,7 @@ class XDeepRedClassifier(BaseClassifier, BaseXModel):
             explanation = deep_red.main.convert_rule(bio, concept_names, self.n_features)
             self.explanations[target_class] = explanation
 
+        print(f"Finished extracting explanation for class {target_class}")
         if return_time:
             return explanation, time.time() - t
         return explanation

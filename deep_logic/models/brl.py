@@ -6,6 +6,7 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 import torch
+from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import LabelBinarizer
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
@@ -32,8 +33,9 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
             name of the classes, if not given substituted with class_1, class_2, ... class_n
     """
 
-    def __init__(self, n_classes: int, n_features: int, discretize: bool = False, feature_names: list = None,
-                 class_names: list = None, device: torch.device = torch.device('cpu'), name: str = "brl.pth", ):
+    def __init__(self, n_classes: int, n_features: int, discretize: bool = True, feature_names: list = None,
+                 class_names: list = None, n_processes : int = 1, device: torch.device = torch.device('cpu'),
+                 name: str = "brl.pth", ):
 
         super().__init__(name=name, device=device)
         assert device == torch.device('cpu'), "Only cpu training is provided with BRL models."
@@ -41,6 +43,7 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
         self.n_classes = n_classes
         self.n_features = n_features
         self.discretize = discretize
+        self.n_processes = n_processes
 
         self.model = []
         self.class_names = []
@@ -49,9 +52,7 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
             model = RuleListClassifier(max_iter=10000, class1label=class_name, verbose=False)
             self.model.append(model)
             self.class_names.append(class_name)
-
         self.features_names = feature_names if feature_names is not None else [f"f{i}" for i in range(n_features)]
-
         if n_classes == 1:
             n_classes = 2
         self.explanations = ["" for _ in range(n_classes)]
@@ -69,25 +70,26 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
             x = self._discretize(x)
         outputs = []
         pbar = tqdm(range(self.n_classes), desc="BRL predicting classes")
-        with ProcessPoolExecutor() as executor:
-            futures = []
+        futures = []
+        if self.n_processes > 1:
+            executor = ProcessPoolExecutor(self.n_processes)
             for i in range(self.n_classes):
                 args = {
                     "self": self.model[i],
                     "X": x,
                 }
                 futures.append(executor.submit(RuleListClassifier.predict_proba, **args))
-            for i in range(self.n_classes):
+        for i in range(self.n_classes):
+            if self.n_processes > 1:
                 brl_outputs = futures[i].result()
-
-                # BRL outputs both the negative prediction (output[0]) and the positive (output[1])
-                output = brl_outputs[:, 1]
-                outputs.append(torch.tensor(output))
-                pbar.update()
+            else:
+                brl_outputs = self.model[i].predict_proba(x)
+            # BRL outputs both the negative prediction (output[0]) and the positive (output[1])
+            output = brl_outputs[:, 1]
+            outputs.append(torch.tensor(output))
+            pbar.update()
         pbar.close()
-
         outputs = torch.stack(outputs, dim=1)
-
         return outputs
 
     def _discretize(self, train_data: np.ndarray) -> np.ndarray:
@@ -145,15 +147,10 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
 
         # Loading dataset
         train_loader = torch.utils.data.DataLoader(train_set, len(train_set))
-        train_data, train_labels = [], []
-        for data in train_loader:
-            train_data.append(data[0]), train_labels.append(data[1])
-        train_data = torch.cat(train_data).numpy()
-        train_sample = int(len(train_data) * train_sample_rate)
-        train_idx = np.random.choice(range(len(train_data)), size=train_sample, replace=False)
-        train_data = train_data[train_idx]
-        train_labels = torch.cat(train_labels).numpy()
-        train_labels = train_labels[train_idx]
+        train_data, train_labels = next(train_loader.__iter__())
+        train_data, train_labels = self._random_sample_data(train_sample_rate, train_data, train_labels)
+        train_data = train_data.numpy()
+        train_labels = train_labels.numpy()
         train_labels = self._binarize_labels(train_labels)
 
         if self.discretize:
@@ -164,9 +161,10 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
             features = []
 
         # Fitting a BRL classifier for each class in parallel
-        with ProcessPoolExecutor() as executor:
-            futures = []
-            pbar = tqdm(range(self.n_classes), desc="BRL training classes")
+        futures = []
+        pbar = tqdm(range(self.n_classes), desc="BRL training classes")
+        if self.n_processes > 1:
+            executor = ProcessPoolExecutor(self.n_processes)
             for i in range(self.n_classes):
                 self.model[i].verbose = verbose
                 args = {
@@ -176,12 +174,15 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
                     "feature_labels" : self.features_names,
                     "undiscretized_features": features
                 }
-                # RuleListClassifier.fit(**args)
                 futures.append(executor.submit(RuleListClassifier.fit, **args))
-            for i, future in enumerate(futures):
-                self.model[i] = future.result()
-                pbar.update()
-            pbar.close()
+        for i in range(self.n_classes):
+            if self.n_processes > 1:
+                self.model[i] = futures[i].result()
+            else:
+                self.model[i] = self.model[i].fit(X=train_data, y=train_labels[:, i],
+                                                  feature_labels=self.features_names, undiscretized_features=features)
+            pbar.update()
+        pbar.close()
 
         # Compute accuracy, f1 and constraint_loss on the whole train, validation dataset
         if eval:
