@@ -91,10 +91,10 @@ def construct_objects(data, model_name, hidden_nodes, weights, bias, softmax=Tru
 	print('TRAIN ACCURACY', accuracy(x_train, y_train, h_train))
 	h_test = sess.run(Hypothesis_test, feed_dict={X_test: x_test})
 	print('TEST ACCURACY', accuracy(x_test, y_test, h_test))
-	
+
 	if store_adam_vars:
 		sess.run(train_step, feed_dict={X_train: x_train, Y_train: y_train})
-	
+
 	# Save the variables to disk
 	saver = tf.train.Saver()
 	save_path = saver.save(sess, model_name)
@@ -103,6 +103,7 @@ def construct_objects(data, model_name, hidden_nodes, weights, bias, softmax=Tru
 	t_end = time.clock()
 	passed_time = 'Passed time: ' + str(t_end - t_start)
 	print(passed_time)
+	sess.close()
 
 
 def xor_8_zilke(data, network_model_name, hidden_nodes):

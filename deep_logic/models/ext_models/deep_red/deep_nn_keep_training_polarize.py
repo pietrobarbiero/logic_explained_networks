@@ -179,7 +179,6 @@ def retrain_network(data, model_name, new_model_name, hidden_nodes, iterations, 
 	# Add ops to save and restore all the variables.
 	saver = tf.train.Saver()
 	sess = tf.Session()
-
 	# Restore trained network
 	sess.run(init)
 	saver.restore(sess, 'models/'+model_name+'.ckpt')
@@ -187,14 +186,14 @@ def retrain_network(data, model_name, new_model_name, hidden_nodes, iterations, 
 
 	weights = [None]*layers
 	bias = [None]*layers
-	
+
 	x_train, y_train = x, y
 	h_test = sess.run(Hypothesis_test, feed_dict={X_test: x_test, keep_prob: 1})
 	initial_accuracy = accuracy(x_test, y_test, h_test) - 0.01
 	new_accuracy = initial_accuracy
 	cost_pol = 1
 	bet = 0.0
-	
+
 	i = 0
 	while i == 0:
 	#while new_accuracy >= initial_accuracy and cost_pol>0.1:
@@ -229,7 +228,10 @@ def retrain_network(data, model_name, new_model_name, hidden_nodes, iterations, 
 	tf.reset_default_graph()
 	h_test = sess.run(Hypothesis_test, feed_dict={X_test: x_test, keep_prob: 1})
 	tf.reset_default_graph()
+	sess.close()
+
 	return bet
+
 
 def keep_training_wsp_polarize(data, bet, model_name, new_model_name, hidden_nodes, iterations, accuracy_decrease = 0.01, indexes = [], to_prune=[], together = 1, batch_size = 0, max_non_improvements=2, max_runs=5):
 	'''
@@ -392,8 +394,7 @@ def keep_training_wsp_polarize(data, bet, model_name, new_model_name, hidden_nod
 	writer = tf.train.SummaryWriter("./logs/nn_logs", sess.graph)
 
 	# Restore trained network
-	#saver.restore(sess, model_name)	
-	sess = tf.Session()
+	#saver.restore(sess, model_name)
 	sess.run(tf.initialize_all_variables())
 	saver.restore(sess, 'models/'+model_name+'.ckpt')
 	print("Model " + model_name + " restored")
@@ -404,35 +405,35 @@ def keep_training_wsp_polarize(data, bet, model_name, new_model_name, hidden_nod
 		indexes = [None] * layers
 		for i in range(layers):
 			indexes[i] = []
-	
+
 	# If it is not specified what layers to prune, prune all layers (except for softmax if present)
 	to_prune = range(layers-1)
-	
+
 	# 'shapes' stores the shape of each matrik, 'masks' the mask each matrix takes
 	shapes = [None] * layers
 	current_masks = [None] * layers
 	for i in range(layers):
 		shapes[i] = sess.run(W[i]).shape
 		current_masks[i] = remake_mask(shapes[i], indexes[i])
-	
-	# Possible indexes that can be pruned, entries of the type (m, r, c) 
+
+	# Possible indexes that can be pruned, entries of the type (m, r, c)
 	left_indexes = initialize_possible_indexes(indexes, to_prune, shapes)
 	pos_ind = copy.deepcopy(left_indexes)
-	
+
 	# Count of indexes for each matrix
 	row_count, col_count = initialize_index_counts(indexes, to_prune, shapes)
-	
+
 	# Dictionary of masks, x and y that is passed to the placeholders
 	placeholder_dict = {i: d for i, d in zip(masks, current_masks)}
 	placeholder_dict.update({X_vali: x_vali})
-	
+
 	# Initial validation accuracy
 	h_vali = sess.run(Hypothesis_vali, feed_dict=placeholder_dict)
 	initial_vali_acc = accuracy(x_vali, y_vali, h_vali)
 	target_accuracy = initial_vali_acc-accuracy_decrease
 	print('Target accuracy: ', target_accuracy)
 	new_accuracy = target_accuracy
-	
+
 	# Initial parameters are stored
 	weights = [None]*layers
 	bias = [None]*layers
@@ -454,15 +455,15 @@ def keep_training_wsp_polarize(data, bet, model_name, new_model_name, hidden_nod
 				for index in range(together):
 					selected_indexes.append(pos_ind.pop(0))
 					#(m, r, c) = pos_ind.pop(0)
-				
+
 				print('Pruned indexies: '+str(sum(len(l) for l in indexes)))
 				print('Remaining indexies: '+str(len(pos_ind)))
 				print('left for next: '+str(len(left_indexes)))
 				for (m, r, c) in selected_indexes:
 					indexes[m].append((r, c))
-				for mat in set(m for (m, r, c) in selected_indexes):	
+				for mat in set(m for (m, r, c) in selected_indexes):
 					current_masks[mat] = remake_mask(shapes[mat], indexes[mat])
-				
+
 				for j in range(layers):
 					assign_op = W[j].assign(W[j]*tf.constant(current_masks[j], dtype=tf.float32))
 					sess.run(assign_op)
@@ -479,11 +480,11 @@ def keep_training_wsp_polarize(data, bet, model_name, new_model_name, hidden_nod
 							batch_indexes = random.sample(xrange(len(x_train)), batch_size)
 							x_train = [e for (j, e) in enumerate(x) if j in batch_indexes]
 							y_train = [e for (j, e) in enumerate(y) if j in batch_indexes]
-						placeholder_dict.update({X_train: x_train, Y_train: y_train})						
+						placeholder_dict.update({X_train: x_train, Y_train: y_train})
 						sess.run(train_step, feed_dict=placeholder_dict)
 						#for j in range(layers):
 						#	assign_op = W[j].assign(W[j]*tf.constant(current_masks[j], dtype=tf.float32))
-						#	sess.run(assign_op)	
+						#	sess.run(assign_op)
 						h_vali = sess.run(Hypothesis_vali, feed_dict=placeholder_dict)
 						new_accuracy = accuracy(x_vali, y_vali, h_vali)
 						if i % (iterations/2) == 0:
@@ -516,14 +517,14 @@ def keep_training_wsp_polarize(data, bet, model_name, new_model_name, hidden_nod
 					left_indexes.extend(selected_indexes)
 					for (m, r, c) in selected_indexes:
 						indexes[m].remove((r,c))
-					
-					for mat in set(m for (m, r, c) in selected_indexes):	
+
+					for mat in set(m for (m, r, c) in selected_indexes):
 						current_masks[mat] = remake_mask(shapes[mat], indexes[mat])
 					placeholder_dict.update({i: d for i, d in zip(masks, current_masks)})
-				
+
 					for j in range(layers):
 						assign_op = W[j].assign(tf.constant(weights[j], dtype=tf.float32)*tf.constant(current_masks[j], dtype=tf.float32))
-						sess.run(assign_op)	
+						sess.run(assign_op)
 						assign_op = B[j].assign(tf.constant(bias[j], dtype=tf.float32))
 						sess.run(assign_op)
 					h_vali = sess.run(Hypothesis_vali, feed_dict=placeholder_dict)
@@ -536,7 +537,7 @@ def keep_training_wsp_polarize(data, bet, model_name, new_model_name, hidden_nod
 				print('Breaking from while, no index can be pruned')
 				break
 		together = int(float(together)/2)
-		
+
 	# Save the variables to disk
 	save_path = saver.save(sess, 'models/'+new_model_name+'.ckpt')
 	print("Model saved in file: %s" % save_path)
@@ -548,6 +549,7 @@ def keep_training_wsp_polarize(data, bet, model_name, new_model_name, hidden_nod
 	print('WEIGHTS')
 	for j in range(layers):
 		print(sess.run(W[j]))
-		
+
 	tf.reset_default_graph()
+	sess.close()
 	return bet

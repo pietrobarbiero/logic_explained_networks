@@ -200,8 +200,8 @@ def train_network(data, model_name, hidden_nodes, iterations, function='tanh', s
     init = tf.initialize_all_variables()
 
     # Add ops to save and restore all the variables.
-    saver = tf.train.Saver()
     sess = tf.Session()
+    saver = tf.train.Saver()
     # writer = tf.train.SummaryWriter("./logs/nn_logs", sess.graph)
 
     sess.run(init)
@@ -240,6 +240,8 @@ def train_network(data, model_name, hidden_nodes, iterations, function='tanh', s
     h_test = sess.run(Hypothesis_test, feed_dict={X_test: x_test, rate: 1})  # ADDED rate for TF v2
     train_acc = accuracy(x, y, h_train)
     test_acc = accuracy(x_test, y_test, h_test)
+
+    sess.close()
     return train_acc, test_acc
 
 
@@ -326,8 +328,8 @@ def execute_network(data, model_name, hidden_nodes, function='tanh', softmax=Tru
     Hypothesis_test = A_test[layers - 1]
 
     # Add ops to save and restore all the variables.
-    saver = tf.train.Saver()
     sess = tf.Session()
+    saver = tf.train.Saver()
     # writer = tf.train.SummaryWriter("./logs/nn_logs", sess.graph)
 
     # Restore trained network
@@ -369,6 +371,7 @@ def execute_network(data, model_name, hidden_nodes, function='tanh', softmax=Tru
     print(passed_time)
 
     tf.reset_default_graph()
+    sess.close()
 
     return (activation_values_train, activation_values_vali, activation_values_test, weights, bias, acc)
 
@@ -545,7 +548,6 @@ def weight_sparseness_pruning(data, model_name, new_model_name, hidden_nodes, it
 
     # Restore trained network
     # saver.restore(sess, model_name)
-    sess = tf.Session()
     sess.run(tf.initialize_all_variables())
     saver.restore(sess, 'models/' + model_name + '.ckpt')
     print("Model " + model_name + " restored")
@@ -720,6 +722,7 @@ def weight_sparseness_pruning(data, model_name, new_model_name, hidden_nodes, it
         print(sess.run(W[j]))
 
     tf.reset_default_graph()
+    sess.close()
 
 
 def rexren_input_prune(data, model_name, new_model_name, hidden_nodes, function, softmax, max_accuracy_decrease=5,
@@ -809,7 +812,6 @@ def rexren_input_prune(data, model_name, new_model_name, hidden_nodes, function,
     # writer = tf.train.SummaryWriter("./logs/nn_logs", sess.graph)
 
     # Restore trained network
-    sess = tf.Session()
     sess.run(tf.initialize_all_variables())
     saver.restore(sess, 'models/' + model_name + '.ckpt')
     print("Model " + model_name + " restored")
@@ -891,3 +893,4 @@ def rexren_input_prune(data, model_name, new_model_name, hidden_nodes, function,
     print(passed_time)
 
     tf.reset_default_graph()
+    sess.close()
