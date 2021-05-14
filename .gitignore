@@ -101,3 +101,4 @@ deep_logic/models/ext_models/deep_red/.vscode/
 experiments/results/cub/data/
 experiments/results/cub/models/
 deep_logic/concept_extractor/50_epochs_complete_training/
+req2.txt
