@@ -5,6 +5,7 @@ if __name__ == "__main__":
 
     import sys
     import time
+    import concurrent
 
     sys.path.append('..')
     import os
@@ -13,6 +14,7 @@ if __name__ == "__main__":
     import numpy as np
     from torch.nn import CrossEntropyLoss
     from tqdm import trange
+    from sklearn.model_selection import StratifiedKFold, train_test_split
 
     from deep_logic.models.relu_nn import XReluNN
     from deep_logic.models.psi_nn import PsiNetwork
@@ -23,47 +25,31 @@ if __name__ == "__main__":
     from deep_logic.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
     from deep_logic.utils.metrics import Accuracy, F1Score
     from deep_logic.models.general_nn import XGeneralNN
-    from deep_logic.utils.datasets import ConceptToTaskDataset
-    from deep_logic.utils.data import get_splits_train_val_test
+    from deep_logic.utils.datasets import StructuredDataset
     from deep_logic.logic.base import test_explanation
     from deep_logic.logic.metrics import complexity, fidelity, formula_consistency
-    from data import CUB200
-    from data.download_cub import download_cub
-    from experiments.CUB_200_2011.concept_extractor_cub import concept_extractor_cub
+    from data import MIMIC
+    from data.load_structured_datasets import load_mimic
 
-    results_dir = 'results/cub'
+    results_dir = 'results/mimic'
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
 
     #%% md
-    ## Loading CUB data
+    ## Loading MIMIC data
     #%%
 
-    dataset_root = "../data/CUB_200_2011/"
-    dataset_name = CUB200
+    dataset_root = "../data/"
+    dataset_name = MIMIC
     print(dataset_root)
-    if not os.path.isdir(dataset_root):
-        download_cub(dataset_root)
-    else:
-        print("Dataset already downloaded")
-
-    #%% md
-    ## Extracting concepts from images
-    #%%
-
-    if not os.path.isfile(os.path.join(dataset_root, f"{dataset_name}_predictions.npy")):
-        concept_extractor_cub(dataset_root)
-    else:
-        print("Concepts already extracted")
-    dataset = ConceptToTaskDataset(dataset_root, dataset_name=dataset_name, predictions=True)
-    concept_names = dataset.attribute_names
-    print("Concept names", concept_names)
-    n_features = dataset.n_attributes
+    x, y, concept_names, class_names = load_mimic(dataset_root)
+    y = y.argmax(dim=1)
+    dataset = StructuredDataset(x, y, dataset_name=dataset_name, feature_names=concept_names, class_names=class_names)
+    n_features = x.shape[1]
+    n_classes = len(class_names)
     print("Number of features", n_features)
-    class_names = dataset.classes
+    print("Concept names", concept_names)
     print("Class names", class_names)
-    n_classes = dataset.n_classes
-    print("Number of classes", n_classes)
 
     #%% md
     ## Define loss, metrics and methods
@@ -72,7 +58,7 @@ if __name__ == "__main__":
     loss = CrossEntropyLoss()
     metric = Accuracy()
     expl_metric = F1Score()
-    method_list = ['BRL', 'DeepRed']  # ['Relu', 'General', 'Psi', 'DTree', 'BRL', 'DeepRed']
+    method_list = ['Relu', 'Psi', 'DTree', 'BRL', 'DeepRed']
     print("Methods", method_list)
 
     #%% md
@@ -81,12 +67,12 @@ if __name__ == "__main__":
 
     epochs = 1000
     n_processes = 1
-    timeout = 6 * 60 * 60  # 6 h timeout
+    timeout = 60 * 60  # 1 h timeout
     l_r = 1e-3
     lr_scheduler = False
     top_k_explanations = None
     simplify = True
-    seeds = [*range(5)]
+    seeds = [*range(2)]  # [*range(5)]
     print("Seeds", seeds)
     device = torch.device("cpu")
     print("Device", device)
@@ -102,18 +88,18 @@ if __name__ == "__main__":
         explanation_fidelities = []
         explanation_complexities = []
 
-        for seed in seeds:
-            set_seed(seed)
-            name = os.path.join(results_dir, f"{method}_{seed}")
+        skf = StratifiedKFold(n_splits=len(seeds), shuffle=True, random_state=0)
 
-            train_data, val_data, test_data = get_splits_train_val_test(dataset, load=False)
-            x_train = torch.tensor(dataset.attributes[train_data.indices])
-            y_train = torch.tensor(dataset.targets[train_data.indices])
-            x_val = torch.tensor(dataset.attributes[val_data.indices])
-            y_val = torch.tensor(dataset.targets[val_data.indices])
-            x_test = torch.tensor(dataset.attributes[test_data.indices])
-            y_test = torch.tensor(dataset.targets[test_data.indices])
-            print(train_data.indices)
+        for seed, (trainval_index, test_index) in enumerate(skf.split(x.numpy(), y.numpy())):
+            set_seed(seed)
+            x_trainval, y_trainval = x[trainval_index], y[trainval_index]
+            x_test, y_test = x[test_index], y[test_index]
+            x_train, x_val, y_train, y_val = train_test_split(x_trainval, y_trainval, test_size=0.3, random_state=0)
+            train_data = StructuredDataset(x_train, y_train, dataset_name, concept_names, class_names)
+            val_data = StructuredDataset(x_val, y_val, dataset_name, concept_names, class_names)
+            test_data = StructuredDataset(x_test, y_test, dataset_name, concept_names, class_names)
+
+            name = os.path.join(results_dir, f"{method}_{seed}")
 
             # Setting device
             print(f"Training {name} classifier...")
@@ -167,11 +153,9 @@ if __name__ == "__main__":
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
 
             elif method == 'DeepRed':
-                train_idx = train_data.indices
-                test_idx = test_data.indices
-                train_sample_rate = 0.05
+                train_sample_rate = 0.1
                 model = XDeepRedClassifier(n_classes, n_features, name=name)
-                model.prepare_data(dataset, dataset_name, seed, train_idx, test_idx, train_sample_rate)
+                model.prepare_data(dataset, dataset_name, seed, trainval_index, test_index, train_sample_rate)
                 try:
                     model.load(device)
                     print(f"Model {name} already trained")
@@ -209,16 +193,15 @@ if __name__ == "__main__":
                     explanation_complexity = complexity(explanation)
                     explanations.append(explanation), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
-                    print(f"{i + 1}/{len(dataset.classes)} Rules extracted. Time {time.time() - t}")
+                    print(f"{i + 1}/{n_classes} Rules extracted. Time {time.time() - t}")
                 # executor.shutdown(wait=False)
                 # To restore the original folder
 
             elif method == 'Psi':
                 # Network structures
-                l1_weight = 1e-4
-                hidden_neurons = [10]  # [50, 20, 10]
-                fan_in = 4
-                lr_psi = 1e-2
+                l1_weight = 1e-3
+                hidden_neurons = []
+                fan_in = 5
                 print("L1 weight", l1_weight)
                 print("Hidden neurons", hidden_neurons)
                 print("Fan in", fan_in)
@@ -227,12 +210,12 @@ if __name__ == "__main__":
                     model.load(device)
                     print(f"Model {name} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    model.fit(train_data, val_data, epochs=epochs, l_r=lr_psi, verbose=True,
+                    model.fit(train_data, val_data, epochs=epochs, l_r=l_r, verbose=True,
                               metric=metric, lr_scheduler=lr_scheduler, device=device, save=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
-                for i in trange(n_classes):
+                for i in trange(n_classes, desc=f"{method} extracting explanations"):
                     explanation = model.get_global_explanation(i, concept_names, simplify=simplify, x_train=x_train)
                     exp_accuracy, exp_predictions = test_explanation(explanation, i, x_test, y_test,
                                                                      metric=expl_metric, concept_names=concept_names)
@@ -246,11 +229,9 @@ if __name__ == "__main__":
             elif method == 'General':
                 # Network structures
                 l1_weight = 1e-4
-                hidden_neurons = [20]
-                print("L1 weight", l1_weight)
-                print("Hidden neurons", hidden_neurons)
+                hidden_neurons = [100, 30, 10]
                 model = XGeneralNN(n_classes=n_classes, n_features=n_features, hidden_neurons=hidden_neurons,
-                                   loss=loss, name=name, l1_weight=l1_weight, fan_in=10, )
+                                   loss=loss, name=name, l1_weight=l1_weight)
                 try:
                     model.load(device)
                     print(f"Model {name} already trained")
@@ -275,9 +256,9 @@ if __name__ == "__main__":
 
             elif method == 'Relu':
                 # Network structures
-                l1_weight = 1e-7
-                hidden_neurons = [200, 100, 30, 10]
-                dropout_rate = 0.
+                l1_weight = 1e-5
+                hidden_neurons = [100, 30, 10]
+                dropout_rate = 0.3
                 print("l1 weight", l1_weight)
                 print("hidden neurons", hidden_neurons)
                 model = XReluNN(n_classes=n_classes, n_features=n_features, name=name, dropout_rate=dropout_rate,
