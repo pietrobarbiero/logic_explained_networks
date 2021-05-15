@@ -31,7 +31,7 @@ if __name__ == "__main__":
     from data.download_mnist import download_mnist
     from experiments.MNIST.concept_extractor_mnist import concept_extractor_mnist
 
-    results_dir = 'results/mnist'
+    results_dir = 'results/mnist2'
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
 
@@ -272,7 +272,7 @@ if __name__ == "__main__":
 
             elif method == 'Relu':
                 # Network structures
-                l1_weight = 1e-9
+                l1_weight = 1e-4
                 hidden_neurons = [200, 100, 30, 10]
                 dropout_rate = 0.
                 print("l1 weight", l1_weight)

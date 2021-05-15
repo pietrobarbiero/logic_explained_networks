@@ -58,7 +58,7 @@ if __name__ == "__main__":
     loss = CrossEntropyLoss()
     metric = Accuracy()
     expl_metric = F1Score()
-    method_list = ['Relu', 'Psi', 'DTree', 'BRL', 'DeepRed']
+    method_list = ['Relu', 'General', 'Psi', 'DTree', 'BRL', 'DeepRed']
     print("Methods", method_list)
 
     #%% md
@@ -153,7 +153,7 @@ if __name__ == "__main__":
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
 
             elif method == 'DeepRed':
-                train_sample_rate = 0.1
+                train_sample_rate = 1.0
                 model = XDeepRedClassifier(n_classes, n_features, name=name)
                 model.prepare_data(dataset, dataset_name, seed, trainval_index, test_index, train_sample_rate)
                 try:
@@ -256,7 +256,7 @@ if __name__ == "__main__":
 
             elif method == 'Relu':
                 # Network structures
-                l1_weight = 1e-5
+                l1_weight = 1e-4
                 hidden_neurons = [100, 30, 10]
                 dropout_rate = 0.3
                 print("l1 weight", l1_weight)
