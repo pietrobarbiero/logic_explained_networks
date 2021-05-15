@@ -83,6 +83,8 @@ data/samples_cub200_training.json
 experiments/results/
 data/MNIST_EVEN_ODD/
 data/Shapes/
+data/mimic-ii/
+data/vdem/
 *.pth
 *.zip
 experiments/.ipynb_checkpoints/
