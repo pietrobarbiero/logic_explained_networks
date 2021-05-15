@@ -5,14 +5,51 @@ from collections import Callable
 
 import numpy as np
 import pandas as pd
+import torch
 from sklearn.preprocessing import LabelBinarizer
+from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms
 from data import CUB200
 from deep_logic.utils.base import NotAvailableError
 
 
-class ConceptDataset(ImageFolder, ABC):
+class MyDataset:
+    def save_as_csv(self, folder: str = "."):
+        pass
+
+
+class StructuredDataset(MyDataset, Dataset):
+    """
+    Extension of ConceptDataset to use for working with Concepts as inputs to predict final class.
+    """
+
+    def __init__(self, x: torch.Tensor, y: torch.Tensor, feature_names: list, class_names: list, dataset_name: str):
+        super().__init__()
+        self.x = x
+        self.y = y
+        self.dataset_name = dataset_name
+        self.feature_names = feature_names
+        self.class_names = class_names
+
+    def __getitem__(self, item):
+        return self.x[item], self.y[item]
+
+    def __len__(self):
+        return self.x.shape[0]
+
+    def save_as_csv(self, folder: str = "."):
+        csv_name = os.path.join(folder, self.dataset_name + ".csv")
+        if not os.path.isfile(csv_name):
+            attributes = {
+                concept_name: self.x[:, i] for i, concept_name in enumerate(self.feature_names)
+            }
+            attributes.update({"output_class": self.y})
+            df = pd.DataFrame(attributes)
+            df.to_csv(csv_name, index=False, header=False)
+
+
+class ConceptDataset(ImageFolder, MyDataset, ABC):
     """
     Simple abstract dataset to use for working with Concepts that extend ImageFolder dataset from torchvision.
 
