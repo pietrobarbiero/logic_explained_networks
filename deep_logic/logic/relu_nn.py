@@ -64,10 +64,12 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     feature_used = np.sort(np.nonzero(feature_used_bool)[0])
     _, idx = np.unique((x[:, feature_used][y == target_class] >= 0.5).cpu().detach().numpy(), axis=0, return_index=True)
     # _, idx = np.unique((x[y == target_class] >= 0.5).cpu().detach().numpy(), axis=0, return_index=True)
-    x_target = x[y == target_class][idx]
-    y_target = y[y == target_class][idx]
-    # x_target = x[y == target_class]
-    # y_target = y[y == target_class]
+    if topk_explanations is None:
+        x_target = x[y == target_class][idx]
+        y_target = y[y == target_class][idx]
+    else:
+        x_target = x[y == target_class]
+        y_target = y[y == target_class]
     # print(len(y_target))
 
     # get model's predictions
@@ -81,10 +83,12 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
     # collapse samples having the same boolean values and class label different from the target class
     _, idx = np.unique((x[:, feature_used][y != target_class] > 0.5).cpu().detach().numpy(), axis=0, return_index=True)
-    x_reduced_opposite = x[y != target_class][idx]
-    y_reduced_opposite = y[y != target_class][idx]
-    # x_reduced_opposite = x[y != target_class]
-    # y_reduced_opposite = y[y != target_class]
+    if topk_explanations is None:
+        x_reduced_opposite = x[y != target_class][idx]
+        y_reduced_opposite = y[y != target_class][idx]
+    else:
+        x_reduced_opposite = x[y != target_class]
+        y_reduced_opposite = y[y != target_class]
     preds_opposite = model(x_reduced_opposite)
     if len(preds_opposite.squeeze(-1).shape) > 1:
         preds_opposite = torch.argmax(preds_opposite, dim=1)
@@ -148,19 +152,14 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     counter = collections.Counter(local_explanations)
     counter_translated = collections.Counter(local_explanations_translated)
 
-    if topk_explanations is not None:
-        if len(counter) < topk_explanations:
-            topk_explanations = len(counter)
-        most_common_explanations = []
-        for explanation, _ in counter.most_common(topk_explanations):
-            most_common_explanations.append(explanation)
-    # Heuristically determine the number of explanations to retain
-    else:
-        best_accuracy = 0
-        most_common_explanations = []
-        for explanation, _ in counter.most_common():
-            most_common_explanations.append(explanation)
-            global_explanation = ' | '.join(most_common_explanations)
+    if len(counter) < topk_explanations:
+        topk_explanations = len(counter)
+    most_common_explanations = []
+    best_accuracy = 0
+    for i, (explanation, _) in enumerate(counter.most_common(topk_explanations)):
+        most_common_explanations.append(explanation)
+        global_explanation = ' | '.join(most_common_explanations)
+        if x_val is not None and y_val is not None:
             accuracy, predictions = test_explanation(global_explanation, target_class,
                                                      x_val, y_val, metric=metric)
             if accuracy <= best_accuracy:
@@ -170,7 +169,8 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
     # the global explanation is the disjunction of local explanations
     global_explanation = ' | '.join(most_common_explanations)
-    if simplify:
+    # avoid simplify if number of terms too long
+    if simplify and len(np.unique(np.asarray(global_explanation.split(" ")))) < 20 + 2:
         global_explanation_simplified_str = str(simplify_logic(global_explanation, 'dnf', force=simplify))
     else:
         global_explanation_simplified_str = str(to_dnf(global_explanation))
