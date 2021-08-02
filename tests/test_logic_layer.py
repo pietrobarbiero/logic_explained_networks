@@ -2,10 +2,10 @@ import unittest
 
 import torch
 
-import deep_logic as dl
-from deep_logic.logic import explain_class
-from deep_logic.utils.base import set_seed
-from deep_logic.utils.layer import prune_logic_layers, l1_loss
+import lens as dl
+from lens.logic import explain_class
+from lens.utils.base import set_seed
+from lens.utils.layer import prune_logic_layers, l1_loss
 
 
 class TestTemplateObject(unittest.TestCase):
@@ -23,12 +23,12 @@ class TestTemplateObject(unittest.TestCase):
             y = torch.tensor([0, 1, 1, 0], dtype=torch.float)
 
             layers = [
-                dl.nn.XLogic(2, 5, activation='identity_bool'),
+                lens.nn.XLogic(2, 5, activation='identity_bool'),
                 torch.nn.LeakyReLU(),
                 torch.nn.Linear(5, 5),
                 torch.nn.LeakyReLU(),
                 torch.nn.Linear(5, 1),
-                dl.nn.XLogic(1, 1, top=True, activation='sigmoid'),
+                lens.nn.XLogic(1, 1, top=True, activation='sigmoid'),
             ]
             model = torch.nn.Sequential(*layers)
 
@@ -79,12 +79,12 @@ class TestTemplateObject(unittest.TestCase):
             y = torch.tensor([0, 1, 1, 0], dtype=torch.float)
 
             layers = [
-                dl.nn.XLogic(2, 5, activation='leaky_relu'),
+                lens.nn.XLogic(2, 5, activation='leaky_relu'),
                 torch.nn.LeakyReLU(),
                 torch.nn.Linear(5, 5),
                 torch.nn.LeakyReLU(),
                 torch.nn.Linear(5, 1),
-                dl.nn.XLogic(1, 1, top=True, activation='sigmoid'),
+                lens.nn.XLogic(1, 1, top=True, activation='sigmoid'),
             ]
             model = torch.nn.Sequential(*layers)
 
@@ -135,12 +135,12 @@ class TestTemplateObject(unittest.TestCase):
             y = torch.tensor([0, 1, 1, 0], dtype=torch.float)
 
             layers = [
-                dl.nn.XLogic(4, 5, activation='identity_bool'),
+                lens.nn.XLogic(4, 5, activation='identity_bool'),
                 torch.nn.LeakyReLU(),
                 torch.nn.Linear(5, 5),
                 torch.nn.LeakyReLU(),
                 torch.nn.Linear(5, 1),
-                dl.nn.XLogic(1, 1, top=True, activation='sigmoid'),
+                lens.nn.XLogic(1, 1, top=True, activation='sigmoid'),
             ]
             model = torch.nn.Sequential(*layers)
 
@@ -193,12 +193,12 @@ class TestTemplateObject(unittest.TestCase):
             y = torch.tensor([0, 1, 1, 2], dtype=torch.long)
 
             layers = [
-                dl.nn.XLogic(2, 5, activation='identity_bool'),
+                lens.nn.XLogic(2, 5, activation='identity_bool'),
                 torch.nn.LeakyReLU(),
                 torch.nn.Linear(5, 5),
                 torch.nn.LeakyReLU(),
                 torch.nn.Linear(5, 3),
-                dl.nn.XLogic(3, 3, activation='identity', top=True),
+                lens.nn.XLogic(3, 3, activation='identity', top=True),
             ]
             model = torch.nn.Sequential(*layers)
 

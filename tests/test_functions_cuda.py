@@ -5,10 +5,10 @@ import torch
 class TestTemplateObject(unittest.TestCase):
     def test_relunets_pruning(self):
         import numpy as np
-        from deep_logic.utils.relu_nn import get_reduced_model
-        from deep_logic.utils.base import validate_network, validate_data
-        from deep_logic.logic import explain_local, explain_global
-        import deep_logic as dl
+        from lens.utils.relu_nn import get_reduced_model
+        from lens.utils.base import validate_network, validate_data
+        from lens.logic import explain_local, explain_global
+        import lens as dl
 
         torch.manual_seed(10)
         np.random.seed(0)
@@ -27,9 +27,9 @@ class TestTemplateObject(unittest.TestCase):
         layers = [
             torch.nn.Linear(4, 20 * n_classes),
             torch.nn.ReLU(),
-            dl.nn.XLinear(20, 5, n_classes),
+            lens.nn.XLinear(20, 5, n_classes),
             torch.nn.ReLU(),
-            dl.nn.XLinear(5, 1, n_classes),
+            lens.nn.XLinear(5, 1, n_classes),
             torch.nn.Softmax(),
         ]
         model = torch.nn.Sequential(*layers).to(device)
@@ -51,7 +51,7 @@ class TestTemplateObject(unittest.TestCase):
             optimizer.step()
 
             if epoch > 500 and need_pruning:
-                dl.utils.relu_nn.prune_features(model, n_classes, device)
+                lens.utils.relu_nn.prune_features(model, n_classes, device)
                 need_pruning = False
 
             # compute accuracy
@@ -81,9 +81,9 @@ class TestTemplateObject(unittest.TestCase):
     def test_psi_example(self):
         import torch
         import numpy as np
-        from deep_logic.utils.base import validate_network
-        from deep_logic.utils.psi_nn import prune_equal_fanin
-        from deep_logic import logic
+        from lens.utils.base import validate_network
+        from lens.utils.psi_nn import prune_equal_fanin
+        from lens import logic
 
         torch.manual_seed(0)
         np.random.seed(0)
@@ -134,7 +134,7 @@ class TestTemplateObject(unittest.TestCase):
         return
 
     def test_pruning(self):
-        from deep_logic.utils.psi_nn import prune_equal_fanin, validate_pruning
+        from lens.utils.psi_nn import prune_equal_fanin, validate_pruning
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -148,7 +148,7 @@ class TestTemplateObject(unittest.TestCase):
         return
 
     def test_parameter_collection(self):
-        from deep_logic.utils.base import collect_parameters
+        from lens.utils.base import collect_parameters
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 

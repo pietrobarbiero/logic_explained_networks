@@ -10,17 +10,17 @@ if __name__ == "__main__":
     import torch
     import pandas as pd
     import numpy as np
-    import deep_logic as dl
-    from deep_logic.models.relu_nn import XReluNN
-    from deep_logic.models.psi_nn import PsiNetwork
-    from deep_logic.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
-    from deep_logic.utils.metrics import ClusterAccuracy, F1Score
-    from deep_logic.models.general_nn import XGeneralNN
-    from deep_logic.utils.datasets import ConceptOnlyDataset
-    from deep_logic.utils.data import get_splits_train_val_test
-    from deep_logic.utils.loss import MutualInformationLoss
-    from deep_logic.logic import test_explanation, fidelity, complexity
-    from deep_logic.logic.metrics import accuracy_score
+    import lens as dl
+    from lens.models.relu_nn import XReluNN
+    from lens.models.psi_nn import PsiNetwork
+    from lens.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
+    from lens.utils.metrics import ClusterAccuracy, F1Score
+    from lens.models.general_nn import XGeneralNN
+    from lens.utils.datasets import ConceptOnlyDataset
+    from lens.utils.data import get_splits_train_val_test
+    from lens.utils.loss import MutualInformationLoss
+    from lens.logic import test_explanation, fidelity, complexity
+    from lens.logic.metrics import accuracy_score
     from data import MNIST
     from data.download_mnist import download_mnist
     from experiments.MNIST.concept_extractor_mnist import concept_extractor_mnist
@@ -220,7 +220,7 @@ if __name__ == "__main__":
             elapsed_times.append(elapsed_time)
             explanation_complexities.append(np.mean(exp_complexities))
 
-        explanation_consistency = dl.logic.formula_consistency(explanations)
+        explanation_consistency = lens.logic.formula_consistency(explanations)
         print(f'Consistency of explanations: {explanation_consistency:.4f}')
 
         results = pd.DataFrame({

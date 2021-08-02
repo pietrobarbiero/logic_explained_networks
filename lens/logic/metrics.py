@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from sklearn.metrics import accuracy_score
 
-from deep_logic.logic import test_explanation
+from lens.logic import test_explanation
 
 
 def predictions(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor,

@@ -6,9 +6,9 @@ from torch.utils.data import Subset
 from torchvision.transforms import transforms
 import numpy as np
 
-from deep_logic.utils.base import set_seed
-from deep_logic.concept_extractor.cnn_models import RESNET18, RESNET101, INCEPTION
-from deep_logic.concept_extractor.concept_extractor import CNNConceptExtractor
+from lens.utils.base import set_seed
+from lens.concept_extractor.cnn_models import RESNET18, RESNET101, INCEPTION
+from lens.concept_extractor.concept_extractor import CNNConceptExtractor
 
 transform = transforms.Compose([
     transforms.CenterCrop(size=224),

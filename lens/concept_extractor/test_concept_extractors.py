@@ -4,7 +4,7 @@ import torch
 import torchvision
 from torchvision.transforms import transforms
 
-from deep_logic.utils.base import set_seed
+from lens.utils.base import set_seed
 from .cnn_models import RESNET18, RESNET101, INCEPTION
 from .concept_extractor import CNNConceptExtractor
 

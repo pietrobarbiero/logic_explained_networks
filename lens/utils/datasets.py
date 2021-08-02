@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms
 from data import CUB200
-from deep_logic.utils.base import NotAvailableError
+from lens.utils.base import NotAvailableError
 
 
 class MyDataset:

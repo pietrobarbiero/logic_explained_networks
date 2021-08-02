@@ -9,13 +9,13 @@ from sklearn.model_selection import StratifiedKFold
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset, DataLoader
 
-from deep_logic.utils.base import ClassifierNotTrainedError, IncompatibleClassifierError
-from deep_logic.utils.loss import MutualInformationLoss, MixedMultiLabelLoss
-from deep_logic.utils.metrics import Metric, TopkAccuracy, Accuracy
+from lens.utils.base import ClassifierNotTrainedError, IncompatibleClassifierError
+from lens.utils.loss import MutualInformationLoss, MixedMultiLabelLoss
+from lens.utils.metrics import Metric, TopkAccuracy, Accuracy
 
 
 class BaseXModel(ABC):
-    """Base class for all models in XDL."""
+    """Base class for all models in Xlens."""
 
     @abstractmethod
     def get_local_explanation(self, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,

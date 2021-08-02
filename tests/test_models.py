@@ -5,13 +5,13 @@ from torch.utils.data import TensorDataset
 from sklearn import datasets
 from sklearn.preprocessing import LabelBinarizer
 
-from deep_logic.models.relu_nn import XReluNN
-from deep_logic.models.psi_nn import PsiNetwork
-from deep_logic.models.general_nn import XGeneralNN
-from deep_logic.models.tree import XDecisionTreeClassifier
-from deep_logic.models.brl import XBRLClassifier
-from deep_logic.utils.base import set_seed
-from deep_logic.utils.metrics import Accuracy
+from lens.models.relu_nn import XReluNN
+from lens.models.psi_nn import PsiNetwork
+from lens.models.general_nn import XGeneralNN
+from lens.models.tree import XDecisionTreeClassifier
+from lens.models.brl import XBRLClassifier
+from lens.utils.base import set_seed
+from lens.utils.metrics import Accuracy
 
 
 # Create data
@@ -196,8 +196,8 @@ class TestModels(unittest.TestCase):
 
     def test_5_brl(self):
         from sklearn.preprocessing import MinMaxScaler
-        from deep_logic.logic import test_explanation
-        from deep_logic.utils.data import clean_names
+        from lens.logic import test_explanation
+        from lens.utils.data import clean_names
 
         set_seed(0)
 

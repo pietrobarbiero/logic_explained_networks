@@ -7,12 +7,12 @@ import numpy as np
 import pandas as pd
 import torch
 
-from deep_logic.utils.datasets import MyDataset
-from deep_logic.utils.data import ConceptDataset
-from deep_logic.models.base import BaseClassifier, BaseXModel
-from deep_logic.models.ext_models import deep_red
-from deep_logic.utils.base import NotAvailableError
-from deep_logic.utils.metrics import Metric, Accuracy
+from lens.utils.datasets import MyDataset
+from lens.utils.data import ConceptDataset
+from lens.models.base import BaseClassifier, BaseXModel
+from lens.models.ext_models import deep_red
+from lens.utils.base import NotAvailableError
+from lens.utils.metrics import Metric, Accuracy
 
 
 class XDeepRedClassifier(BaseClassifier, BaseXModel):

@@ -95,7 +95,7 @@ First of all we need to import some useful libraries:
 
     import torch
     import numpy as np
-    import deep_logic as dl
+    import lens
 
 In most cases it is recommended to fix the random seed for
 reproducibility:
@@ -138,7 +138,7 @@ The only requirement is the following for all the input features to be in ``[0,1
 
 .. code:: python
 
-    dl.validate_data(x_train)
+    lens.validate_data(x_train)
 
 We can now train the network:
 
@@ -161,7 +161,7 @@ We can now train the network:
 
         # We can use sparsity to prune dummy features
         if epoch > 500 and need_pruning:
-            dl.utils.relu_nn.prune_features(model, n_classes)
+            lens.utils.relu_nn.prune_features(model, n_classes)
             need_pruning = False
 
 
@@ -182,7 +182,7 @@ at the reduced model:
 
 .. code:: python
 
-    explanation = dl.logic.explain_local(model, x_train, y_train, x_sample=x[1],
+    explanation = lens.logic.explain_local(model, x_train, y_train, x_sample=x[1],
                                          method='pruning', target_class=1,
                                          concept_names=['f1', 'f2', 'f3', 'f4'])
     print(explanation)
@@ -199,12 +199,12 @@ explanations of the predictions for a specific class:
 .. code:: python
 
 
-    global_explanation, _, _ = dl.logic.relu_nn.combine_local_explanations(model, x_train,
+    global_explanation, _, _ = lens.logic.relu_nn.combine_local_explanations(model, x_train,
                                                                           y_train.squeeze(),
                                                                           target_class=1,
                                                                           method='pruning')
-    accuracy, _ = dl.logic.base.test_explanation(global_explanation, target_class=1, x_train, y_train)
-    explanation = dl.logic.base.replace_names(global_explanation, concept_names=['f1', 'f2', 'f3', 'f4'])
+    accuracy, _ = lens.logic.base.test_explanation(global_explanation, target_class=1, x_train, y_train)
+    explanation = lens.logic.base.replace_names(global_explanation, concept_names=['f1', 'f2', 'f3', 'f4'])
     print(f'Accuracy when using the formula {explanation}: {accuracy:.4f}')
 
 

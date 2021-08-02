@@ -9,13 +9,13 @@ import torch
 import numpy as np
 from torch.utils.data import Subset
 from data import CUB200
-from deep_logic.utils.datasets import ImageToConceptDataset, ImageToConceptAndTaskDataset
-from deep_logic.utils import metrics
-from deep_logic.utils.base import set_seed, ClassifierNotTrainedError
-from deep_logic.utils.data import get_transform, get_splits_train_val_test, get_splits_for_fsc, show_batch
-from deep_logic.concept_extractor import cnn_models
-from deep_logic.concept_extractor.concept_extractor import CNNConceptExtractor
-from deep_logic.models.robust_cnn_classifier import RobustCNNClassifier
+from lens.utils.datasets import ImageToConceptDataset, ImageToConceptAndTaskDataset
+from lens.utils import metrics
+from lens.utils.base import set_seed, ClassifierNotTrainedError
+from lens.utils.data import get_transform, get_splits_train_val_test, get_splits_for_fsc, show_batch
+from lens.concept_extractor import cnn_models
+from lens.concept_extractor.concept_extractor import CNNConceptExtractor
+from lens.models.robust_cnn_classifier import RobustCNNClassifier
 
 
 def concept_extractor_cub(dataset_root="..//data//CUB_200_2011", result_folder=".", epochs=200, seeds=None,

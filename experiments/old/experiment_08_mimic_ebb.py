@@ -16,19 +16,19 @@ if __name__ == "__main__":
     from tqdm import trange
     from sklearn.model_selection import StratifiedKFold, train_test_split
 
-    from deep_logic.models.relu_nn import XReluNN
-    from deep_logic.models.psi_nn import PsiNetwork
-    from deep_logic.models.tree import XDecisionTreeClassifier
-    from deep_logic.models.brl import XBRLClassifier
-    from deep_logic.models.black_box import BlackBoxClassifier
-    from deep_logic.models.logistic_regression import XLogisticRegressionClassifier
-    from deep_logic.models.deep_red import XDeepRedClassifier
-    from deep_logic.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
-    from deep_logic.utils.metrics import Accuracy, F1Score
-    from deep_logic.models.general_nn import XGeneralNN
-    from deep_logic.utils.datasets import StructuredDataset
-    from deep_logic.logic.base import test_explanation
-    from deep_logic.logic.metrics import complexity, fidelity, formula_consistency
+    from lens.models.relu_nn import XReluNN
+    from lens.models.psi_nn import PsiNetwork
+    from lens.models.tree import XDecisionTreeClassifier
+    from lens.models.brl import XBRLClassifier
+    from lens.models.black_box import BlackBoxClassifier
+    from lens.models.logistic_regression import XLogisticRegressionClassifier
+    from lens.models.deep_red import XDeepRedClassifier
+    from lens.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
+    from lens.utils.metrics import Accuracy, F1Score
+    from lens.models.general_nn import XGeneralNN
+    from lens.utils.datasets import StructuredDataset
+    from lens.logic.base import test_explanation
+    from lens.logic.metrics import complexity, fidelity, formula_consistency
     from data import MIMIC
     from data.load_structured_datasets import load_mimic
 

@@ -6,14 +6,14 @@ import torch
 class TestTemplateObject(unittest.TestCase):
     def test_relunets_pruning(self):
         import numpy as np
-        from deep_logic.utils.relu_nn import get_reduced_model
-        from deep_logic.utils.base import validate_network, validate_data
-        from deep_logic.logic import explain_local, combine_local_explanations, explain_global, \
+        from lens.utils.relu_nn import get_reduced_model
+        from lens.utils.base import validate_network, validate_data
+        from lens.logic import explain_local, combine_local_explanations, explain_global, \
             test_explanation, replace_names
-        from deep_logic.logic.base import simplify_formula
-        import deep_logic as dl
+        from lens.logic.base import simplify_formula
+        import lens as dl
 
-        dl.utils.base.set_seed(0)
+        lens.utils.base.set_seed(0)
 
         x = torch.tensor([
             [0, 0, 0, 0],
@@ -29,9 +29,9 @@ class TestTemplateObject(unittest.TestCase):
         layers = [
             torch.nn.Linear(4, 20 * n_classes),
             torch.nn.ReLU(),
-            dl.nn.XLinear(20, 5, n_classes),
+            lens.nn.XLinear(20, 5, n_classes),
             torch.nn.ReLU(),
-            dl.nn.XLinear(5, 1, n_classes),
+            lens.nn.XLinear(5, 1, n_classes),
             torch.nn.Softmax(),
         ]
         model = torch.nn.Sequential(*layers)
@@ -53,7 +53,7 @@ class TestTemplateObject(unittest.TestCase):
             optimizer.step()
 
             if epoch > 500 and need_pruning:
-                dl.utils.relu_nn.prune_features(model, n_classes)
+                lens.utils.relu_nn.prune_features(model, n_classes)
                 need_pruning = False
 
             # compute accuracy
@@ -101,14 +101,14 @@ class TestTemplateObject(unittest.TestCase):
 
     def test_relunets_pruning_binary(self):
         import numpy as np
-        from deep_logic.utils.relu_nn import get_reduced_model
-        from deep_logic.utils.base import validate_network, validate_data
-        from deep_logic.logic import explain_local, combine_local_explanations, explain_global, \
+        from lens.utils.relu_nn import get_reduced_model
+        from lens.utils.base import validate_network, validate_data
+        from lens.logic import explain_local, combine_local_explanations, explain_global, \
             test_explanation, replace_names
-        from deep_logic.logic.base import simplify_formula
-        import deep_logic as dl
+        from lens.logic.base import simplify_formula
+        import lens as dl
 
-        dl.utils.base.set_seed(0)
+        lens.utils.base.set_seed(0)
 
         x = torch.tensor([
             [0, 0, 0, 0],
@@ -146,7 +146,7 @@ class TestTemplateObject(unittest.TestCase):
             optimizer.step()
 
             if epoch > 500 and need_pruning:
-                dl.utils.relu_nn.prune_features(model, n_classes)
+                lens.utils.relu_nn.prune_features(model, n_classes)
                 need_pruning = False
 
             # compute accuracy
@@ -192,10 +192,10 @@ class TestTemplateObject(unittest.TestCase):
 
     def test_relunets_no_pruning(self):
         import numpy as np
-        from deep_logic.utils.relu_nn import get_reduced_model
-        from deep_logic.utils.base import validate_network, validate_data
-        from deep_logic.logic import explain_local, combine_local_explanations
-        import deep_logic as dl
+        from lens.utils.relu_nn import get_reduced_model
+        from lens.utils.base import validate_network, validate_data
+        from lens.logic import explain_local, combine_local_explanations
+        import lens as dl
 
         torch.manual_seed(10)
         np.random.seed(0)
@@ -255,10 +255,10 @@ class TestTemplateObject(unittest.TestCase):
 
     def test_relunets_no_bias(self):
         import numpy as np
-        from deep_logic.utils.relu_nn import get_reduced_model
-        from deep_logic.utils.base import validate_network, validate_data
-        from deep_logic.logic import explain_local, combine_local_explanations
-        import deep_logic as dl
+        from lens.utils.relu_nn import get_reduced_model
+        from lens.utils.base import validate_network, validate_data
+        from lens.logic import explain_local, combine_local_explanations
+        import lens as dl
 
         torch.manual_seed(10)
         np.random.seed(0)
@@ -270,9 +270,9 @@ class TestTemplateObject(unittest.TestCase):
         layers = [
             torch.nn.Linear(2, 10 * n_classes, bias=False),
             torch.nn.ReLU(),
-            dl.nn.XLinear(10, 4, n_classes, bias=False),
+            lens.nn.XLinear(10, 4, n_classes, bias=False),
             torch.nn.ReLU(),
-            dl.nn.XLinear(4, 1, n_classes, bias=False),
+            lens.nn.XLinear(4, 1, n_classes, bias=False),
             torch.nn.Sigmoid(),
         ]
         model = torch.nn.Sequential(*layers)
@@ -319,9 +319,9 @@ class TestTemplateObject(unittest.TestCase):
     def test_psi_example(self):
         import torch
         import numpy as np
-        from deep_logic.utils.base import validate_network
-        from deep_logic.utils.psi_nn import prune_equal_fanin
-        from deep_logic import logic
+        from lens.utils.base import validate_network
+        from lens.utils.psi_nn import prune_equal_fanin
+        from lens import logic
 
         torch.manual_seed(0)
         np.random.seed(0)
@@ -374,7 +374,7 @@ class TestTemplateObject(unittest.TestCase):
         return
 
     def test_pruning(self):
-        from deep_logic.utils.psi_nn import prune_equal_fanin, validate_pruning
+        from lens.utils.psi_nn import prune_equal_fanin, validate_pruning
 
         layers = [torch.nn.Linear(3, 4), torch.nn.Sigmoid(), torch.nn.Linear(4, 1), torch.nn.Sigmoid()]
         net = torch.nn.Sequential(*layers)
@@ -386,7 +386,7 @@ class TestTemplateObject(unittest.TestCase):
         return
 
     def test_parameter_collection(self):
-        from deep_logic.utils.base import collect_parameters
+        from lens.utils.base import collect_parameters
 
         layers = [torch.nn.Linear(3, 4), torch.nn.Sigmoid(), torch.nn.Linear(4, 1), torch.nn.Sigmoid()]
         net = torch.nn.Sequential(*layers)
@@ -399,7 +399,7 @@ class TestTemplateObject(unittest.TestCase):
         return
 
     def test_validation(self):
-        from deep_logic.utils.base import validate_data, validate_network
+        from lens.utils.base import validate_data, validate_network
 
         x = torch.arange(0, 1, step=0.1)
         validate_data(x)

@@ -5,14 +5,14 @@ import time
 
 import numpy as np
 
-from deep_logic.models.ext_models.deep_red import decision_tree_induction as dti
-from deep_logic.models.ext_models.deep_red import deep_nn_train as dnnt
-from deep_logic.models.ext_models.deep_red import evaluation_formulas as ef
-from deep_logic.models.ext_models.deep_red import load_restore as lr
-from deep_logic.models.ext_models.deep_red import printer
-from deep_logic.models.ext_models.deep_red import replacement as r
-from deep_logic.models.ext_models.deep_red import split_determinator as sd
-from deep_logic.models.ext_models.deep_red.obj_data_set import DataSet
+from lens.models.ext_models.deep_red import decision_tree_induction as dti
+from lens.models.ext_models.deep_red import deep_nn_train as dnnt
+from lens.models.ext_models.deep_red import evaluation_formulas as ef
+from lens.models.ext_models.deep_red import load_restore as lr
+from lens.models.ext_models.deep_red import printer
+from lens.models.ext_models.deep_red import replacement as r
+from lens.models.ext_models.deep_red import split_determinator as sd
+from lens.models.ext_models.deep_red.obj_data_set import DataSet
 
 
 # Determine one or more splits of train and test data. Note that

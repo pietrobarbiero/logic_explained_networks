@@ -4,8 +4,8 @@ import torch
 from autoattack import AutoAttack
 from torch.utils import data
 
-from deep_logic.models.robust_cnn_classifier import RobustCNNClassifier
-from deep_logic.utils.datasets import SingleLabelDataset
+from lens.models.robust_cnn_classifier import RobustCNNClassifier
+from lens.utils.datasets import SingleLabelDataset
 
 
 class AdversarialAttackError(BaseException):

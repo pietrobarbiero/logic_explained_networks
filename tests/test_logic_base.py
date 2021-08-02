@@ -4,9 +4,9 @@ import torch
 import numpy as np
 from sklearn.metrics import accuracy_score
 
-from deep_logic.logic import test_explanation
-from deep_logic.logic.base import replace_names
-from deep_logic.logic.layer import _simplify_formula
+from lens.logic import test_explanation
+from lens.logic.base import replace_names
+from lens.logic.layer import _simplify_formula
 
 features = [f"feature{i:010}" for i in range(10)]
 

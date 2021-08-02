@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import os
 import copy
-import deep_logic as dl
+import lens as dl
 
 
 def logic_learning(net_top, dataloader, device, optimizer, criterion, epoch, n_epochs, train=False):

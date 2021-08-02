@@ -7,7 +7,7 @@ First of all we need to import some useful libraries:
 
     import torch
     import numpy as np
-    import deep_logic as dl
+    import lens
 
 In most cases it is recommended to fix the random seed for
 reproducibility:
@@ -51,7 +51,7 @@ The only requirement is the following for all the input features to be in ``[0,1
 
 .. code:: python
 
-    dl.validate_data(x_train)
+    lens.validate_data(x_train)
 
 We can now train the network:
 
@@ -84,7 +84,7 @@ at the reduced model:
 
 .. code:: python
 
-    explanation = dl.fol.explain_local(model, x_train, y_train, x_sample=x[1],
+    explanation = lens.fol.explain_local(model, x_train, y_train, x_sample=x[1],
                                        target_class=1, concept_names=['x1', 'x2'])
     print(explanation)
 

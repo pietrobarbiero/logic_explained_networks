@@ -7,7 +7,7 @@ First of all we need to import some useful libraries:
 
     import torch
     import numpy as np
-    import deep_logic as dl
+    import lens
 
 In most cases it is recommended to fix the random seed for
 reproducibility:
@@ -50,8 +50,8 @@ network architecture. The requirements are the following:
 
 .. code:: python
 
-    dl.validate_data(x)
-    dl.validate_network(model, 'psi')
+    lens.validate_data(x)
+    lens.validate_network(model, 'psi')
 
 We can now train the network pruning weights with the
 lowest absolute values after 500 epochs:
@@ -79,7 +79,7 @@ lowest absolute values after 500 epochs:
 
         # pruning
         if epoch > 500 and need_pruning:
-            model = dl.prune_equal_fanin(model, 2)
+            model = lens.prune_equal_fanin(model, 2)
             need_pruning = False
 
 Once trained the ``fol`` package can be used to generate first-order
@@ -88,8 +88,8 @@ logic explanations of the predictions:
 .. code:: python
 
     # generate explanations
-    weights, biases = dl.collect_parameters(model)
-    f = dl.fol.generate_fol_explanations(weights, biases)[0]
+    weights, biases = lens.collect_parameters(model)
+    f = lens.fol.generate_fol_explanations(weights, biases)[0]
     print(f'Explanation: {f}')
 
 For this problem the generated explanation for class :math:`y=1` is

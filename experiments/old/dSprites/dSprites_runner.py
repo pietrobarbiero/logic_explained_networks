@@ -10,7 +10,7 @@ from torch.utils.data import TensorDataset, DataLoader
 from torchvision.models import resnet18
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
-import deep_logic as dl
+import lens as dl
 
 from dSprites_style_CBM import cbm_style
 from dSprites_style_E2E import e2e_style
@@ -108,14 +108,14 @@ def main(args):
         # generate explanations
         local_explanations = []
         for i, (xin, yin) in enumerate(zip(c_test, y_test)):
-            model_reduced = dl.get_reduced_model(model, xin.to(device))
+            model_reduced = lens.get_reduced_model(model, xin.to(device))
             output = model_reduced(xin)
             if output > 0.5 and (output > 0.5) == yin:
-                local_explanation = dl.fol.generate_local_explanations(model_reduced, xin, k=2)
+                local_explanation = lens.fol.generate_local_explanations(model_reduced, xin, k=2)
                 local_explanations.append(local_explanation)
 
         print(local_explanations)
-        global_explanation, predictions = dl.fol.combine_local_explanations(model.cpu(), c_test.cpu(), y_test.cpu(), k=2)
+        global_explanation, predictions = lens.fol.combine_local_explanations(model.cpu(), c_test.cpu(), y_test.cpu(), k=2)
         print(global_explanation)
 
         ynp = y_test.detach().numpy()[:, 0]

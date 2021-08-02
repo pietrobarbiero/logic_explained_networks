@@ -213,6 +213,7 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
     :return: Local explanation
     """
     x_sample = x_sample.unsqueeze(0)
+    y_sample = y_sample.un
     if hasattr(model, 'model'):
         model_to_rank = model.model
         if isinstance(model_to_rank, torch.nn.ModuleList):

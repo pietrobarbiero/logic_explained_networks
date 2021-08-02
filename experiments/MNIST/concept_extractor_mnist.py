@@ -8,12 +8,12 @@ import torch
 import numpy as np
 from torch.utils.data import Subset
 from data import MNIST
-from deep_logic.utils.datasets import ImageToConceptDataset, ImageToConceptAndTaskDataset
-from deep_logic.utils import metrics
-from deep_logic.utils.base import set_seed, ClassifierNotTrainedError
-from deep_logic.utils.data import get_transform, get_splits_train_val_test, get_splits_for_fsc, show_batch
-from deep_logic.concept_extractor import cnn_models
-from deep_logic.concept_extractor.concept_extractor import CNNConceptExtractor
+from lens.utils.datasets import ImageToConceptDataset, ImageToConceptAndTaskDataset
+from lens.utils import metrics
+from lens.utils.base import set_seed, ClassifierNotTrainedError
+from lens.utils.data import get_transform, get_splits_train_val_test, get_splits_for_fsc, show_batch
+from lens.concept_extractor import cnn_models
+from lens.concept_extractor.concept_extractor import CNNConceptExtractor
 
 
 def concept_extractor_MNIST(dataset_root=f"..//..//data//MNIST", epochs=20, seeds=None,

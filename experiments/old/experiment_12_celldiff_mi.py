@@ -13,15 +13,15 @@ if __name__ == "__main__":
     import pandas as pd
     import numpy as np
     from sklearn.preprocessing import MinMaxScaler
-    import deep_logic as dl
-    from deep_logic.models.relu_nn import XReluNN
-    from deep_logic.models.psi_nn import PsiNetwork
-    from deep_logic.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
-    from deep_logic.utils.metrics import F1Score, ClusterAccuracy
-    from deep_logic.models.general_nn import XGeneralNN
-    from deep_logic.logic import test_explanation, complexity, fidelity
-    from deep_logic.logic.metrics import accuracy_score
-    from deep_logic.utils.loss import MutualInformationLoss
+    import lens as dl
+    from lens.models.relu_nn import XReluNN
+    from lens.models.psi_nn import PsiNetwork
+    from lens.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
+    from lens.utils.metrics import F1Score, ClusterAccuracy
+    from lens.models.general_nn import XGeneralNN
+    from lens.logic import test_explanation, complexity, fidelity
+    from lens.logic.metrics import accuracy_score
+    from lens.utils.loss import MutualInformationLoss
     from torch.utils.data import TensorDataset
 
     results_dir = 'results/celldiff_mi'
@@ -231,7 +231,7 @@ if __name__ == "__main__":
             elapsed_times.append(elapsed_time)
             explanation_complexities.append(exp_complexity)
 
-        explanation_consistency = dl.logic.formula_consistency(explanations)
+        explanation_consistency = lens.logic.formula_consistency(explanations)
         print(f'Consistency of explanations: {explanation_consistency:.4f}')
 
         results = pd.DataFrame({
