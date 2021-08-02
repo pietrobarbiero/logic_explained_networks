@@ -210,7 +210,7 @@ def _get_validation_data(x, y, model, target_class, binary=True):
 
     # get model's predictions
     preds = model(x_target)
-    if binary:
+    if binary and len(preds.shape) == 1: #In case the model given doesn't returns a shape [Nx1]
         preds = preds.unsqueeze(-1)
     preds = to_categorical(preds)
 

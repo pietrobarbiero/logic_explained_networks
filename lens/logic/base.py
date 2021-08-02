@@ -28,7 +28,7 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
     assert concept_names is not None or "feature" in explanation or explanation == "", \
         "Concept names must be given when present in the formula"
     if explanation == '':
-        local_predictions = [torch.tensor(np.empty_like(y))]
+        local_predictions = [torch.empty_like(y)]
         predictions = torch.cat(local_predictions).eq(target_class).cpu().detach().numpy()
         accuracy = 0.0
         return accuracy, torch.stack(local_predictions, dim=0).sum(dim=0) > 0 if give_local else predictions

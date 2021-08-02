@@ -32,7 +32,8 @@ class Accuracy(Metric):
     def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
         outputs = outputs if isinstance(outputs, torch.Tensor) else torch.tensor(outputs)
         targets = targets if isinstance(targets, torch.Tensor) else torch.tensor(targets)
-        outputs, targets = outputs.squeeze(), targets.squeeze()
+        if sum(outputs.shape) > 1:
+            outputs, targets = outputs.squeeze(), targets.squeeze()
         if len(outputs.shape) > 1:
             # Multi-Label classification
             if len(targets.shape) > 1:
