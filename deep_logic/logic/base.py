@@ -27,9 +27,6 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
 
     assert concept_names is not None or "feature" in explanation or explanation == "", \
         "Concept names must be given when present in the formula"
-    if concept_names is not None:
-        for i, concept_name in enumerate(concept_names):
-            explanation = explanation.replace(concept_name, f"feature{i:010}")
     if explanation == '':
         local_predictions = [torch.tensor(np.empty_like(y))]
         predictions = torch.cat(local_predictions).eq(target_class).cpu().detach().numpy()
@@ -42,15 +39,22 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
         local_predictions = [torch.tensor(np.zeros_like(y))]
         predictions = torch.cat(local_predictions).eq(target_class).cpu().detach().numpy()
     else:
+        if concept_names is not None:
+            for i, concept_name in enumerate(concept_names):
+                explanation = explanation.replace(concept_name, f"feature{i:010}")
+            absent_concepts = [term for term in explanation.split(" ") if term != "&" and term != "|" and
+                               "feature" not in term and "True" not in term and "False" not in term and "" not in term]
+            assert len(
+                absent_concepts) == 0, "Some of the concepts in the explanations have not been passed to the function"
         if not inequalities:
             explanation = to_dnf(explanation)
             x = x > 0.5
-        minterms = str(explanation).split(' | ')
+        min_terms = str(explanation).split(' | ')
         local_predictions = []
-        for minterm in minterms:
-            minterm = minterm.replace('(', '').replace(')', '').split(' & ')
+        for min_term in min_terms:
+            min_term = min_term.replace('(', '').replace(')', '').split(' & ')
             features = []
-            for terms in minterm:
+            for terms in min_term:
                 if inequalities:
                     terms = terms.replace("feature", "").split(" ")
                     feature_num = int(terms[0])

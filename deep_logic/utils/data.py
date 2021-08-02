@@ -222,6 +222,8 @@ def show_batch(dataset, labels_names, batch_size=8, save=False):
         if label.size > 1:
             for i in np.where(label == 1)[0]:
                 title += labels_names[i] + ", "
+                if len(title.split(", ")) > 2:
+                    break
         else:
             title = labels_names[label]
         title = title[:100]

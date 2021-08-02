@@ -168,7 +168,7 @@ class BaseClassifier(torch.nn.Module):
         self.to(device), self.train()
 
         # Setting loss function and optimizer
-        optimizer = torch.optim.Adam(self.parameters(), lr=l_r)
+        optimizer = torch.optim.Adam(self.parameters(), lr=l_r, weight_decay=1e-4)
         scheduler = ReduceLROnPlateau(optimizer, verbose=verbose, mode='max', patience=epochs//5,
                                       factor=0.33, min_lr=1e-2 * l_r) if lr_scheduler else None
 
@@ -233,6 +233,7 @@ class BaseClassifier(torch.nn.Module):
             if (epoch + 1) == epochs // 2 and self.need_pruning:
                 self.prune()
                 self.need_pruning = False
+                print("Pruned features")
                 optimizer = torch.optim.AdamW(self.parameters(), lr=l_r)
                 scheduler = ReduceLROnPlateau(optimizer, verbose=verbose, mode='max', patience=epochs // 5,
                                               factor=0.33, min_lr=1e-2 * l_r) if lr_scheduler else None
@@ -274,12 +275,10 @@ class BaseClassifier(torch.nn.Module):
         :param labels: to be passed together with outputs
         :return: metric evaluated on the dataset
         """
-        self.eval()
         with torch.no_grad():
             if outputs is None or labels is None:
                 outputs, labels = self.predict(dataset, batch_size, num_workers, device)
             metric_val = metric(outputs.cpu(), labels.cpu())
-        self.train()
         return metric_val
 
     def predict(self, dataset, batch_size: int = None, num_workers: int = 0,
@@ -293,7 +292,7 @@ class BaseClassifier(torch.nn.Module):
         :param device: device on which to perform the training
         :return: a tuple containing the outputs computed on the dataset and the labels
         """
-        self.to(device)
+        self.to(device), self.eval()
         outputs, labels = [], []
         if batch_size is None:
             batch_size = len(dataset)
@@ -303,6 +302,7 @@ class BaseClassifier(torch.nn.Module):
             batch_outputs = self.forward(batch_data)
             outputs.append(batch_outputs)
             labels.append(batch_labels)
+        self.train()
         return torch.cat(outputs), torch.cat(labels)
 
     def save(self, set_trained=False, name=None) -> None:
@@ -343,9 +343,10 @@ class BaseClassifier(torch.nn.Module):
                 self.time = checkpoint['time']
             else:
                 state_dict = checkpoint
-            if self.time is None or self.explanations[0] == "":
-                warnings.warn("Loaded model does not have time or explanations. "
-                              "They need to be recalculated but time will only consider rule extraction time.")
+            if isinstance(self, BaseXModel):
+                if self.time is None or self.explanations[0] == "" and not set_trained:
+                    warnings.warn("Loaded model does not have time or explanations. "
+                                  "They need to be recalculated but time will only consider rule extraction time.")
             incompat_keys = self.load_state_dict(state_dict, strict=False)
         except (FileNotFoundError, RuntimeError):
             raise ClassifierNotTrainedError()
@@ -363,7 +364,8 @@ class BaseClassifier(torch.nn.Module):
             else:
                 raise IncompatibleClassifierError(incompat_keys.missing_keys, incompat_keys.unexpected_keys)
         self.to(device)
-        assert self.get_device().type == device.type, "Error in loading model to the correct device"
+        assert self.get_device().type == device.type, f"Error in loading model to the correct device, " \
+                                                      f"{self.get_device().type} != {device}"
 
     @staticmethod
     def _random_sample_data(sample_rate: float, x: torch.Tensor, y: torch.Tensor, return_idx=False) -> \

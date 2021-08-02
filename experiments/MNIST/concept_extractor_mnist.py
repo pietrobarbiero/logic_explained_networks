@@ -12,35 +12,35 @@ from deep_logic.utils.datasets import ImageToConceptDataset, ImageToConceptAndTa
 from deep_logic.utils import metrics
 from deep_logic.utils.base import set_seed, ClassifierNotTrainedError
 from deep_logic.utils.data import get_transform, get_splits_train_val_test, get_splits_for_fsc, show_batch
-from deep_logic.utils.loss import MixedMultiLabelLoss
 from deep_logic.concept_extractor import cnn_models
 from deep_logic.concept_extractor.concept_extractor import CNNConceptExtractor
 
 
-def concept_extractor_mnist(dataset_root=f"..//..//data//MNIST", epochs=20, seeds=None,
+def concept_extractor_MNIST(dataset_root=f"..//..//data//MNIST", epochs=20, seeds=None,
                             device=torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu"),
-                            metric=metrics.F1Score, cnn_model=cnn_models.RESNET10, pretrained=False,
-                            transfer_learning=False, show_image=True, data_augmentation=False, multi_label=False,
+                            metric=metrics.F1Score, cnn_model=cnn_models.RESNET10, pretrained=False, multi_label=False,
+                            transfer_learning=False, show_image=True, data_augmentation=False,
                             few_shot=False, l_r=0.01, batch_size=128, binary_loss=False):
+
+    dataset_name = MNIST
     if seeds is None:
         seeds = [0]
-    if multi_label:
-        loss = torch.nn.BCEWithLogitsLoss()  # MixedMultiLabelLoss(torch.as_tensor([False] * 2 + [True] * 10))
-    elif binary_loss:
+
+    if binary_loss:
         loss = torch.nn.BCEWithLogitsLoss()
     else:
         loss = torch.nn.CrossEntropyLoss()
 
     for seed in seeds:
         set_seed(seed)
-        train_transform = get_transform(dataset=MNIST, data_augmentation=data_augmentation,
+        train_transform = get_transform(dataset=dataset_name, data_augmentation=data_augmentation,
                                         inception=cnn_model == cnn_models.INCEPTION)
-        test_transform = get_transform(dataset=MNIST, data_augmentation=False,
+        test_transform = get_transform(dataset=dataset_name, data_augmentation=False,
                                        inception=cnn_model == cnn_models.INCEPTION)
         if multi_label:
-            dataset = ImageToConceptAndTaskDataset(dataset_root, train_transform, dataset_name=MNIST)
+            dataset = ImageToConceptAndTaskDataset(dataset_root, train_transform, dataset_name=dataset_name)
         else:
-            dataset = ImageToConceptDataset(dataset_root, train_transform, dataset_name=MNIST)
+            dataset = ImageToConceptDataset(dataset_root, train_transform, dataset_name=dataset_name)
         if few_shot:
             train_set, val_set = get_splits_for_fsc(dataset, train_split=0.8, test_transform=test_transform)
             test_idx = train_set.indices + val_set.indices
@@ -56,8 +56,8 @@ def concept_extractor_mnist(dataset_root=f"..//..//data//MNIST", epochs=20, seed
             show_batch(test_set, test_set.dataset.attribute_names)
 
         name = f"model_{cnn_model}_prtr_{pretrained}_trlr_{transfer_learning}_bl_{binary_loss}_fs_{few_shot}_dataset_" \
-               f"{MNIST}_lr_{l_r}_epochs_{epochs}_seed_{seed}_" \
-               f"time_{datetime.now().strftime('%d-%m-%y_%H-%M-%S')}.pth"
+               f"{dataset_name}_lr_{l_r}_epochs_{epochs}_seed_{seed}_" \
+               f"time_{datetime.now().strftime('%d-%m-%y %H:%M:%S')}.pth"
         print(name)
         model = CNNConceptExtractor(dataset.n_attributes, cnn_model=cnn_model,
                                     loss=loss, name=name, pretrained=pretrained, transfer_learning=transfer_learning)
@@ -74,12 +74,12 @@ def concept_extractor_mnist(dataset_root=f"..//..//data//MNIST", epochs=20, seed
             preds, labels = model.predict(dataset, num_workers=8, device=device)
             val = model.evaluate(dataset, metric=metric(), device=device, outputs=preds, labels=labels)
             if multi_label:
-                pred_path = os.path.join(dataset_root, f"{MNIST}_multi_label_predictions.npy")
+                pred_path = os.path.join(dataset_root, f"{dataset_name}_multi_label_predictions.npy")
             else:
-                pred_path = os.path.join(dataset_root, f"{MNIST}_predictions.npy")
+                pred_path = os.path.join(dataset_root, f"{dataset_name}_predictions.npy")
             np.save(pred_path, preds.cpu().numpy())
             print("Performance:", val)
 
 
 if __name__ == '__main__':
-    concept_extractor_mnist()
+    concept_extractor_MNIST()

@@ -152,7 +152,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     counter = collections.Counter(local_explanations)
     counter_translated = collections.Counter(local_explanations_translated)
 
-    if len(counter) < topk_explanations:
+    if topk_explanations is None or len(counter) < topk_explanations:
         topk_explanations = len(counter)
     most_common_explanations = []
     best_accuracy = 0

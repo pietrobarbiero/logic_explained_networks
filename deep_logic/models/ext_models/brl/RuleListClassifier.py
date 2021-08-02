@@ -236,16 +236,22 @@ class RuleListClassifier(BaseEstimator):
         else:
             return "(Untrained RuleListClassifier)"
 
-    def _to_itemset_indices(self, data):
+    def _to_itemset_indices(self, data, use_only_d_star=False):
         # X[j] is the set of data points that contain itemset j (that is, satisfy rule j)
         X = [set() for j in range(len(self.itemsets))]
         X[0] = set(range(len(data)))  # the default rule satisfies all data
-        for (j, lhs) in enumerate(self.itemsets):
-            if j > 0:
-                X[j] = set([i for (i, xi) in enumerate(data) if set(lhs).issubset(xi)])
+        if use_only_d_star:
+            for j in self.d_star:
+                lhs = self.itemsets[j]
+                if j > 0:
+                    X[j] = set([i for (i, xi) in enumerate(data) if set(lhs).issubset(xi)])
+        else:
+            for (j, lhs) in enumerate(self.itemsets):
+                if j > 0:
+                    X[j] = set([i for (i, xi) in enumerate(data) if set(lhs).issubset(xi)])
         return X
 
-    def predict_proba(self, X):
+    def predict_proba(self, X, use_only_d_star=False):
         """Compute probabilities of possible outcomes for samples in X.
 
         Parameters
@@ -268,7 +274,7 @@ class RuleListClassifier(BaseEstimator):
             D = X
 
         N = len(D)
-        X2 = self._to_itemset_indices(D[:])
+        X2 = self._to_itemset_indices(D[:], use_only_d_star=use_only_d_star)
         P = preds_d_t(X2, np.zeros((N, 1), dtype=int), self.d_star, self.theta)
         return np.vstack((1 - P, P)).T
 

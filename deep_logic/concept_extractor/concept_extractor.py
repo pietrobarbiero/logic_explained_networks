@@ -165,7 +165,7 @@ class CNNConceptExtractor(BaseClassifier):
             tot_losses.append(tot_losses_i.mean().item())
 
             # Save best model
-            if val_acc >= best_acc and epoch >= epochs / 2 or epochs == 1:
+            if val_acc >= best_acc and epoch >= epochs // 4 or epochs == 1:
                 best_acc = val_acc
                 best_epoch = epoch + 1
                 self.save()

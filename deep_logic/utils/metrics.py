@@ -79,8 +79,10 @@ class F1Score(Metric):
     """
     F1 score computed on the predictions of a model and the actual labels. Useful for Multi-label classification.
     """
+    def __init__(self, average='macro'):
+        self.average = average
 
-    def __call__(self, outputs: torch.Tensor, targets: torch.Tensor, average='macro') -> float:
+    def __call__(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
         outputs = outputs if isinstance(outputs, torch.Tensor) else torch.tensor(outputs)
         targets = targets if isinstance(targets, torch.Tensor) else torch.tensor(targets)
         assert len(outputs.squeeze().shape) != 1 or len(targets.squeeze().shape) == 1, \
@@ -93,7 +95,7 @@ class F1Score(Metric):
             discrete_output = outputs.cpu().numpy() > 0.5
             targets = targets > 0.5
         targets = targets.cpu().numpy()
-        f1_val = f1_score(discrete_output, targets, average=average, zero_division=0) * 100
+        f1_val = f1_score(discrete_output, targets, average=self.average, zero_division=0) * 100
         return f1_val
 
 

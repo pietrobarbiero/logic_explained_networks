@@ -1,10 +1,16 @@
-import torch
+from typing import Tuple, List
 
+import torch
+from sympy import to_dnf
+from torch.utils.data import Dataset, Subset
+
+from datasets import ImageToConceptAndTaskDataset
 from deep_logic.utils.base import NotAvailableError
+from deep_logic.utils.metrics import Accuracy
 from .base import BaseClassifier
 
 
-class BlackBox(BaseClassifier):
+class BlackBoxClassifier(BaseClassifier):
     """
         BlackBox Neural Network employing ReLU activation function of variable depth but completely interpretable.
         After being trained it provides for local explanation for the prediction on a single example and global
@@ -26,6 +32,8 @@ class BlackBox(BaseClassifier):
         super().__init__(loss, name, device)
         self.n_classes = n_classes
         self.n_features = n_features
+        self.eval_main_classes = False
+        self.eval_logits = False
 
         layers = []
         for i in range(len(hidden_neurons) + 1):
@@ -37,21 +45,8 @@ class BlackBox(BaseClassifier):
             ])
         self.model = torch.nn.Sequential(*layers)
 
-    def get_loss(self, output: torch.Tensor, target: torch.Tensor, *args, **kwargs) \
-            -> torch.Tensor:
-        """
-        get_loss method extended from Classifier. The loss passed in the __init__ function of the is employed.
-        An L1 weight regularization is also always applied
-
-        :param output: output tensor from the forward function
-        :param target: label tensor
-        :return: loss tensor value
-        """
-        output_loss = super().get_loss(output, target)
-        return output_loss
-
     def prune(self):
-        raise NotAvailableError("Prune method is not available with BlackBox model.")
+        raise NotAvailableError("Prune method is not available with BlackBoxClassifier model.")
 
 
 if __name__ == "__main__":

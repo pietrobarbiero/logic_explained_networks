@@ -9,14 +9,12 @@ if __name__ == "__main__":
     from sklearn.model_selection import StratifiedKFold, train_test_split
     from tqdm import trange
 
-    from data.load_structured_datasets import load_vDem
-
     sys.path.append('..')
     import os
     import torch
     import pandas as pd
     import numpy as np
-    from torch.nn import CrossEntropyLoss
+    from torch.nn import CrossEntropyLoss, BCEWithLogitsLoss
 
     from deep_logic.models.relu_nn import XReluNN
     from deep_logic.models.psi_nn import PsiNetwork
@@ -30,6 +28,7 @@ if __name__ == "__main__":
     from deep_logic.logic.base import test_explanation
     from deep_logic.logic.metrics import complexity, fidelity, formula_consistency
     from data import VDEM
+    from data.load_structured_datasets import load_vDem
 
     # n_sample = 100
     results_dir = f'results/vDem'
@@ -43,9 +42,8 @@ if __name__ == "__main__":
     dataset_root = "../data/"
     dataset_name = VDEM
     print(dataset_root)
+    print(results_dir)
     x, c, y, feature_names, concept_names, class_names = load_vDem(dataset_root)
-    # idx = np.random.randint(0, x.shape[0], n_sample)
-    # x, c, y, = x[idx], c[idx], y[idx]
     y = y.argmax(dim=1)
     n_features = x.shape[1]
     n_concepts = c.shape[1]
@@ -60,11 +58,11 @@ if __name__ == "__main__":
     #%% md
     ## Define loss, metrics and methods
     #%%
-
-    loss = CrossEntropyLoss()
+    loss_low = BCEWithLogitsLoss()
+    loss_high = CrossEntropyLoss()
     metric = Accuracy()
     expl_metric = F1Score()
-    method_list = ['DTree', 'Relu', 'General', 'Psi',] #  'BRL', 'DeepRed']
+    method_list = ['DTree', 'BRL', 'Psi', 'Relu', 'General']  # 'DeepRed']
     print("Methods", method_list)
 
     #%% md
@@ -72,7 +70,7 @@ if __name__ == "__main__":
     #%%
 
     epochs = 1000
-    n_processes = 2
+    n_processes = 4
     timeout = 60 * 60  # 1 h timeout
     l_r = 1e-3
     lr_scheduler = False
@@ -80,7 +78,7 @@ if __name__ == "__main__":
     simplify = True
     seeds = [*range(5)]
     print("Seeds", seeds)
-    device = torch.device("cpu")
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     print("Device", device)
 
     for method in method_list:
@@ -105,6 +103,7 @@ if __name__ == "__main__":
             train_data_low = StructuredDataset(x_train, c_train, dataset_name, feature_names, concept_names)
             val_data_low = StructuredDataset(x_val, c_val, dataset_name, feature_names, concept_names)
             test_data_low = StructuredDataset(x_test, c_test, dataset_name, feature_names, concept_names)
+            data_low = StructuredDataset(x, c, dataset_name, feature_names, concept_names)
 
             name_low = os.path.join(results_dir, f"{method}_{seed}_low")
             name_high = os.path.join(results_dir, f"{method}_{seed}_high")
@@ -139,14 +138,10 @@ if __name__ == "__main__":
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i in trange(n_classes):
                     explanation = model_high.get_global_explanation(i, concept_names)
-                    # exp_accuracy, exp_predictions = test_explanation(explanation, i, c_predicted_test, y_test, metric=expl_metric,
-                    #                                                  concept_names=concept_names, inequalities=True)
                     class_output = torch.as_tensor((outputs > 0.5) == i)
                     class_label = torch.as_tensor(labels == i)
                     exp_fidelity = 100
                     exp_accuracy = expl_metric(class_output, class_label)
-                    # exp_predictions = torch.as_tensor(exp_predictions)
-                    # exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
                     explanation_complexity = complexity(explanation)
                     explanations.append(explanation), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
@@ -159,14 +154,12 @@ if __name__ == "__main__":
                     model_low.load(device)
                     print(f"Model {name_low} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    model_low.fit(train_data_low, val_data_low, train_sample_rate=train_sample_rate,
-                                  verbose=False, eval=False)
-                c_predicted_train, _ = model_low.predict(train_data_low, device=device)
-                c_predicted_val, _ = model_low.predict(val_data_low, device=device)
-                c_predicted_test, _ = model_low.predict(test_data_low, device=device)
-                accuracy_low = model_low.evaluate(test_data_low, metric=metric)
-                train_data_high = StructuredDataset(c_predicted_train, y_train, dataset_name, feature_names, concept_names)
-                val_data_high = StructuredDataset(c_predicted_val, y_val, dataset_name, feature_names, concept_names)
+                    model_low.fit(train_data_low, train_sample_rate=train_sample_rate,
+                                  verbose=True, eval=False)
+                c_predicted, _ = model_low.predict(data_low, device=device)
+                c_predicted_train, c_predicted_test = c_predicted[trainval_index], c_predicted[test_index]
+                accuracy_low = model_low.evaluate(test_data_low, metric=metric, outputs=c_predicted_test, labels=c_test)
+                train_data_high = StructuredDataset(c_predicted_train, y_trainval, dataset_name, feature_names, concept_names)
                 test_data_high = StructuredDataset(c_predicted_test, y_test, dataset_name, feature_names, concept_names)
                 model_high = XBRLClassifier(name=name_high, n_classes=n_classes, n_features=n_concepts,
                                             n_processes=n_processes, feature_names=concept_names, class_names=class_names)
@@ -174,19 +167,16 @@ if __name__ == "__main__":
                     model_high.load(device)
                     print(f"Model {name_high} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    model_high.fit(train_data_high, val_data_high, train_sample_rate=train_sample_rate, verbose=False,
+                    model_high.fit(train_data_high, train_sample_rate=train_sample_rate, verbose=True,
                                    eval=False)
                 outputs, labels = model_high.predict(test_data_high, device=device)
                 accuracy = model_high.evaluate(test_data_high, metric=metric, outputs=outputs, labels=labels)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i in trange(n_classes):
-                    explanation = model_low.get_global_explanation(i, concept_names)
+                    explanation = model_high.get_global_explanation(i, concept_names)
                     exp_accuracy, exp_predictions = test_explanation(explanation, i, c_predicted_test, y_test, metric=expl_metric,
                                                                      concept_names=concept_names)
                     exp_fidelity = 100
-                    # exp_predictions = torch.as_tensor(exp_predictions)
-                    # class_output = outputs.argmax(dim=1) == i
-                    # exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
                     explanation_complexity = complexity(explanation, to_dnf=True)
                     explanations.append(explanation), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
@@ -199,10 +189,11 @@ if __name__ == "__main__":
                     model_low.load(device)
                     print(f"Model {name_low} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    model_low.fit(epochs,  train_sample_rate=train_sample_rate, verbose=False, eval=False)
+                    model_low.fit(epochs,  train_sample_rate=train_sample_rate, verbose=True, eval=False)
                 c_predicted_train, _ = model_low.predict(train=True, device=device)
                 c_predicted_test, _ = model_low.predict(train=False, device=device)
-                accuracy_low = model_low.evaluate(train=False, device=device, metric=metric)
+                accuracy_low = model_low.evaluate(train=False, outputs=c_predicted_test, labels=c_test, metric=metric)
+                model_low.finish()
                 c_predicted = torch.vstack((c_predicted_train, c_predicted_test))
                 y = torch.vstack((y_train, y_test))
                 dataset_high = StructuredDataset(c_predicted, y, dataset_name, feature_names, concept_names)
@@ -212,29 +203,13 @@ if __name__ == "__main__":
                     model_high.load(device)
                     print(f"Model {name_high} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    model_high.fit(epochs=epochs, seed=seed, metric=metric)
+                    model_low.fit(epochs,  train_sample_rate=train_sample_rate, verbose=True, eval=False)
                 outputs, labels = model_high.predict(train=False, device=device)
                 accuracy = model_high.evaluate(train=False, metric=metric, outputs=outputs, labels=labels)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 print("Extracting rules...")
                 t = time.time()
-                # executor = ProcessPoolExecutor(n_processes)
-                # futures = []
-                # for i, class_to_explain in enumerate(class_names):
-                #     args = {"self": model_low,
-                #             "target_class": i,
-                #             "concept_names": concept_names,
-                #             "simplify": simplify
-                #             }
-                #     futures.append(executor.submit(XDeepRedClassifier.get_global_explanation, **args))
-                #     print(f"Started {i + 1}/{n_classes} process")
                 for i in trange(n_classes):
-                    # try:
-                    #     # explanation are waited only until timeout, otherwise they return false
-                    #     explanation = futures[i].result(timeout=timeout)
-                    # except concurrent.futures._base.TimeoutError as e:
-                    #     explanation = "False"
-                    #     print(f"{method} failed to return an explanation within {timeout} s.")
                     explanation = model_high.get_global_explanation(i, concept_names, simplify=simplify)
                     exp_accuracy, exp_predictions = test_explanation(explanation, i, c_predicted_test, y_test,
                                                                      metric=expl_metric,
@@ -246,44 +221,47 @@ if __name__ == "__main__":
                     explanations.append(explanation), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
                     print(f"{i + 1}/{n_classes} Rules extracted. Time {time.time() - t}")
-                # executor.shutdown(wait=False)
 
             elif method == 'Psi':
                 # Network structures
-                l1_weight = 1e-3
-                hidden_neurons = []
-                fan_in = 5
+                l1_weight = 1e-4
+                hidden_neurons = [10, 5]
+                fan_in = 3
+                lr_psi = 1e-2
                 print("L1 weight", l1_weight)
                 print("Hidden neurons", hidden_neurons)
                 print("Fan in", fan_in)
-                model_low = PsiNetwork(n_concepts, n_features, hidden_neurons, loss, l1_weight, name=name_low,
+                print("Learning rate", lr_psi)
+                name_low = os.path.join(results_dir, f"{method}_{seed}_{l1_weight}_{hidden_neurons}_{fan_in}_{lr_psi}_low")
+                name_high = os.path.join(results_dir, f"{method}_{seed}_{l1_weight}_{hidden_neurons}_{fan_in}_{lr_psi}_high")
+                model_low = PsiNetwork(n_concepts, n_features, hidden_neurons, loss_low, l1_weight, name=name_low,
                                        fan_in=fan_in)
                 try:
                     model_low.load(device)
                     print(f"Model {name_low} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    model_low.fit(train_data_low, val_data_low, epochs=epochs, l_r=l_r,
-                                  metric=metric, lr_scheduler=lr_scheduler, device=device, verbose=False)
-                c_predicted_train = model_low.predict(train_data_low, device=device)[0].detach()
-                c_predicted_val = model_low.predict(val_data_low, device=device)[0].detach()
-                c_predicted_test = model_low.predict(test_data_low, device=device)[0].detach()
-                accuracy_low = model_low.evaluate(test_data_low, metric=metric)
+                    model_low.fit(train_data_low, val_data_low, epochs=epochs, l_r=lr_psi,
+                                  metric=metric, lr_scheduler=lr_scheduler, device=device, verbose=True)
+                c_predicted_train = model_low.predict(train_data_low, device=device)[0].detach().cpu()
+                c_predicted_val = model_low.predict(val_data_low, device=device)[0].detach().cpu()
+                c_predicted_test = model_low.predict(test_data_low, device=device)[0].detach().cpu()
+                accuracy_low = model_low.evaluate(test_data_low, outputs=c_predicted_test, labels=c_test, metric=metric)
                 train_data_high = StructuredDataset(c_predicted_train, y_train, dataset_name, feature_names, concept_names)
                 val_data_high = StructuredDataset(c_predicted_val, y_val, dataset_name, feature_names, concept_names)
                 test_data_high = StructuredDataset(c_predicted_test, y_test, dataset_name, feature_names, concept_names)
-                model_high = PsiNetwork(n_classes, n_concepts, hidden_neurons, loss, l1_weight,
+                model_high = PsiNetwork(n_classes, n_concepts, hidden_neurons, loss_high, l1_weight,
                                         name=name_high, fan_in=fan_in)
                 try:
                     model_high.load(device)
                     print(f"Model {name_high} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    model_high.fit(train_data_high, val_data_high, epochs=epochs, l_r=l_r,
-                                   metric=metric, lr_scheduler=lr_scheduler, device=device, verbose=False)
+                    model_high.fit(train_data_high, val_data_high, epochs=epochs, l_r=lr_psi,
+                                   metric=metric, lr_scheduler=lr_scheduler, device=device, verbose=True)
                 outputs, labels = model_high.predict(test_data_high, device=device)
                 accuracy = model_high.evaluate(test_data_high, metric=metric, outputs=outputs, labels=labels)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 for i in trange(n_classes):
-                    explanation = model_high.get_global_explanation(i, concept_names, simplify=simplify, x_train=x_train)
+                    explanation = model_high.get_global_explanation(i, concept_names, simplify=simplify, x_train=c_predicted_train)
                     exp_accuracy, exp_predictions = test_explanation(explanation, i, c_predicted_test, y_test,
                                                                      metric=expl_metric, concept_names=concept_names)
                     exp_predictions = torch.as_tensor(exp_predictions)
@@ -295,31 +273,37 @@ if __name__ == "__main__":
 
             elif method == 'General':
                 # Network structures
-                l1_weight = 1e-4
+                l1_weight = 1e-3
                 hidden_neurons = [100, 30, 10]
-                model_low = XGeneralNN(n_classes=n_concepts, n_features=n_features, hidden_neurons=hidden_neurons,
-                                       loss=loss, name=name_low, l1_weight=l1_weight)
+                fan_in = 5
+                top_k_explanations = None
+                name_low = os.path.join(results_dir, f"{method}_{seed}_{l1_weight}_{hidden_neurons}_{fan_in}_low")
+                name_high = os.path.join(results_dir, f"{method}_{seed}_{l1_weight}_{hidden_neurons}_{fan_in}_high")
+
+                model_low = XGeneralNN(n_concepts, n_features, hidden_neurons, fan_in=n_features,
+                                       loss=loss_low, name=name_low, l1_weight=l1_weight)
                 try:
                     model_low.load(device)
                     print(f"Model {name_low} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
                     model_low.fit(train_data_low, val_data_low, epochs=epochs, l_r=l_r,
-                                  metric=metric, lr_scheduler=lr_scheduler, device=device, verbose=False)
-                c_predicted_train = model_low.predict(train_data_low, device=device)[0].detach()
-                c_predicted_val = model_low.predict(val_data_low, device=device)[0].detach()
-                c_predicted_test = model_low.predict(test_data_low, device=device)[0].detach()
-                accuracy_low = model_low.evaluate(test_data_low, metric=metric)
+                                  metric=metric, lr_scheduler=lr_scheduler, device=device, verbose=True)
+                c_predicted_train = model_low.predict(train_data_low, device=device)[0].detach().cpu()
+                c_predicted_val = model_low.predict(val_data_low, device=device)[0].detach().cpu()
+                c_predicted_test = model_low.predict(test_data_low, device=device)[0].detach().cpu()
+                accuracy_low = model_low.evaluate(test_data_low, outputs=c_predicted_test, labels=c_test, metric=metric)
                 train_data_high = StructuredDataset(c_predicted_train, y_train, dataset_name, feature_names, concept_names)
                 val_data_high = StructuredDataset(c_predicted_val, y_val, dataset_name, feature_names, concept_names)
                 test_data_high = StructuredDataset(c_predicted_test, y_test, dataset_name, feature_names, concept_names)
-                model_high = XGeneralNN(n_classes=n_classes, n_features=n_concepts, hidden_neurons=hidden_neurons,
-                                       loss=loss, name=name_high, l1_weight=l1_weight)
+
+                model_high = XGeneralNN(n_classes, n_concepts, hidden_neurons, fan_in=fan_in,
+                                        loss=loss_high, name=name_high, l1_weight=l1_weight)
                 try:
                     model_high.load(device)
                     print(f"Model {name_high} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    model_high.fit(train_data_high, val_data_high, epochs=epochs, l_r=l_r,
-                                   metric=metric, lr_scheduler=lr_scheduler, device=device, verbose=False)
+                    model_high.fit(train_data_high, val_data_high, epochs=epochs, l_r=l_r*1e-1,
+                                   metric=metric, lr_scheduler=lr_scheduler, device=device, verbose=True)
                 outputs, labels = model_high.predict(test_data_high, device=device)
                 accuracy = model_high.evaluate(test_data_high, metric=metric, outputs=outputs, labels=labels)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
@@ -327,7 +311,8 @@ if __name__ == "__main__":
                     explanation = model_high.get_global_explanation(c_predicted_train, y_train, i,
                                                                     top_k_explanations=top_k_explanations,
                                                                     concept_names=concept_names, simplify=simplify,
-                                                                    metric=expl_metric, x_val=x_val, y_val=y_val)
+                                                                    metric=expl_metric, x_val=c_predicted_val,
+                                                                    y_val=y_val)
                     exp_accuracy, exp_predictions = test_explanation(explanation, i, c_predicted_test, y_test,
                                                                      metric=expl_metric, concept_names=concept_names)
                     exp_predictions = torch.as_tensor(exp_predictions)
@@ -340,33 +325,33 @@ if __name__ == "__main__":
             elif method == 'Relu':
                 # Network structures
                 l1_weight = 1e-4
-                hidden_neurons = [100, 30, 10]
-                dropout_rate = 0.3
+                hidden_neurons = [100, 50, 30, 10]
+                dropout_rate = 0.01
                 print("l1 weight", l1_weight)
                 print("hidden neurons", hidden_neurons)
                 model_low = XReluNN(n_classes=n_concepts, n_features=n_features, name=name_low, dropout_rate=dropout_rate,
-                                    hidden_neurons=hidden_neurons, loss=loss, l1_weight=l1_weight)
+                                    hidden_neurons=hidden_neurons, loss=loss_low, l1_weight=l1_weight*1e-2)
                 try:
                     model_low.load(device)
                     print(f"Model {name_low} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
                     model_low.fit(train_data_low, val_data_low, epochs=epochs, l_r=l_r,
-                                  metric=metric, lr_scheduler=lr_scheduler, device=device, verbose=False)
-                c_predicted_train = model_low.predict(train_data_low, device=device)[0].detach()
-                c_predicted_val = model_low.predict(val_data_low, device=device)[0].detach()
-                c_predicted_test = model_low.predict(test_data_low, device=device)[0].detach()
-                accuracy_low = model_low.evaluate(test_data_low, metric=metric)
+                                  metric=metric, lr_scheduler=lr_scheduler, device=device, verbose=True)
+                c_predicted_train = model_low.predict(train_data_low, device=device)[0].detach().cpu()
+                c_predicted_val = model_low.predict(val_data_low, device=device)[0].detach().cpu()
+                c_predicted_test = model_low.predict(test_data_low, device=device)[0].detach().cpu()
+                accuracy_low = model_low.evaluate(test_data_low, outputs=c_predicted_test, labels=c_test, metric=metric)
                 train_data_high = StructuredDataset(c_predicted_train, y_train, dataset_name, feature_names, concept_names)
                 val_data_high = StructuredDataset(c_predicted_val, y_val, dataset_name, feature_names, concept_names)
                 test_data_high = StructuredDataset(c_predicted_test, y_test, dataset_name, feature_names, concept_names)
                 model_high = XReluNN(n_classes=n_classes, n_features=n_concepts, name=name_high, dropout_rate=dropout_rate,
-                                    hidden_neurons=hidden_neurons, loss=loss, l1_weight=l1_weight)
+                                    hidden_neurons=hidden_neurons, loss=loss_high, l1_weight=l1_weight)
                 try:
                     model_high.load(device)
                     print(f"Model {name_high} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    model_high.fit(train_data_high, val_data_high, epochs=epochs, l_r=l_r,
-                                   metric=metric, lr_scheduler=lr_scheduler, device=device, verbose=False)
+                    model_high.fit(train_data_high, val_data_high, epochs=epochs, l_r=l_r * 1e-1,
+                                   metric=metric, lr_scheduler=lr_scheduler, device=device, verbose=True)
                 outputs, labels = model_high.predict(test_data_high, device=device)
                 accuracy = model_high.evaluate(test_data_high, metric=metric, outputs=outputs, labels=labels)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
@@ -374,7 +359,7 @@ if __name__ == "__main__":
                     explanation = model_high.get_global_explanation(c_predicted_train, y_train, i,
                                                                     top_k_explanations=top_k_explanations,
                                                                     concept_names=concept_names, simplify=simplify,
-                                                                    metric=expl_metric, x_val=x_val, y_val=y_val)
+                                                                    metric=expl_metric, x_val=c_predicted_val, y_val=y_val)
                     exp_accuracy, exp_predictions = test_explanation(explanation, i, c_predicted_test, y_test,
                                                                      metric=expl_metric, concept_names=concept_names)
                     exp_predictions = torch.as_tensor(exp_predictions)
@@ -396,11 +381,10 @@ if __name__ == "__main__":
                 # To save the elapsed time and the explanations
                 model_high.save(device)
             else:
-                elapsed_time = model_low.time
+                elapsed_time = model_high.time
 
             # To restore the original folder
             if method == "DeepRed":
-                model_low.finish()
                 model_high.finish()
 
             methods.append(method)
@@ -455,12 +439,12 @@ if __name__ == "__main__":
         summaries[m] = pd.concat([df_mean, df_sem])
         summaries[m].name = m
 
-    results_df = pd.concat([results_df[method] for method in method_list], axis=1).T
+    results_df = pd.concat([results_df[method] for method in method_list])
     results_df.to_csv(os.path.join(results_dir, f'results.csv'))
 
     summary = pd.concat([summaries[method] for method in method_list], axis=1).T
     summary.columns = mean_cols + sem_cols
-    summary.to_csv(os.path.join(results_dir, 'summary.csv'))
+    summary.to_csv(os.path.join(results_dir, 'summary_2.csv'))
     print(summary)
 
     #%%

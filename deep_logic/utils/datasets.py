@@ -72,6 +72,8 @@ class ConceptDataset(ImageFolder, MyDataset, ABC):
                 self.attributes = np.load(os.path.join(root, dataset_name + "_predictions.npy"))
         else:
             self.attributes = np.load(os.path.join(root, "attributes.npy"))
+            # filtering empty columns (useful for cub)
+            self.attributes = self.attributes[:, np.sum(self.attributes, axis=0) > 0]
             if multi_label:
                 multi_labels_targets = LabelBinarizer().fit_transform(self.targets)
                 if np.unique(np.asarray(self.targets)).shape[0] == 2:
@@ -193,3 +195,45 @@ class ImageToConceptAndTaskDataset(ConceptDataset):
 
     def save_as_csv(self, folder=None):
         raise NotAvailableError("Cannot save dataset as csv when working with images")
+
+
+class ImageToTaskDataset(ConceptDataset):
+    """
+     Extension of ConceptDataset to use for standard multiclass-classification (Task).
+
+    """
+
+    def __init__(self, root: str, transform: transforms, **kwargs):
+        super().__init__(root, transform, predictions=False, multi_label=False)
+
+    def __getitem__(self, idx):
+        return ImageFolder.__getitem__(self, idx)
+
+    def save_as_csv(self, folder=None):
+        raise NotAvailableError("Cannot save dataset as csv when working with images")
+
+
+class SingleLabelDataset(Dataset):
+    """
+    SingleLabelDataset is a very simple dataset that receives x and y as np.array already transformed.
+    """
+    def __init__(self, x: np.array, y: np.array):
+        """
+        Parameters
+        ---------
+        x: np.array
+        Samples of the dataset
+        y: np.array
+        labels of the dataset
+        """
+        super().__init__()
+        self.x = x
+        self.y = y
+
+    def __getitem__(self, idx):
+        x = self.x[idx]
+        y = self.y[idx]
+        return x, y
+
+    def __len__(self):
+        return self.x.shape[0]

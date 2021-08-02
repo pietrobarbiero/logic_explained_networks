@@ -72,11 +72,11 @@ if __name__ == "__main__":
     loss = CrossEntropyLoss()
     metric = Accuracy()
     expl_metric = F1Score()
-    method_list = ['BRL', 'DeepRed']  # ['Relu', 'General', 'Psi', 'DTree', 'BRL', 'DeepRed']
+    method_list = ['DTree', 'BRL', 'Psi', 'Relu', 'General']  # 'DeepRed']
     print("Methods", method_list)
 
     #%% md
-    ## Training
+    ## Setting training hyperparameters
     #%%
 
     epochs = 1000
@@ -86,10 +86,12 @@ if __name__ == "__main__":
     lr_scheduler = False
     top_k_explanations = None
     simplify = True
-    seeds = [*range(5)]
-    print("Seeds", seeds)
-    device = torch.device("cpu")
+    device = torch.device("cuda:1") if torch.cuda.is_available() else torch.device("cpu")
     print("Device", device)
+
+    #%% md
+    ## Training
+    #%%
 
     for method in method_list:
 
@@ -101,6 +103,9 @@ if __name__ == "__main__":
         elapsed_times = []
         explanation_fidelities = []
         explanation_complexities = []
+
+        seeds = [*range(5)] if method != "BRL" else [*range(3)]
+        print("Seeds", seeds)
 
         for seed in seeds:
             set_seed(seed)
@@ -120,8 +125,10 @@ if __name__ == "__main__":
             start_time = time.time()
 
             if method == 'DTree':
+                max_depth = 30
+                name += f"_{max_depth}"
                 model = XDecisionTreeClassifier(name=name, n_classes=n_classes,
-                                                n_features=n_features, max_depth=5)
+                                                n_features=n_features, max_depth=max_depth)
                 try:
                     model.load(device)
                     print(f"Model {name} already trained")
@@ -135,9 +142,6 @@ if __name__ == "__main__":
                     exp_accuracy, exp_predictions = test_explanation(explanation, i, x_test, y_test, metric=expl_metric,
                                                                      concept_names=concept_names, inequalities=True)
                     exp_fidelity = 100
-                    # exp_predictions = torch.as_tensor(exp_predictions)
-                    # class_output = outputs.argmax(dim=1) == i
-                    # exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
                     explanation_complexity = complexity(explanation)
                     explanations.append(explanation), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
@@ -159,9 +163,6 @@ if __name__ == "__main__":
                     exp_accuracy, exp_predictions = test_explanation(explanation, i, x_test, y_test, metric=expl_metric,
                                                                      concept_names=concept_names)
                     exp_fidelity = 100
-                    # exp_predictions = torch.as_tensor(exp_predictions)
-                    # class_output = outputs.argmax(dim=1) == i
-                    # exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
                     explanation_complexity = complexity(explanation, to_dnf=True)
                     explanations.append(explanation), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
@@ -182,23 +183,7 @@ if __name__ == "__main__":
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
                 print("Extracting rules...")
                 t = time.time()
-                # executor = ProcessPoolExecutor(n_processes)
-                # futures = []
-                # for i, class_to_explain in enumerate(class_names):
-                #     args = {"self": model,
-                #             "target_class": i,
-                #             "concept_names": concept_names,
-                #             "simplify": simplify
-                #             }
-                #     futures.append(executor.submit(XDeepRedClassifier.get_global_explanation, **args))
-                #     print(f"Started {i + 1}/{n_classes} process")
                 for i in trange(n_classes, desc=f"{method} extracting explanations"):
-                    # try:
-                    #     # explanation are waited only until timeout, otherwise they return false
-                    #     explanation = futures[i].result(timeout=timeout)
-                    # except concurrent.futures._base.TimeoutError as e:
-                    #     explanation = "False"
-                    #     print(f"{method} failed to return an explanation within {timeout} s.")
                     explanation = model.get_global_explanation(i, concept_names, simplify=simplify)
                     exp_accuracy, exp_predictions = test_explanation(explanation, i, x_test, y_test,
                                                                      metric=expl_metric,
@@ -210,7 +195,6 @@ if __name__ == "__main__":
                     explanations.append(explanation), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
                     print(f"{i + 1}/{len(dataset.classes)} Rules extracted. Time {time.time() - t}")
-                # executor.shutdown(wait=False)
                 # To restore the original folder
 
             elif method == 'Psi':
@@ -276,7 +260,7 @@ if __name__ == "__main__":
             elif method == 'Relu':
                 # Network structures
                 l1_weight = 1e-7
-                hidden_neurons = [200, 100, 30, 10]
+                hidden_neurons = [300, 200]
                 dropout_rate = 0.
                 print("l1 weight", l1_weight)
                 print("hidden neurons", hidden_neurons)
@@ -385,7 +369,7 @@ if __name__ == "__main__":
         summaries[m] = pd.concat([df_mean, df_sem])
         summaries[m].name = m
 
-    results_df = pd.concat([results_df[method] for method in method_list], axis=1).T
+    results_df = pd.concat([results_df[method] for method in method_list])
     results_df.to_csv(os.path.join(results_dir, f'results.csv'))
 
     summary = pd.concat([summaries[method] for method in method_list], axis=1).T

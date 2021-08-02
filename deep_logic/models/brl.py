@@ -6,7 +6,6 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import LabelBinarizer
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
@@ -77,13 +76,14 @@ class XBRLClassifier(BaseClassifier, BaseXModel):
                 args = {
                     "self": self.model[i],
                     "X": x,
+                    "use_only_d_star": True
                 }
                 futures.append(executor.submit(RuleListClassifier.predict_proba, **args))
         for i in range(self.n_classes):
             if self.n_processes > 1:
                 brl_outputs = futures[i].result()
             else:
-                brl_outputs = self.model[i].predict_proba(x)
+                brl_outputs = self.model[i].predict_proba(x, use_only_d_star=True)
             # BRL outputs both the negative prediction (output[0]) and the positive (output[1])
             output = brl_outputs[:, 1]
             outputs.append(torch.tensor(output))

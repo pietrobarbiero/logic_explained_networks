@@ -104,3 +104,4 @@ experiments/results/cub/data/
 experiments/results/cub/models/
 deep_logic/concept_extractor/50_epochs_complete_training/
 req2.txt
+experiments/old_results/
