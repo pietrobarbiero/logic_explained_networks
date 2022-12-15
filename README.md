@@ -237,25 +237,6 @@ Theoretical foundations of this work can be found in the following papers:
       year={2020}
     }
 
-### Learning with constraints:
-
-    @inproceedings{marra2019lyrics,
-      title={LYRICS: A General Interface Layer to Integrate Logic Inference and Deep Learning},
-      author={Marra, Giuseppe and Giannini, Francesco and Diligenti, Michelangelo and Gori, Marco},
-      booktitle={Joint European Conference on Machine Learning and Knowledge Discovery in Databases},
-      pages={283--298},
-      year={2019},
-      organization={Springer}
-    }
-
-### Constraints theory in machine learning:
-
-    @book{gori2017machine,
-      title={Machine Learning: A constraint-based approach},
-      author={Gori, Marco},
-      year={2017},
-      publisher={Morgan Kaufmann}
-    }
 
 Authors
 -------
