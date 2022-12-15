@@ -126,11 +126,11 @@ LENs
 |     ├── models
 │     ├── logic
 │         ├── mu_nn
-          ├── psi_nn
-          └── relu_nn
+│         ├── psi_nn
+│         └── relu_nn
 |     └── utils
-├── tests
-│   ├── test_models
+└── tests
+    ├── test_models
     ├── test_logic_base
     └── test_concept_extractors
 ```
