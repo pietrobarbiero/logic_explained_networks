@@ -162,7 +162,7 @@ a black box model explained with *Anchors*, and *Deep Red* (the implementation o
 
 In the same folder are also reported two black box models *Random forest* and a *Black-box* NN. 
 
-Finally a *Robust CNN* is reported in 
+Finally a *Robust CNN* is reported. It employs the explanations of a LEN to defend from adversarial attacks. 
 
 ### lens.logic
 In this folder we implemented all the API required to extract FOL explanations of a model. 
