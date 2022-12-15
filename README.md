@@ -1,9 +1,9 @@
-Welcome to the Logic Explained Networks (LENs) repository
+Welcome to the Logic Explained Networks (LENs)
 =======
 
 ![](len.jpg)
 
-Logic Explained Network is a python repository providing a set of utilities and modules to
+The Logic Explained Network is a python repository providing a set of utilities and modules to
 build deep learning models that are explainable by design.
 This library provides both already implemented LENs classes and APIs classes to get First-Order Logic (FOL) explanations from neural networks.
 Paper
