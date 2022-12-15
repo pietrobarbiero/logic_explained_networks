@@ -15,14 +15,14 @@ if __name__ == "__main__":
     from tqdm import trange
 
     from lens.models.relu_nn import XReluNN
-    from lens.models.psi_nn import PsiNetwork
+    from lens.models.psi_nn import XPsiNetwork
     from lens.models.tree import XDecisionTreeClassifier
     from lens.models.brl import XBRLClassifier
     from lens.models.logistic_regression import XLogisticRegressionClassifier
     from lens.models.deep_red import XDeepRedClassifier
     from lens.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
     from lens.utils.metrics import Accuracy, F1Score
-    from lens.models.general_nn import XGeneralNN
+    from lens.models.mu_nn import XMuNN
     from lens.utils.datasets import ConceptToTaskDataset
     from lens.utils.data import get_splits_train_val_test
     from lens.logic.base import test_explanation
@@ -206,7 +206,7 @@ if __name__ == "__main__":
                 print("L1 weight", l1_weight)
                 print("Hidden neurons", hidden_neurons)
                 print("Fan in", fan_in)
-                model = PsiNetwork(n_classes, n_features, hidden_neurons, loss, l1_weight, name=name, fan_in=fan_in)
+                model = XPsiNetwork(n_classes, n_features, hidden_neurons, loss, l1_weight, name=name, fan_in=fan_in)
                 try:
                     model.load(device)
                     print(f"Model {name} already trained")
@@ -233,8 +233,8 @@ if __name__ == "__main__":
                 hidden_neurons = [20]
                 print("L1 weight", l1_weight)
                 print("Hidden neurons", hidden_neurons)
-                model = XGeneralNN(n_classes=n_classes, n_features=n_features, hidden_neurons=hidden_neurons,
-                                   loss=loss, name=name, l1_weight=l1_weight, fan_in=10, )
+                model = XMuNN(n_classes=n_classes, n_features=n_features, hidden_neurons=hidden_neurons,
+                              loss=loss, name=name, l1_weight=l1_weight, fan_in=10, )
                 try:
                     model.load(device)
                     print(f"Model {name} already trained")

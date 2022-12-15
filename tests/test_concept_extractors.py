@@ -7,8 +7,8 @@ from torchvision.transforms import transforms
 import numpy as np
 
 from lens.utils.base import set_seed
-from lens.concept_extractor.cnn_models import RESNET18, RESNET101, INCEPTION
-from lens.concept_extractor.concept_extractor import CNNConceptExtractor
+from cnn_models import RESNET18, RESNET101, INCEPTION
+from lens.models.concept_extractor import CNNConceptExtractor
 
 transform = transforms.Compose([
     transforms.CenterCrop(size=224),

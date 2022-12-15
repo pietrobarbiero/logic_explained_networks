@@ -60,7 +60,7 @@ class ConceptDataset(ImageFolder, MyDataset, ABC):
     :param multi_label: for multi-label dataset (classes + attributes)
     """
 
-    def __init__(self, root: str, transform: Callable = None, dataset_name: str = CUB200,
+    def __init__(self, root: str, transform: Callable = None, dataset_name: str = "CUB200",
                  predictions: bool = False, multi_label: bool = False, binary=False):
         super().__init__(root, transform)
         from .data import clean_names
@@ -204,7 +204,7 @@ class ImageToTaskDataset(ConceptDataset):
     """
 
     def __init__(self, root: str, transform: transforms, **kwargs):
-        super().__init__(root, transform, predictions=False, multi_label=False)
+        super().__init__(root, transform, predictions=False, multi_label=False, **kwargs)
 
     def __getitem__(self, idx):
         return ImageFolder.__getitem__(self, idx)

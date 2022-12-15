@@ -1,11 +1,12 @@
+from torch.utils.data import Subset
 
 if __name__ == "__main__":
 
     #%%
 
+
     import sys
     import time
-    import concurrent
 
     sys.path.append('..')
     import os
@@ -19,9 +20,10 @@ if __name__ == "__main__":
     from lens.models.relu_nn import XReluNN
     from lens.models.psi_nn import XPsiNetwork
     from lens.models.tree import XDecisionTreeClassifier
-    from lens.models.brl import XBRLClassifier
-    from lens.models.logistic_regression import XLogisticRegressionClassifier
-    from lens.models.deep_red import XDeepRedClassifier
+    # from lens.models.brl import XBRLClassifier
+    # from lens.models.deep_red import XDeepRedClassifier
+    from lens.models.anchors import XAnchorClassifier
+    from lens.models.random_forest import XRandomForestClassifier
     from lens.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
     from lens.utils.metrics import Accuracy, F1Score
     from lens.models.mu_nn import XMuNN
@@ -36,7 +38,9 @@ if __name__ == "__main__":
         os.makedirs(results_dir)
 
     #%% md
+
     ## Loading MIMIC data
+
     #%%
 
     dataset_root = "../data/"
@@ -52,17 +56,21 @@ if __name__ == "__main__":
     print("Class names", class_names)
 
     #%% md
+
     ## Define loss, metrics and methods
+
     #%%
 
     loss = CrossEntropyLoss()
     metric = Accuracy()
     expl_metric = F1Score()
-    method_list = ['DTree', 'BRL', 'Psi', 'Relu', 'General']  # 'DeepRed']
+    method_list = ['Anchors', 'DTree', 'Psi', 'Relu', 'General']  # 'BRL', 'DeepRed']
     print("Methods", method_list)
 
     #%% md
+
     ## Training
+
     #%%
 
     epochs = 1000
@@ -97,9 +105,9 @@ if __name__ == "__main__":
             x_trainval, y_trainval = x[trainval_index], y[trainval_index]
             x_test, y_test = x[test_index], y[test_index]
             x_train, x_val, y_train, y_val = train_test_split(x_trainval, y_trainval, test_size=0.3, random_state=0)
-            train_data = StructuredDataset(x_train, y_train, dataset_name, concept_names, class_names)
-            val_data = StructuredDataset(x_val, y_val, dataset_name, concept_names, class_names)
-            test_data = StructuredDataset(x_test, y_test, dataset_name, concept_names, class_names)
+            train_data = StructuredDataset(x_train, y_train, concept_names, class_names, dataset_name)
+            val_data = StructuredDataset(x_val, y_val, concept_names, class_names, dataset_name)
+            test_data = StructuredDataset(x_test, y_test, concept_names, class_names, dataset_name)
 
             name = os.path.join(results_dir, f"{method}_{seed}")
 
@@ -127,53 +135,75 @@ if __name__ == "__main__":
                     explanations.append(explanation), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
 
-            elif method == 'BRL':
-                train_sample_rate = 1.0
-                model = XBRLClassifier(name=name, n_classes=n_classes, n_features=n_features, n_processes=n_processes,
-                                       feature_names=concept_names, class_names=class_names, discretize=True)
+            elif method == "Anchors":
+                model = XAnchorClassifier(n_classes, n_features,
+                                          train_data, name=name)
                 try:
                     model.load(device)
                     print(f"Model {name} already trained")
                 except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    model.fit(train_data, metric=metric, train_sample_rate=train_sample_rate, verbose=False, eval=False)
+                    model.fit(train_data, val_data, metric=metric, save=True)
                 outputs, labels = model.predict(test_data, device=device)
                 accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
-                for i in trange(n_classes, desc=f"{method} extracting explanations"):
-                    explanation = model.get_global_explanation(i, concept_names)
+                for i in trange(0, n_classes, desc=f"{method} extracting explanations"):
+                    explanation = model.get_global_explanation(i, val_data)
                     exp_accuracy, exp_predictions = test_explanation(explanation, i, x_test, y_test, metric=expl_metric,
-                                                                     concept_names=concept_names)
-                    exp_fidelity = 100
-                    explanation_complexity = complexity(explanation, to_dnf=True)
-                    explanations.append(explanation), exp_accuracies.append(exp_accuracy)
-                    exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
-
-            elif method == 'DeepRed':
-                train_sample_rate = 1.0
-                model = XDeepRedClassifier(n_classes, n_features, name=name)
-                model.prepare_data(dataset, dataset_name, seed, trainval_index, test_index, train_sample_rate)
-                try:
-                    model.load(device)
-                    print(f"Model {name} already trained")
-                except (ClassifierNotTrainedError, IncompatibleClassifierError):
-                    model.fit(epochs=epochs, seed=seed, metric=metric)
-                outputs, labels = model.predict(train=False, device=device)
-                accuracy = model.evaluate(train=False, metric=metric, outputs=outputs, labels=labels)
-                explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
-                print("Extracting rules...")
-                t = time.time()
-                for i in trange(n_classes, desc=f"{method} extracting explanations"):
-                    explanation = model.get_global_explanation(i, concept_names, simplify=simplify)
-                    exp_accuracy, exp_predictions = test_explanation(explanation, i, x_test, y_test,
-                                                                     metric=expl_metric,
                                                                      concept_names=concept_names, inequalities=True)
-                    exp_predictions = torch.as_tensor(exp_predictions)
-                    class_output = torch.as_tensor(outputs.argmax(dim=1) == i)
+                    class_output = torch.as_tensor(outputs == i).float()
                     exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
                     explanation_complexity = complexity(explanation)
                     explanations.append(explanation), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
-                    print(f"{i + 1}/{n_classes} Rules extracted. Time {time.time() - t}")
+
+
+            # elif method == 'BRL':
+            #     train_sample_rate = 1.0
+            #     model = XBRLClassifier(name=name, n_classes=n_classes, n_features=n_features, n_processes=n_processes,
+            #                            feature_names=concept_names, class_names=class_names, discretize=True)
+            #     try:
+            #         model.load(device)
+            #         print(f"Model {name} already trained")
+            #     except (ClassifierNotTrainedError, IncompatibleClassifierError):
+            #         model.fit(train_data, metric=metric, train_sample_rate=train_sample_rate, verbose=False, eval=False)
+            #     outputs, labels = model.predict(test_data, device=device)
+            #     accuracy = model.evaluate(test_data, metric=metric, outputs=outputs, labels=labels)
+            #     explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
+            #     for i in trange(n_classes, desc=f"{method} extracting explanations"):
+            #         explanation = model.get_global_explanation(i, concept_names)
+            #         exp_accuracy, exp_predictions = test_explanation(explanation, i, x_test, y_test, metric=expl_metric,
+            #                                                          concept_names=concept_names)
+            #         exp_fidelity = 100
+            #         explanation_complexity = complexity(explanation, to_dnf=True)
+            #         explanations.append(explanation), exp_accuracies.append(exp_accuracy)
+            #         exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
+
+            # elif method == 'DeepRed':
+            #     train_sample_rate = 1.0
+            #     model = XDeepRedClassifier(n_classes, n_features, name=name)
+            #     model.prepare_data(dataset, dataset_name, seed, trainval_index, test_index, train_sample_rate)
+            #     try:
+            #         model.load(device)
+            #         print(f"Model {name} already trained")
+            #     except (ClassifierNotTrainedError, IncompatibleClassifierError):
+            #         model.fit(epochs=epochs, seed=seed, metric=metric)
+            #     outputs, labels = model.predict(train=False, device=device)
+            #     accuracy = model.evaluate(train=False, metric=metric, outputs=outputs, labels=labels)
+            #     explanations, exp_accuracies, exp_fidelities, exp_complexities = [], [], [], []
+            #     print("Extracting rules...")
+            #     t = time.time()
+            #     for i in trange(n_classes, desc=f"{method} extracting explanations"):
+            #         explanation = model.get_global_explanation(i, concept_names, simplify=simplify)
+            #         exp_accuracy, exp_predictions = test_explanation(explanation, i, x_test, y_test,
+            #                                                          metric=expl_metric,
+            #                                                          concept_names=concept_names, inequalities=True)
+            #         exp_predictions = torch.as_tensor(exp_predictions)
+            #         class_output = torch.as_tensor(outputs.argmax(dim=1) == i)
+            #         exp_fidelity = fidelity(exp_predictions, class_output, expl_metric)
+            #         explanation_complexity = complexity(explanation)
+            #         explanations.append(explanation), exp_accuracies.append(exp_accuracy)
+            #         exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
+            #         print(f"{i + 1}/{n_classes} Rules extracted. Time {time.time() - t}")
 
             elif method == 'Psi':
                 # Network structures
@@ -269,9 +299,10 @@ if __name__ == "__main__":
                     explanations.append(explanation), exp_accuracies.append(exp_accuracy)
                     exp_fidelities.append(exp_fidelity), exp_complexities.append(explanation_complexity)
 
-            elif method == 'LogisticRegression':
+            elif method == 'RandomForest':
                 set_seed(seed)
-                model = XLogisticRegressionClassifier(name=name, n_classes=n_classes, n_features=n_features, loss=loss)
+                model = XRandomForestClassifier(name=name, n_classes=n_classes,
+                                                n_features=n_features)
                 try:
                     model.load(device)
                     print(f"Model {name} already trained")
@@ -280,6 +311,7 @@ if __name__ == "__main__":
                               lr_scheduler=lr_scheduler, device=device, save=True, verbose=True)
                 accuracy = model.evaluate(test_data, metric=metric)
                 explanations, exp_accuracies, exp_fidelities, exp_complexities = [""], [0], [0], [0]
+
             else:
                 raise NotImplementedError(f"{method} not implemented")
 
@@ -330,7 +362,9 @@ if __name__ == "__main__":
         print(results)
 
     #%% md
-    ##Summary
+
+    ## Summary
+
     #%%
 
     cols = ['model_accuracy', 'explanation_accuracy', 'explanation_fidelity', 'explanation_complexity', 'elapsed_time',
@@ -350,11 +384,13 @@ if __name__ == "__main__":
         summaries[m].name = m
 
     results_df = pd.concat([results_df[method] for method in method_list])
-    results_df.to_csv(os.path.join(results_dir, f'results.csv'))
+    results_df.to_csv(os.path.join(results_dir, f'results_{method_list}.csv'))
 
     summary = pd.concat([summaries[method] for method in method_list], axis=1).T
     summary.columns = mean_cols + sem_cols
-    summary.to_csv(os.path.join(results_dir, 'summary.csv'))
+    summary.to_csv(os.path.join(results_dir, f'summary_{method_list}.csv'))
     print(summary)
 
     #%%
+
+

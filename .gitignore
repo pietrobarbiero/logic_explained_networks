@@ -102,6 +102,9 @@ lens/models/ext_models/deep_red_old/
 lens/models/ext_models/deep_red/.vscode/
 experiments/results/cub/data/
 experiments/results/cub/models/
-lens/concept_extractor/50_epochs_complete_training/
+lens/models/concept_extractor/50_epochs_complete_training/
 req2.txt
 experiments/old_results/
+
+
+old/

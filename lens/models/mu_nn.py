@@ -2,7 +2,6 @@ import time
 
 import torch
 
-from ..nn import XLinear
 from ..utils.general_nn import prune_features_fanin
 from ..utils.relu_nn import prune_features
 from ..utils.metrics import Metric, F1Score
@@ -10,7 +9,7 @@ from ..logic.relu_nn import combine_local_explanations, explain_local
 from .base import BaseClassifier, BaseXModel
 
 
-class XGeneralNN(BaseClassifier, BaseXModel):
+class XMuNN(BaseClassifier, BaseXModel):
     """
         Feed forward Neural Network with pruning on the first layer.
         After training it provides both local and global explanations

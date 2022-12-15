@@ -4,10 +4,10 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 import pandas as pd
 
-from ..utils.metrics import Metric, TopkAccuracy
-from ..models.base import BaseClassifier
+from metrics import Metric, TopkAccuracy
+from base import BaseClassifier
 from .cnn_models import RESNET10, get_model, CNN_MODELS, INCEPTION
-from ..utils.base import NotAvailableError
+from base import NotAvailableError
 
 
 class CNNConceptExtractor(BaseClassifier):

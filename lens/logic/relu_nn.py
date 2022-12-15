@@ -43,12 +43,10 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
         "validation data need to be passed when the number of top explanations to retain is not specified"
 
     x, y = x.to(device), y.to(device)
+    y = to_categorical(y)
     if x_val is not None and y_val is not None:
         x_val, y_val = x_val.to(device), y_val.to(device)
-    # if x_val is None or y_val is None:
-    #     x_val, y_val = x, y
-    y = to_categorical(y)
-    y_val = to_categorical(y_val)
+        y_val = to_categorical(y_val)
     assert (y == target_class).any(), "Cannot get explanation if target class is not amongst target labels"
 
     # # collapse samples having the same boolean values and class label different from the target class
@@ -212,8 +210,9 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
     :param num_classes: override the number of classes
     :return: Local explanation
     """
-    x_sample = x_sample.unsqueeze(0)
-    y_sample = y_sample.un
+    if len(x_sample.shape) == 1:
+        x_sample = x_sample.unsqueeze(0)
+
     if hasattr(model, 'model'):
         model_to_rank = model.model
         if isinstance(model_to_rank, torch.nn.ModuleList):

@@ -9,7 +9,7 @@ from ..logic.psi_nn import generate_fol_explanations, generate_fol_explanations_
 from .base import BaseClassifier, BaseXModel
 
 
-class PsiNetwork(BaseClassifier, BaseXModel):
+class XPsiNetwork(BaseClassifier, BaseXModel):
     """
         Feed forward Neural Network employing Sigmoid activation function of variable depth completely interpretable.
         After being trained it provides global explanations.

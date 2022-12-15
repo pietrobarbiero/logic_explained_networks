@@ -17,13 +17,13 @@ if __name__ == "__main__":
     from torch.nn import CrossEntropyLoss, BCEWithLogitsLoss
 
     from lens.models.relu_nn import XReluNN
-    from lens.models.psi_nn import PsiNetwork
+    from lens.models.psi_nn import XPsiNetwork
     from lens.models.tree import XDecisionTreeClassifier
     from lens.models.brl import XBRLClassifier
     from lens.models.deep_red import XDeepRedClassifier
     from lens.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
     from lens.utils.metrics import Accuracy, F1Score
-    from lens.models.general_nn import XGeneralNN
+    from lens.models.mu_nn import XMuNN
     from lens.utils.datasets import StructuredDataset
     from lens.logic.base import test_explanation
     from lens.logic.metrics import complexity, fidelity, formula_consistency
@@ -234,8 +234,8 @@ if __name__ == "__main__":
                 print("Learning rate", lr_psi)
                 name_low = os.path.join(results_dir, f"{method}_{seed}_{l1_weight}_{hidden_neurons}_{fan_in}_{lr_psi}_low")
                 name_high = os.path.join(results_dir, f"{method}_{seed}_{l1_weight}_{hidden_neurons}_{fan_in}_{lr_psi}_high")
-                model_low = PsiNetwork(n_concepts, n_features, hidden_neurons, loss_low, l1_weight, name=name_low,
-                                       fan_in=fan_in)
+                model_low = XPsiNetwork(n_concepts, n_features, hidden_neurons, loss_low, l1_weight, name=name_low,
+                                        fan_in=fan_in)
                 try:
                     model_low.load(device)
                     print(f"Model {name_low} already trained")
@@ -249,8 +249,8 @@ if __name__ == "__main__":
                 train_data_high = StructuredDataset(c_predicted_train, y_train, dataset_name, feature_names, concept_names)
                 val_data_high = StructuredDataset(c_predicted_val, y_val, dataset_name, feature_names, concept_names)
                 test_data_high = StructuredDataset(c_predicted_test, y_test, dataset_name, feature_names, concept_names)
-                model_high = PsiNetwork(n_classes, n_concepts, hidden_neurons, loss_high, l1_weight,
-                                        name=name_high, fan_in=fan_in)
+                model_high = XPsiNetwork(n_classes, n_concepts, hidden_neurons, loss_high, l1_weight,
+                                         name=name_high, fan_in=fan_in)
                 try:
                     model_high.load(device)
                     print(f"Model {name_high} already trained")
@@ -280,8 +280,8 @@ if __name__ == "__main__":
                 name_low = os.path.join(results_dir, f"{method}_{seed}_{l1_weight}_{hidden_neurons}_{fan_in}_low")
                 name_high = os.path.join(results_dir, f"{method}_{seed}_{l1_weight}_{hidden_neurons}_{fan_in}_high")
 
-                model_low = XGeneralNN(n_concepts, n_features, hidden_neurons, fan_in=n_features,
-                                       loss=loss_low, name=name_low, l1_weight=l1_weight)
+                model_low = XMuNN(n_concepts, n_features, hidden_neurons, fan_in=n_features,
+                                  loss=loss_low, name=name_low, l1_weight=l1_weight)
                 try:
                     model_low.load(device)
                     print(f"Model {name_low} already trained")
@@ -296,8 +296,8 @@ if __name__ == "__main__":
                 val_data_high = StructuredDataset(c_predicted_val, y_val, dataset_name, feature_names, concept_names)
                 test_data_high = StructuredDataset(c_predicted_test, y_test, dataset_name, feature_names, concept_names)
 
-                model_high = XGeneralNN(n_classes, n_concepts, hidden_neurons, fan_in=fan_in,
-                                        loss=loss_high, name=name_high, l1_weight=l1_weight)
+                model_high = XMuNN(n_classes, n_concepts, hidden_neurons, fan_in=fan_in,
+                                   loss=loss_high, name=name_high, l1_weight=l1_weight)
                 try:
                     model_high.load(device)
                     print(f"Model {name_high} already trained")

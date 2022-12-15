@@ -5,11 +5,13 @@ from torch.utils.data import TensorDataset
 from sklearn import datasets
 from sklearn.preprocessing import LabelBinarizer
 
+from datasets import StructuredDataset
 from lens.models.relu_nn import XReluNN
-from lens.models.psi_nn import PsiNetwork
-from lens.models.general_nn import XGeneralNN
+from lens.models.psi_nn import XPsiNetwork
+from lens.models.mu_nn import XMuNN
 from lens.models.tree import XDecisionTreeClassifier
 from lens.models.brl import XBRLClassifier
+from lens.models.anchors import XAnchorClassifier
 from lens.utils.base import set_seed
 from lens.utils.metrics import Accuracy
 
@@ -87,8 +89,8 @@ class TestModels(unittest.TestCase):
         set_seed(0)
         l1_weight_psi = 1e-4
 
-        model = PsiNetwork(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                           l1_weight=l1_weight_psi, fan_in=2)
+        model = XPsiNetwork(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
+                            l1_weight=l1_weight_psi, fan_in=2)
 
         results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
@@ -102,8 +104,8 @@ class TestModels(unittest.TestCase):
                               '(feature0000000001 & ~feature0000000000))'
 
         set_seed(0)
-        model = PsiNetwork(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                           l1_weight=l1_weight_psi)
+        model = XPsiNetwork(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
+                            l1_weight=l1_weight_psi)
 
         results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric,
                             save=False)
@@ -123,8 +125,8 @@ class TestModels(unittest.TestCase):
         set_seed(0)
         l1_weight_general = 1e-3
 
-        model = XGeneralNN(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                           l1_weight=l1_weight_general)
+        model = XMuNN(n_classes=1, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
+                      l1_weight=l1_weight_general)
 
         results = model.fit(train_data, train_data, epochs=epochs, l_r=l_r, metric=metric, save=False,
                             early_stopping=False)
@@ -144,8 +146,8 @@ class TestModels(unittest.TestCase):
 
         # Test with multiple targets
         set_seed(0)
-        model = XGeneralNN(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
-                           l1_weight=l1_weight_general)
+        model = XMuNN(n_classes=2, n_features=n_features, hidden_neurons=hidden_neurons, loss=loss,
+                      l1_weight=l1_weight_general)
 
         results = model.fit(train_data_multi, train_data_multi, epochs=epochs, l_r=l_r, metric=metric, save=False)
         assert results.shape == (epochs, 4)
@@ -177,7 +179,7 @@ class TestModels(unittest.TestCase):
 
         assert accuracy == 100.0
 
-        formula = model.get_global_explanation(class_to_explain=y_sample)
+        formula = model.get_global_explanation(target_class=y_sample)
         print(formula)
 
         model = XDecisionTreeClassifier(n_classes=2, n_features=n_features)
@@ -190,7 +192,7 @@ class TestModels(unittest.TestCase):
 
         assert accuracy == 100.0
 
-        formula = model.get_global_explanation(class_to_explain=y_sample_multi)
+        formula = model.get_global_explanation(target_class=y_sample_multi)
         print(formula)
         return
 
@@ -228,7 +230,7 @@ class TestModels(unittest.TestCase):
 
         assert accuracy >= 70.0
 
-        formula = model.get_global_explanation(class_to_explain=0)
+        formula = model.get_global_explanation(target_class=0)
         print(f"{class_names[0]} <-> {formula}")
 
         exp_accuracy, _ = test_explanation(formula, target_class=1, x=x_brl, y=y_brl, concept_names=feature_names)
@@ -247,13 +249,95 @@ class TestModels(unittest.TestCase):
         print("")
         assert accuracy >= 70.0
 
-        formula = model.get_global_explanation(class_to_explain=y_sample_multi_brl)
+        formula = model.get_global_explanation(target_class=y_sample_multi_brl)
         print(formula)
 
-        exp_accuracy, _ = test_explanation(formula, target_class=y_sample_multi_brl, x=x_brl, y=y_multi_brl, concept_names=feature_names)
+        exp_accuracy, _ = test_explanation(formula, target_class=y_sample_multi_brl, x=x_brl, y=y_multi_brl,
+                                           concept_names=feature_names)
         print("Formula accuracy", exp_accuracy)
         return
 
 
+    def test_6_anchors(self):
+        from sklearn.preprocessing import MinMaxScaler
+        from lens.logic import test_explanation
+        from lens.utils.data import clean_names
+
+        set_seed(0)
+
+        iris = datasets.load_iris()
+        x_anchors = MinMaxScaler().fit_transform(iris.data)
+        x_anchors = torch.FloatTensor(x_anchors)
+        y_anchors = torch.FloatTensor(iris.target)
+
+        feature_names = iris.feature_names
+        feature_names = clean_names(feature_names)
+        class_names = iris.target_names
+        n_classes = len(class_names)
+        train_data_anchors = StructuredDataset(x_anchors, y_anchors,
+                                               feature_names, class_names, "iris")
+        val_data_anchors = train_data_anchors
+
+        model = XAnchorClassifier(n_classes, n_features, train_data_anchors)
+
+        results = model.fit(train_data_anchors, val_data_anchors, metric=metric, save=False)
+        assert results.shape == (1, 4)
+
+        model.save()
+        model.load()
+
+        accuracy = model.evaluate(train_data_anchors)
+
+        assert accuracy >= 70.0
+
+        formula = model.get_global_explanation(target_class=0, val_set=val_data_anchors)
+        print(f"{class_names[0]} <-> {formula}")
+
+        exp_accuracy, _ = test_explanation(formula, target_class=0, x=x_anchors, y=y_anchors,
+                                           concept_names=feature_names, inequalities=True)
+        print("Formula accuracy", exp_accuracy)
+
+        assert exp_accuracy >= 70.0
+
+        return
+
+
 if __name__ == '__main__':
-    unittest.main()
+    # unittest.main()
+    from sklearn.preprocessing import MinMaxScaler
+    from lens.logic import test_explanation
+    from lens.utils.data import clean_names
+
+    set_seed(0)
+
+    iris = datasets.load_iris()
+    x_anchors = MinMaxScaler().fit_transform(iris.data)
+    x_anchors = torch.FloatTensor(x_anchors)
+    y_anchors = torch.FloatTensor(iris.target)
+
+    feature_names = iris.feature_names
+    feature_names = clean_names(feature_names)
+    class_names = iris.target_names
+    n_classes = len(class_names)
+    train_data_anchors = StructuredDataset(x_anchors, y_anchors,
+                                           feature_names, class_names, "iris")
+    val_data_anchors = train_data_anchors
+
+    model = XAnchorClassifier(n_classes, n_features, train_data_anchors)
+
+    results = model.fit(train_data_anchors, val_data_anchors, metric=metric, save=False)
+    assert results.shape == (1, 4)
+
+    model.save()
+    model.load()
+
+    accuracy = model.evaluate(train_data_anchors)
+
+    assert accuracy >= 70.0
+
+    formula = model.get_global_explanation(target_class=0, val_set=val_data_anchors)
+    print(f"{class_names[0]} <-> {formula}")
+
+    exp_accuracy, _ = test_explanation(formula, target_class=1, x=x_anchors, y=y_anchors,
+                                       concept_names=feature_names)
+    print("Formula accuracy", exp_accuracy)

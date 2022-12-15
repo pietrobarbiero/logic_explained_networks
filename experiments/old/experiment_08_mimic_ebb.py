@@ -17,7 +17,7 @@ if __name__ == "__main__":
     from sklearn.model_selection import StratifiedKFold, train_test_split
 
     from lens.models.relu_nn import XReluNN
-    from lens.models.psi_nn import PsiNetwork
+    from lens.models.psi_nn import XPsiNetwork
     from lens.models.tree import XDecisionTreeClassifier
     from lens.models.brl import XBRLClassifier
     from lens.models.black_box import BlackBoxClassifier
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     from lens.models.deep_red import XDeepRedClassifier
     from lens.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
     from lens.utils.metrics import Accuracy, F1Score
-    from lens.models.general_nn import XGeneralNN
+    from lens.models.mu_nn import XMuNN
     from lens.utils.datasets import StructuredDataset
     from lens.logic.base import test_explanation
     from lens.logic.metrics import complexity, fidelity, formula_consistency
@@ -223,7 +223,7 @@ if __name__ == "__main__":
                 print("Hidden neurons", hidden_neurons)
                 print("Fan in", fan_in)
                 name = os.path.join(results_dir, f"{method}_{seed}_{l1_weight}_{hidden_neurons}_{fan_in}_{lr_psi}")
-                model = PsiNetwork(n_classes, n_features, hidden_neurons, loss, l1_weight, name=name, fan_in=fan_in)
+                model = XPsiNetwork(n_classes, n_features, hidden_neurons, loss, l1_weight, name=name, fan_in=fan_in)
                 try:
                     model.load(device)
                     print(f"Model {name} already trained")
@@ -251,8 +251,8 @@ if __name__ == "__main__":
                 fan_in = 5
                 top_k_explanations = None
                 name = os.path.join(results_dir, f"{method}_{seed}_{l1_weight}_{hidden_neurons}_{fan_in}")
-                model = XGeneralNN(n_classes=n_classes, n_features=n_features, hidden_neurons=hidden_neurons,
-                                   loss=loss, name=name, l1_weight=l1_weight, fan_in=fan_in)
+                model = XMuNN(n_classes=n_classes, n_features=n_features, hidden_neurons=hidden_neurons,
+                              loss=loss, name=name, l1_weight=l1_weight, fan_in=fan_in)
                 try:
                     model.load(device)
                     print(f"Model {name} already trained")

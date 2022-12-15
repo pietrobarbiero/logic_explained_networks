@@ -2,7 +2,7 @@ import unittest
 
 import torch
 
-import lens as dl
+import lens
 from lens.logic import explain_class
 from lens.utils.base import set_seed
 from lens.utils.layer import prune_logic_layers, l1_loss

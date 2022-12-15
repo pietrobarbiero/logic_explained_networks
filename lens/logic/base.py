@@ -12,7 +12,7 @@ from ..utils.metrics import Metric, Accuracy
 def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: torch.Tensor,
                      give_local: bool = False, metric: Metric = Accuracy(), concept_names: list = None,
                      inequalities=False) \
-        -> Tuple[float, np.ndarray]:
+        -> Tuple[float, torch.Tensor]:
     """
     Test explanation
 
@@ -57,15 +57,36 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
             for terms in min_term:
                 if inequalities:
                     terms = terms.replace("feature", "").split(" ")
-                    feature_num = int(terms[0])
-                    sign = terms[1]
-                    threshold = float(terms[2])
-                    assert sign == ">" or sign == "<", f"Invalid sign {sign}"
-                    feature = x[:, feature_num] > threshold
-                    if sign == ">":
+                    if len(terms) == 3:
+                        feature_num = int(terms[0])
+                        sign = terms[1]
+                        geq = "=" in sign
+                        sign = sign.replace("=", "")
+                        threshold = float(terms[2])
+                        assert sign == ">" or sign == "<", f"Invalid sign {sign}"
+                        feature = x[:, feature_num] >= threshold if geq else \
+                                  x[:, feature_num] > threshold
+                        if sign == ">":
+                            features.append(feature)
+                        else:
+                            features.append(~feature)
+                    elif len(terms) == 5:
+                        feature_num = int(terms[2])
+                        leq1 = "=" in terms[1]
+                        leq2 = "=" in terms[3]
+                        sign1 = terms[1].replace("=", "")
+                        sign2 = terms[3].replace("=", "")
+                        assert sign1 == "<" and sign2 == "<", f"Invalid signs {sign1, sign2}"
+                        threshold1 = float(terms[0])
+                        threshold2 = float(terms[4])
+                        feature = torch.logical_and(threshold1 <= x[:, feature_num] if leq1 else
+                                                    threshold1 < x[:, feature_num],
+                                                    x[:, feature_num] <= threshold2 if leq2 else
+                                                    x[:, feature_num] < threshold2)
+
                         features.append(feature)
                     else:
-                        features.append(~feature)
+                        raise AttributeError(f"Invalid explanation {terms}")
                 else:
                     terms = terms.split('feature')
                     if terms[0] == '~':

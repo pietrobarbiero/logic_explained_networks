@@ -15,10 +15,10 @@ if __name__ == "__main__":
     from sklearn.preprocessing import MinMaxScaler
     import lens as dl
     from lens.models.relu_nn import XReluNN
-    from lens.models.psi_nn import PsiNetwork
+    from lens.models.psi_nn import XPsiNetwork
     from lens.utils.base import set_seed, ClassifierNotTrainedError, IncompatibleClassifierError
     from lens.utils.metrics import F1Score, ClusterAccuracy
-    from lens.models.general_nn import XGeneralNN
+    from lens.models.mu_nn import XMuNN
     from lens.logic import test_explanation, complexity, fidelity
     from lens.logic.metrics import accuracy_score
     from lens.utils.loss import MutualInformationLoss
@@ -133,8 +133,8 @@ if __name__ == "__main__":
                 print("lr_psi", lr_psi)
                 print("fan_in", fan_in)
 
-                model = PsiNetwork(n_clusters, n_features, hidden_neurons, loss,
-                                   l1_weight, name=name, fan_in=fan_in)
+                model = XPsiNetwork(n_clusters, n_features, hidden_neurons, loss,
+                                    l1_weight, name=name, fan_in=fan_in)
                 try:
                     model.load(device)
                     print(f"Model {name} already trained")
@@ -158,8 +158,8 @@ if __name__ == "__main__":
                 l1_weight = 1e-3
                 fan_in = None
                 hidden_neurons = [20, 10]
-                model = XGeneralNN(n_classes=n_clusters, n_features=n_features, hidden_neurons=hidden_neurons,
-                                   loss=loss, name=name, l1_weight=l1_weight, fan_in=fan_in)
+                model = XMuNN(n_classes=n_clusters, n_features=n_features, hidden_neurons=hidden_neurons,
+                              loss=loss, name=name, l1_weight=l1_weight, fan_in=fan_in)
                 try:
                     model.load(device)
                     print(f"Model {name} already trained")
