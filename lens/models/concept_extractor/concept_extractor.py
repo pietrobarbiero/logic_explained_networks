@@ -5,9 +5,9 @@ from tqdm import tqdm
 import pandas as pd
 
 from metrics import Metric, TopkAccuracy
-from base import BaseClassifier
+from lens.models.base import BaseClassifier
 from .cnn_models import RESNET10, get_model, CNN_MODELS, INCEPTION
-from base import NotAvailableError
+from utils.base import NotAvailableError
 
 
 class CNNConceptExtractor(BaseClassifier):

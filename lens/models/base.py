@@ -168,7 +168,7 @@ class BaseClassifier(torch.nn.Module):
         self.to(device), self.train()
 
         # Setting loss function and optimizer
-        optimizer = torch.optim.Adam(self.parameters(), lr=l_r, weight_decay=1e-4)
+        optimizer = torch.optim.Adam(self.parameters(), lr=l_r)
         scheduler = ReduceLROnPlateau(optimizer, verbose=verbose, mode='max', patience=epochs//5,
                                       factor=0.33, min_lr=1e-2 * l_r) if lr_scheduler else None
 
@@ -372,6 +372,8 @@ class BaseClassifier(torch.nn.Module):
             (torch.Tensor, torch.Tensor):
         splits = int(1/sample_rate)
         if splits > 1:
+            if len(y.squeeze().shape) > 1:
+                y = y.argmax(dim=1)
             skf = StratifiedKFold(n_splits=splits)
             _, idx = next(skf.split(x, y))
         else:

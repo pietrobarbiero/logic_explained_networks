@@ -12,8 +12,8 @@ from lens.utils.datasets import ImageToConceptDataset, ImageToConceptAndTaskData
 from lens.utils import metrics
 from lens.utils.base import set_seed, ClassifierNotTrainedError
 from lens.utils.data import get_transform, get_splits_train_val_test, get_splits_for_fsc, show_batch
-import cnn_models
-from concept_extractor import CNNConceptExtractor
+import lens.models.concept_extractor.cnn_models as cnn_models
+from lens.models.concept_extractor import CNNConceptExtractor
 from lens.models.robust_cnn_classifier import RobustCNNClassifier
 from lens.utils.metrics import Accuracy
 

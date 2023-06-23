@@ -1,12 +1,11 @@
 import time
 
 import torch
-import numpy as np
 
+from .base import BaseClassifier, BaseXModel
+from ..logic.psi_nn import generate_fol_explanations, generate_fol_explanations_from_data
 from ..utils.base import NotAvailableError
 from ..utils.psi_nn import prune_equal_fanin
-from ..logic.psi_nn import generate_fol_explanations, generate_fol_explanations_from_data
-from .base import BaseClassifier, BaseXModel
 
 
 class XPsiNetwork(BaseClassifier, BaseXModel):
@@ -127,6 +126,8 @@ class XPsiNetwork(BaseClassifier, BaseXModel):
         :return: Explanation
         """
         start_time = time.time()
+        if target_class == 1 and len(self.model) == 1: # binary classification case
+            target_class = 0
         model = self.model[target_class]
 
         if self.explanations[target_class] != "":

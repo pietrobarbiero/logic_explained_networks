@@ -4,7 +4,7 @@ import torch
 
 from ..utils.metrics import Metric, F1Score
 from ..utils.base import NotAvailableError
-from ..logic.relu_nn import combine_local_explanations, explain_local
+from ..logic.explain import combine_local_explanations, explain_local
 from ..utils.relu_nn import get_reduced_model
 from .base import BaseClassifier, BaseXModel
 
@@ -92,7 +92,7 @@ class XReluNN(BaseClassifier, BaseXModel):
         raise NotAvailableError()
 
     def get_local_explanation(self, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
-                              target_class, simplify: bool = True, concept_names: list = None):
+                              target_class, simplify: bool = True, concept_names: list = None, thr: float = 0.5):
         """
         Get explanation of model decision taken on the input x_sample.
 
@@ -102,15 +102,16 @@ class XReluNN(BaseClassifier, BaseXModel):
         :param target_class: class ID
         :param simplify: simplify local explanation
         :param concept_names: list containing the names of the input concepts
+        :param thr: threshold to use to select important features
 
         :return: Local Explanation
         """
-        return explain_local(self, x, y, x_sample, target_class, method='weights', simplify=simplify,
+        return explain_local(self, x, y, x_sample, target_class, method='weights', simplify=simplify, thr=thr,
                              concept_names=concept_names, device=self.get_device(), num_classes=self.n_classes)
 
     def get_global_explanation(self, x, y, target_class: int, top_k_explanations: int = None,
                                concept_names: list = None, return_time=False, simplify: bool = True,
-                               metric: Metric = F1Score(), x_val=None, y_val=None):
+                               metric: Metric = F1Score(), x_val=None, y_val=None, thr=0.5):
         """
         Generate a global explanation combining local explanations.
 
@@ -127,6 +128,8 @@ class XReluNN(BaseClassifier, BaseXModel):
         :param concept_names: list containing the names of the input concepts
         """
         start_time = time.time()
+        if isinstance(target_class, torch.Tensor):
+            target_class = int(target_class.item())
         if self.explanations[target_class] != "":
             explanation = self.explanations[target_class]
         else:
@@ -134,7 +137,7 @@ class XReluNN(BaseClassifier, BaseXModel):
                                                            simplify=simplify, topk_explanations=top_k_explanations,
                                                            concept_names=concept_names, device=self.get_device(),
                                                            num_classes=self.n_classes, metric=metric, x_val=x_val,
-                                                           y_val=y_val)
+                                                           y_val=y_val, thr=thr)
             self.explanations[target_class] = explanation
 
         elapsed_time = time.time() - start_time

@@ -7,7 +7,7 @@ from torchvision.transforms import transforms
 import numpy as np
 
 from lens.utils.base import set_seed
-from cnn_models import RESNET18, RESNET101, INCEPTION
+from lens.models.concept_extractor.cnn_models import RESNET18, RESNET101, INCEPTION
 from lens.models.concept_extractor import CNNConceptExtractor
 
 transform = transforms.Compose([
@@ -53,65 +53,65 @@ class TestConceptExtractor(unittest.TestCase):
 
     def test_concept_extractor_1(self):
         set_seed(0)
-        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.NLLLoss(),
+        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.CrossEntropyLoss(),
                                     name="test_concept_extractor2", cnn_model=RESNET18)
         # It takes a few minutes
-        model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, num_workers=0)
+        model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, num_workers=0, save=False)
         accuracy = model.evaluate(test_data)
         assert accuracy > 1.
         return
 
     def test_concept_extractor_2_pretrained(self):
         set_seed(0)
-        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.NLLLoss(),
+        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.CrossEntropyLoss(),
                                     name="test_concept_extractor_pretrained2", cnn_model=RESNET18, pretrained=True)
         # It takes a few minutes
-        model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, num_workers=0)
+        model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, num_workers=0, save=False)
         accuracy = model.evaluate(test_data)
         assert accuracy > 1.
         return
 
     def test_concept_extractor_3_big(self):
         set_seed(0)
-        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.NLLLoss(),
+        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.CrossEntropyLoss(),
                                     name="test_concept_extractor_big2", cnn_model=RESNET101)
         # It takes a few minutes
-        model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, num_workers=0)
+        model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, num_workers=0, save=False)
         accuracy = model.evaluate(test_data)
         assert accuracy > 1.
         return
 
     def test_concept_extractor_4_big_pretrained(self):
         set_seed(0)
-        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.NLLLoss(),
+        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.CrossEntropyLoss(),
                                     name="test_concept_extractor_big_pretrained2", cnn_model=RESNET101, pretrained=True)
         # It takes a few minutes
-        model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, num_workers=0)
+        model.fit(train_set=train_data, val_set=test_data, epochs=epochs, device=device, num_workers=0, save=False)
         accuracy = model.evaluate(test_data)
         assert accuracy > 1.
         return
 
     def test_concept_extractor_5_inception(self):
         set_seed(0)
-        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.NLLLoss(),
+        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.CrossEntropyLoss(),
                                     name="test_concept_extractor_inception2", cnn_model=INCEPTION)
 
         # It takes a few minutes
         model.fit(train_set=train_data_inception, val_set=test_data_inception, epochs=epochs, device=device,
-                  num_workers=0)
+                  num_workers=0, save=False)
         accuracy = model.evaluate(test_data_inception)
         assert accuracy > 1.
         return
 
     def test_concept_extractor_6_inception_pretrained(self):
         set_seed(0)
-        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.NLLLoss(),
+        model = CNNConceptExtractor(n_classes=len(classes), loss=torch.nn.CrossEntropyLoss(),
                                     name="test_concept_extractor_inception_pretrained2", cnn_model=INCEPTION,
                                     pretrained=True)
 
         # It takes a few minutes
         model.fit(train_set=train_data_inception, val_set=test_data_inception, epochs=epochs, device=device,
-                  num_workers=0)
+                  num_workers=0, save=False)
         accuracy = model.evaluate(test_data_inception)
         assert accuracy > 1.
         return

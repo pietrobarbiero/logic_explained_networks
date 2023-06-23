@@ -43,20 +43,21 @@ def rank_pruning(model: torch.nn.Module,
 
 
 def rank_weights(model: torch.nn.Module, x_sample: torch.Tensor,
-                 device: torch.device = torch.device('cpu')) -> np.ndarray:
+                 device: torch.device = torch.device('cpu'), thr=0.5) -> np.ndarray:
     """
     Feature ranking by looking at the weights with the highest absolute value.
 
     :param model: torch model
     :param x_sample: input sample
     :param device: cpu or cuda device
+    :param thr: threshold to select important features
     :return: best features
     """
     reduced_model = get_reduced_model(model, x_sample.squeeze())
     w, b = collect_parameters(reduced_model, device)
     w_abs = torch.norm(torch.FloatTensor(w[0]), dim=0)
     w_max = torch.max(w_abs)
-    w_bool = ((w_abs / w_max) > 0.5).cpu().detach().numpy().squeeze()
+    w_bool = ((w_abs / w_max) > thr).cpu().detach().numpy().squeeze()
     if sum(w_bool) == 0:
         return np.arange(len(w_bool))
 

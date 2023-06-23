@@ -43,6 +43,8 @@ class Accuracy(Metric):
             else:
                 outputs = outputs.argmax(dim=1)
         else:
+            if len(targets.shape) > 1 and targets.sum() == targets.shape[0]:
+                targets = targets.argmax(dim=1)
             # Binary classification
             assert targets.shape == outputs.shape, "Target tensor needs to be (N,1) tensor if output is such."
             if outputs.max() <= 1:

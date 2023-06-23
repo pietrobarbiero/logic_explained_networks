@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
 from .base import BaseClassifier, ClassifierNotTrainedError, BaseXModel
-from .ext_models.brl.RuleListClassifier import RuleListClassifier
+from .ext_models.bayesian_rule_list.RuleListClassifier import RuleListClassifier
 from ..utils.base import NotAvailableError, brl_extracting_formula
 from ..utils.metrics import Metric, Accuracy
 

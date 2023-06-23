@@ -6,7 +6,7 @@ import torch
 from sympy import simplify_logic, to_dnf
 from torch.nn import ModuleList
 
-from .base import replace_names, test_explanation, simplify_formula
+from .eval import replace_names, test_explanation, simplify_formula
 from .psi_nn import _build_truth_table
 from ..utils.base import collect_parameters, to_categorical
 from ..utils.metrics import F1Score, Metric
@@ -18,7 +18,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
                                topk_explanations: int = None, concept_names: List = None,
                                device: torch.device = torch.device('cpu'), num_classes: int = None,
                                return_accuracy: bool = False, metric: Metric = F1Score(),
-                               x_val: torch.tensor = None, y_val = None):
+                               x_val: torch.tensor = None, y_val = None, thr=0.5):
     """
     Generate a global explanation combining local explanations.
 
@@ -37,23 +37,28 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
     :param device: cpu or cuda device
     :param num_classes: override the number of classes
     :param return_accuracy: whether to return also the accuracy of the explanations or not
+    :param thr: threshold to select important features
+
     :return: Global explanation, predictions, and ranking of local explanations
     """
     assert topk_explanations is not None or (x_val is not None and y_val is not None), \
         "validation data need to be passed when the number of top explanations to retain is not specified"
 
     x, y = x.to(device), y.to(device)
-    y = to_categorical(y)
+    y = to_categorical(y).squeeze()
     if x_val is not None and y_val is not None:
         x_val, y_val = x_val.to(device), y_val.to(device)
-        y_val = to_categorical(y_val)
+        y_val = to_categorical(y_val).squeeze()
     assert (y == target_class).any(), "Cannot get explanation if target class is not amongst target labels"
 
     # # collapse samples having the same boolean values and class label different from the target class
     if hasattr(model, "model"):
         target_model = model.model
         if isinstance(target_model, ModuleList):
-            target_model = target_model[target_class]
+            if target_class == 1 and len(target_model) == 1:  # binary classification case
+                target_model = target_model[0]
+            else:
+                target_model = target_model[target_class]
     else:
         target_model = model
     w, b = collect_parameters(target_model, device)
@@ -113,7 +118,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
                                               xi.to(torch.float), target_class,
                                               method=method, simplify=False,
                                               concept_names=None, device=device,
-                                              num_classes=num_classes)
+                                              num_classes=num_classes, thr=thr)
 
         if local_explanation_raw in ['', 'False', 'True']:
             continue
@@ -194,7 +199,7 @@ def combine_local_explanations(model: torch.nn.Module, x: torch.Tensor, y: torch
 
 def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sample: torch.Tensor,
                   target_class: int, method: str, simplify: bool = True, concept_names: List = None,
-                  device: torch.device = torch.device('cpu'), num_classes: int = None) -> str:
+                  device: torch.device = torch.device('cpu'), num_classes: int = None, thr=0.5) -> str:
     """
     Generate a local explanation for a single sample.
 
@@ -208,6 +213,7 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
     :param concept_names: list containing the names of the input concepts
     :param device: cpu or cuda device
     :param num_classes: override the number of classes
+    :param thr: threshold to select important features
     :return: Local explanation
     """
     if len(x_sample.shape) == 1:
@@ -224,7 +230,7 @@ def explain_local(model: torch.nn.Module, x: torch.Tensor, y: torch.Tensor, x_sa
         feature_used = rank_pruning(model_to_rank, x_sample, y, device, num_classes=num_classes)
 
     elif method == 'weights':
-        feature_used = rank_weights(model_to_rank, x_sample, device)
+        feature_used = rank_weights(model_to_rank, x_sample, device, thr=thr)
 
     elif method == 'lime':
         feature_used = rank_lime(model_to_rank, x, x_sample, 4, device)

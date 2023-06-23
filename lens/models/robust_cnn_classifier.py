@@ -7,9 +7,9 @@ from torch.nn import CrossEntropyLoss
 from torch.utils.data import Subset
 from tqdm import trange
 
-from concept_extractor import CNNConceptExtractor
+from lens.models.concept_extractor import CNNConceptExtractor
 from lens.utils.metrics import Accuracy
-from cnn_models import RESNET18
+from lens.models.concept_extractor.cnn_models import RESNET18
 
 
 class RobustCNNClassifier(CNNConceptExtractor):

@@ -10,6 +10,7 @@ RESNET50 = "Resnet_50"
 RESNET101 = "Resnet_101"
 INCEPTION = "Inception"
 
+
 inception = torch.hub.load('pytorch/vision:v0.6.0', 'inception_v3', pretrained=True)
 
 

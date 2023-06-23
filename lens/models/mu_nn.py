@@ -5,7 +5,7 @@ import torch
 from ..utils.general_nn import prune_features_fanin
 from ..utils.relu_nn import prune_features
 from ..utils.metrics import Metric, F1Score
-from ..logic.relu_nn import combine_local_explanations, explain_local
+from ..logic.explain import combine_local_explanations, explain_local
 from .base import BaseClassifier, BaseXModel
 
 
@@ -149,6 +149,8 @@ class XMuNN(BaseClassifier, BaseXModel):
         :param return_time:
         """
         start_time = time.time()
+        if isinstance(target_class, torch.Tensor):
+            target_class = int(target_class.item())
         if self.explanations[target_class] != "":
             explanation = self.explanations[target_class]
         else:

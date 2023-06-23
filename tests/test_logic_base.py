@@ -2,14 +2,14 @@ import unittest
 
 import torch
 import numpy as np
-from sklearn.metrics import accuracy_score
+from lens.utils.metrics import Accuracy
 
 from lens.logic import test_explanation
-from lens.logic.base import replace_names
-from lens.logic.base import simplify_formula
+from lens.logic.eval import replace_names
 
 features = [f"feature{i:010}" for i in range(10)]
 
+accuracy_score = Accuracy()
 
 class TestTemplateObject(unittest.TestCase):
     def test_test_explanation_binary(self):

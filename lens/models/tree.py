@@ -183,6 +183,8 @@ class XDecisionTreeClassifier(BaseClassifier, BaseXModel):
         if concept_names is None:
             concept_names = [f"f_{i}" for i in range(self.n_features)]
         start_time = time.time()
+        if isinstance(target_class, torch.Tensor):
+            target_class = int(target_class.item())
         if self.explanations[target_class] != "":
             explanation = self.explanations[target_class]
         else:

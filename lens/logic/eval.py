@@ -25,7 +25,8 @@ def test_explanation(explanation: str, target_class: int, x: torch.Tensor, y: to
     :return: Accuracy of the explanation and predictions
     """
 
-    assert concept_names is not None or "feature" in explanation or explanation == "", \
+    assert concept_names is not None or "feature" in explanation or explanation == "" \
+           or explanation == "True" or explanation == "False", \
         "Concept names must be given when present in the formula"
     if explanation == '':
         local_predictions = [torch.empty_like(y)]
@@ -182,13 +183,13 @@ def simplify_formula(explanation: str, model: torch.nn.Module,
     # if len(y.squeeze().shape) > 1:
     #     y = y.argmax()
 
-    y = to_categorical(y)
+    y = to_categorical(y).squeeze()
     if len(x_sample.shape) == 1:
         x_sample = x_sample.unsqueeze(0)
 
     y_pred_sample = model((x_sample > 0.5).to(torch.float))
     y_pred_sample = to_categorical(y_pred_sample)
-    y_pred_sample = y_pred_sample.view(-1)
+    # y_pred_sample = y_pred_sample.view(-1)
 
     if not y_pred_sample.eq(target_class):
         return ''

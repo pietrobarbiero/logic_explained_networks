@@ -2,7 +2,6 @@ from . import utils
 from . import models
 from . import logic
 from . import utils
-import concept_extractor
 
 from ._version import __version__
 
